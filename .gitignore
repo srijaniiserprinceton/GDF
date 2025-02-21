@@ -1,0 +1,16 @@
+*.pdf
+*.png
+*.gif
+*.pkl
+*.cdf
+.DS_Store
+*.npy
+*.mat
+__pycache__
+*.vtu
+*.zip
+*.mp4
+*.key
+.config
+*.jpg
+*.ipynb
