@@ -46,21 +46,10 @@ class fa_coordinates:
         self.b_span = data.MAGF_INST.data
         v_span = data.VEL_INST.data
 
-        # Not shifting into plasma frame to get the correct spherical grid for Slepians
-        if (plasma_frame == True):
-            # Shift into the plasma frame
-            ux = vx - v_span[:, 0, NAX, NAX, NAX]
-            uy = vy - v_span[:, 1, NAX, NAX, NAX]
-            uz = vz - v_span[:, 2, NAX, NAX, NAX]
-            # Rotate the plasma frame data into the magnetic field aligned frame.
-            # vpara, vperp1, vperp2 = np.array(fn.rotateVectorIntoFieldAligned(ux, uy, uz,
-            #                                                                *fn.field_aligned_coordinates(self.b_span)))
-            # vperp = np.sqrt(vperp1**2 + vperp2**2)
-            # return vpara, vperp
-        else:
-            ux = vx
-            uy = vy
-            uz = vz
+        # Shift into the plasma frame
+        ux = vx - v_span[:, 0, NAX, NAX, NAX]
+        uy = vy - v_span[:, 1, NAX, NAX, NAX]
+        uz = vz - v_span[:, 2, NAX, NAX, NAX]
 
         # Rotate the plasma frame data into the magnetic field aligned frame.
         vpara, vperp1, vperp2 = np.array(fn.rotateVectorIntoFieldAligned(ux, uy, uz,

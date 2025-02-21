@@ -25,13 +25,14 @@ class gyrovdf:
         self.fac.get_coors(self.vdf_dict, trange, plasma_frame=True)
 
 
-    def setup_new_inversion(self, tidx, knots=None, plot_basis=False):
+    def setup_new_inversion(self, tidx, knots=None, plot_basis=False, mincount=7):
         self.vpara_nonan, self.theta_nonan = None, None
         self.B_i_n = None
+        self.S_alpha_n = None
         self.G_k_n = None
 
         if(knots is None):
-            self.make_knots(tidx)
+            self.make_knots(tidx, mincount)
         else:
             self.knots = knots
 
@@ -43,7 +44,7 @@ class gyrovdf:
         self.get_G_matrix()
 
 
-    def make_knots(self, tidx):
+    def make_knots(self, tidx, mincount):
         # finding the minimum and maximum velocities with counts to find the knot locations
         vmin = np.min(self.fac.velocity[tidx, self.fac.nanmask[tidx]])
         vmax = np.max(self.fac.velocity[tidx, self.fac.nanmask[tidx]])
@@ -55,7 +56,7 @@ class gyrovdf:
         counts, log_knots = np.histogram(np.log10(self.vpara_nonan), bins=Nbins)
 
         # discarding knots at counts less than 10 (always discarding the last knot with low count)
-        log_knots = log_knots[:-1][counts >= 7]
+        log_knots = log_knots[:-1][counts >= mincount]
         self.knots = np.power(10, log_knots)
 
         # also making the perp grid for future plotting purposes

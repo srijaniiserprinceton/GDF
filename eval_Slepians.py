@@ -7,9 +7,9 @@ import coordinate_frame_functions as coor_fn
 
 class Slep_transverse:
     def __init__(self):
-        self.slep_dir = fn.read_config()[0]     # '/Users/srijanbharatidas/Documents/Research/Codes/Helioseismology/Slepians/Slepian_Git/'
-        self.C = None
-        self.V = None
+        self.slep_dir = fn.read_config()[0]  
+        self.C = None       # Gives us the tapers for 1D Legendre Polynomials
+        self.V = None       # Concentration coefficient
 
         #--Starting Matlab engine to get the Slepian functions---#
         import matlab.engine as matlab
