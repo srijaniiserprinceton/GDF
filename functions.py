@@ -11,6 +11,12 @@ from pathlib import Path
 Update: Fixed the init routines.
 """
 
+def read_config():
+    package_dir = os.getcwd()  # os.path.dirname(current_dir)
+    with open(f"{package_dir}/.config", "r") as f:
+        dirnames = f.read().splitlines()
+
+    return dirnames
 
 def _get_psp_vdf(trange, CREDENTIALS=None):
     '''
@@ -29,6 +35,9 @@ def _get_psp_vdf(trange, CREDENTIALS=None):
     TODO : Add check if file is already downloaded and use local file.
     TODO : Replace with a cdaweb or wget download procedure.
     '''
+
+    # check to see if the local psp_data directory exists
+
 
     if CREDENTIALS:
         files = pyspedas.psp.spi(trange, datatype='spi_sf00', level='L2', notplot=True, time_clip=True, downloadonly=True, last_version=True, username=CREDENTIALS[0], password=CREDENTIALS[1])

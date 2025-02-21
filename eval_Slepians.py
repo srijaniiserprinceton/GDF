@@ -7,7 +7,7 @@ import coordinate_frame_functions as coor_fn
 
 class Slep_transverse:
     def __init__(self):
-        self.slep_dir = '/Users/srijanbharatidas/Documents/Research/Codes/Helioseismology/Slepians/Slepian_Git/'
+        self.slep_dir = fn.read_config()[0]     # '/Users/srijanbharatidas/Documents/Research/Codes/Helioseismology/Slepians/Slepian_Git/'
         self.C = None
         self.V = None
 

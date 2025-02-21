@@ -11,7 +11,7 @@ import functions as fn
 import coordinate_frame_functions as coor_fn
 
 class gyrovdf:
-    def __init__(self, vdf_dict, trange, TH=75, Lmax=16, N2D_restrict=True, p=3):
+    def __init__(self, vdf_dict, trange, TH=75, Lmax=20, N2D_restrict=True, p=3):
         self.vdf_dict = vdf_dict
         self.trange = trange
 
@@ -22,7 +22,7 @@ class gyrovdf:
 
         # obtaining the grid points from an actual PSP field-aligned VDF (instrument frame)
         self.fac = coor_fn.fa_coordinates()
-        self.fac.get_coors(self.vdf_dict, trange)
+        self.fac.get_coors(self.vdf_dict, trange, plasma_frame=True)
 
 
     def setup_new_inversion(self, tidx, knots=None, plot_basis=False):
@@ -51,11 +51,11 @@ class gyrovdf:
         Nbins = int((np.log10(vmax) - np.log10(vmin)) / dlnv)
 
         # the knot locations
-        self.vpara_nonan = self.fac.r_fa[tidx, self.fac.nanmask[tidx]]
+        self.vpara_nonan = self.fac.r_fa[tidx, self.fac.nanmask[tidx]] 
         counts, log_knots = np.histogram(np.log10(self.vpara_nonan), bins=Nbins)
 
         # discarding knots at counts less than 10 (always discarding the last knot with low count)
-        log_knots = log_knots[:-1][counts >= 10]
+        log_knots = log_knots[:-1][counts >= 7]
         self.knots = np.power(10, log_knots)
 
         # also making the perp grid for future plotting purposes
@@ -140,9 +140,12 @@ class gyrovdf:
 
 if __name__=='__main__':
     # loading VDF and defining timestamp
-    trange = ['2020-01-29T00:00:00', '2020-01-29T00:00:00']
+    # trange = ['2020-01-29T00:00:00', '2020-01-29T00:00:00']
+    # psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
+    # tidx = 9355
+    trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
-    tidx = 9355
+    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
 
     # initializing the inversion class
     gvdf = gyrovdf(psp_vdf, trange, N2D_restrict=False)
@@ -168,7 +171,9 @@ if __name__=='__main__':
 
     # These are for plotting with the tricontourf routine.
     # getting the plasma frame coordinates
-    vpara_pf, vperp_pf = gvdf.fac.get_coors(gvdf.vdf_dict, trange, plasma_frame=True)
+    # gvdf.fac.get_coors(gvdf.vdf_dict, trange, plasma_frame=True)
+    vpara_pf = gvdf.fac.vpara
+    vperp_pf = gvdf.fac.vperp
     vpara_nonan = vpara_pf[tidx, gvdf.fac.nanmask[tidx]]
     vperp_nonan = vperp_pf[tidx, gvdf.fac.nanmask[tidx]]
 
@@ -191,7 +196,8 @@ if __name__=='__main__':
     zeromask = vdf_rec_all == 0
 
     plt.figure(figsize=(8,4))
-    plt.tricontourf(v_perp_all[~zeromask]/va_mag[tidx], v_para_all[~zeromask]/va_mag[tidx], np.log10(vdf_all)[~zeromask], cmap='cool')
+    # plt.tricontourf(v_perp_all[~zeromask]/va_mag[tidx], v_para_all[~zeromask]/va_mag[tidx], np.log10(vdf_all)[~zeromask], cmap='cool')
+    plt.tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], np.log10(vdf_all)[~zeromask], cmap='cool')
     plt.xlabel(r'$v_{\perp}/v_{a}$')
     plt.ylabel(r'$v_{\parallel}/v_{a}$')
     plt.title('SPAN VDF')
@@ -204,7 +210,8 @@ if __name__=='__main__':
     vdf_all = np.concatenate([vdf_nonan, vdf_nonan])
 
     plt.figure(figsize=(8,4))
-    plt.tricontourf(v_perp_all[~zeromask]/va_mag[tidx], v_para_all[~zeromask]/va_mag[tidx], vdf_rec_all[~zeromask], cmap='cool')
+    # plt.tricontourf(v_perp_all[~zeromask]/va_mag[tidx], v_para_all[~zeromask]/va_mag[tidx], vdf_rec_all[~zeromask], cmap='cool')
+    plt.tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask], cmap='cool')
     plt.xlabel(r'$v_{\perp}/v_{a}$')
     plt.ylabel(r'$v_{\parallel}/v_{a}$')
     plt.title('Reconstructed VDF')

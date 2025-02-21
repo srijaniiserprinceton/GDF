@@ -16,7 +16,7 @@ class fa_coordinates:
         self.velocity = None
         self.nanmask = None
 
-    def get_coors(self, vdf_dict, trange, plasma_frame=False):
+    def get_coors(self, vdf_dict, trange, plasma_frame=True, TH=75):
         self.__init__()
 
         time = vdf_dict.unix_time.data
@@ -47,18 +47,16 @@ class fa_coordinates:
         v_span = data.VEL_INST.data
 
         # Not shifting into plasma frame to get the correct spherical grid for Slepians
-        if(plasma_frame):
+        if (plasma_frame == True):
             # Shift into the plasma frame
             ux = vx - v_span[:, 0, NAX, NAX, NAX]
             uy = vy - v_span[:, 1, NAX, NAX, NAX]
             uz = vz - v_span[:, 2, NAX, NAX, NAX]
-
             # Rotate the plasma frame data into the magnetic field aligned frame.
-            vpara, vperp1, vperp2 = np.array(fn.rotateVectorIntoFieldAligned(ux, uy, uz,
-                                                                            *fn.field_aligned_coordinates(self.b_span)))
-            vperp = np.sqrt(vperp1**2 + vperp2**2)
-            return vpara, vperp
-
+            # vpara, vperp1, vperp2 = np.array(fn.rotateVectorIntoFieldAligned(ux, uy, uz,
+            #                                                                *fn.field_aligned_coordinates(self.b_span)))
+            # vperp = np.sqrt(vperp1**2 + vperp2**2)
+            # return vpara, vperp
         else:
             ux = vx
             uy = vy
@@ -70,6 +68,10 @@ class fa_coordinates:
         self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
 
+        # Boosting the vparallel
+        max_r = np.nanmax(self.vperp/np.tan(np.radians(TH)) - np.abs(self.vpara), axis=(1,2,3))
+        self.vpara -= max_r[:, NAX, NAX, NAX]
+
         # converting the grid to spherical polar in the field aligned frame
         r, theta, phi = c2s(self.vperp1, self.vperp2, self.vpara)
         self.r_fa = r.value
@@ -78,12 +80,13 @@ class fa_coordinates:
 
 
 if __name__=='__main__':
-    trange = ['2020-01-29T00:00:00', '2020-01-29T00:00:00']
+    trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
-    idx = 9355
+    #idx = 9355
+    idx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
 
     fac = fa_coordinates()
-    fac.get_coors(psp_vdf)
+    fac.get_coors(psp_vdf, trange)
 
     filemoms = fn.get_psp_span_mom(trange)
     data = fn.init_psp_moms(filemoms[0])
