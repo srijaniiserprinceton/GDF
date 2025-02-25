@@ -14,7 +14,8 @@ class bsplines:
         self.B = bspline.Bspline(self.knots_aug, self.p)            # create spline basis of order p on knots k
 
     def eval_bsp_basis(self, x):
-        bsp = np.array([self.B(i) for i in x]).T # <------ these are the basis functions
+        # bsp = np.array([self.B(i) for i in x]).T # <------ these are the basis functions
+        bsp = self.B.collmat(x).T                  # <------ these are the basis functions
         # making a small adjustment in the right most B-spline
         bsp[-1,-1] = bsp[0,0]
 

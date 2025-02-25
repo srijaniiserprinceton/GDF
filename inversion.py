@@ -3,6 +3,7 @@ import numpy as np
 import astropy.constants as c
 import astropy.units as u
 import matplotlib.pyplot as plt; plt.ion()
+from line_profiler import profile
 NAX = np.newaxis
 
 import bsplines
@@ -24,7 +25,7 @@ class gyrovdf:
         self.fac = coor_fn.fa_coordinates()
         self.fac.get_coors(self.vdf_dict, trange, plasma_frame=True)
 
-
+    @profile
     def setup_new_inversion(self, tidx, knots=None, plot_basis=False, mincount=7):
         self.vpara_nonan, self.theta_nonan = None, None
         self.B_i_n = None
@@ -37,7 +38,9 @@ class gyrovdf:
             self.knots = knots
 
         # we first make the B-splines
-        self.get_Bsplines(plot_basis)
+        # self.get_Bsplines(plot_basis)
+        self.bsp = bsplines.bsplines(self.knots, self.p)
+        self.B_i_n = self.bsp.eval_bsp_basis(self.vpara_nonan)
         # we then get the Slepian functions on the required theta grid
         self.get_Slepians(plot_basis, tidx)
         # then we make the G matrix using the basis functions
@@ -62,13 +65,12 @@ class gyrovdf:
         # also making the perp grid for future plotting purposes
         self.vperp_nonan = self.fac.vperp[tidx, self.fac.nanmask[tidx]]
 
-
     def get_Bsplines(self, plot_basis):
         # loading the bsplines at the r location grid
         self.bsp = bsplines.bsplines(self.knots, self.p)
         self.B_i_n = self.bsp.eval_bsp_basis(self.vpara_nonan)
 
-        if(plot_basis): self.plot_bsp()
+        # if(plot_basis): self.plot_bsp()
 
 
     def get_Slepians(self, plot_basis, tidx):
