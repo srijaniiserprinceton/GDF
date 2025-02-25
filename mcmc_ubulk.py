@@ -14,7 +14,7 @@ import functions as fn
 import coordinate_frame_functions as coor_fn
 
 class gyrovdf:
-    def __init__(self, vdf_dict, trange, TH=75, Lmax=20, N2D_restrict=True, p=3, mincount=7):
+    def __init__(self, vdf_dict, trange, TH=75, Lmax=16, N2D_restrict=True, p=3, mincount=7):
         self.TH = TH
         self.Lmax = Lmax
         self.N2D_restrict = N2D_restrict
@@ -57,6 +57,8 @@ class gyrovdf:
         self.v_span = data.VEL_INST.data
 
     def get_coors(self, u_bulk, tidx):
+        self.vpara, self.vperp1, self.vperp2, self.vperp = None, None, None, None
+
         # Shift into the plasma frame
         ux = self.vx[tidx] - u_bulk[0, NAX, NAX, NAX]
         uy = self.vy[tidx] - u_bulk[1, NAX, NAX, NAX]
@@ -109,6 +111,7 @@ class gyrovdf:
 
             def get_Slepians():
                 self.S_alpha_n = None
+
                 self.theta_nonan = self.theta_fa[self.nanmask[tidx]]
                 self.Slep.gen_Slep_basis(self.theta_nonan * np.pi / 180)
                 S_n_alpha = self.Slep.G * 1.0
@@ -139,7 +142,10 @@ class gyrovdf:
                 # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                 vdf_rec = coeffs @ self.G_k_n
 
-                return vdf_rec
+                # finding the zeros which need to be masked to avoid bad cost functions
+                zeromask = vdf_rec == 0
+
+                return vdf_rec, zeromask
 
 
             make_knots(tidx)
@@ -150,26 +156,26 @@ class gyrovdf:
 
 
 def log_prior(model_params):
-    VT, VN = model_params
-    if 50 < VT < 150 and 0 < VN < 50:
+    VY, VZ = model_params
+    if 0 < VY < 200 and -100 < VZ < 100:
         return 0.0
     return -np.inf
 
-def log_probability(model_params, VR, vdfdata, tidx):
+def log_probability(model_params, VX, vdfdata, tidx):
     lp = log_prior(model_params)
     if not np.isfinite(lp):
         return -np.inf
-    return lp + log_likelihood(model_params, VR, vdfdata, tidx)
+    return lp + log_likelihood(model_params, VX, vdfdata, tidx)
 
-def log_likelihood(model_params, VR, vdfdata, tidx):
-    VT, VN = model_params
-    u_bulk = np.asarray([VR, VT, VN])
+def log_likelihood(model_params, VX, vdfdata, tidx):
+    VY, VZ = model_params
+    u_bulk = np.asarray([VX, VY, VZ])
     # get new grids and initialize new inversion
     gvdf_tstamp.get_coors(u_bulk, tidx)
     # perform new inversion using the v_span
-    vdf_inv = gvdf_tstamp.inversion(tidx, vdfdata)
+    vdf_inv, zeromask = gvdf_tstamp.inversion(tidx, vdfdata)
 
-    cost = np.sum((vdfdata - vdf_inv)**2)
+    cost = np.sum((vdfdata[~zeromask] - vdf_inv[~zeromask])**2)
     return -0.5 * cost
 
 
@@ -182,21 +188,21 @@ if __name__=='__main__':
     gvdf_tstamp = gyrovdf(psp_vdf, trange, N2D_restrict=False)
 
     # initializing the vdf data to optimize
-    vdfdata = psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]
+    vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]])
 
     # initializing the VR
-    VR = gvdf_tstamp.v_span[tidx, 0]
+    VX = gvdf_tstamp.v_span[tidx, 0]
 
     # performing the mcmc of dtw 
     nwalkers = 5
-    VT_pos = np.random.rand(nwalkers) + 100
-    VN_pos = np.random.rand(nwalkers) + 25
-    pos = np.array([VT_pos, VN_pos]).T
-    sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VR, vdfdata, tidx))
+    VY_pos = np.random.rand(nwalkers) + 100
+    VZ_pos = np.random.rand(nwalkers)
+    pos = np.array([VY_pos, VZ_pos]).T
+    sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
     sampler.run_mcmc(pos, 1000, progress=True)
 
     # plotting the results of the emcee
-    labels = ["VT", "VN"]
+    labels = ["VY", "VZ"]
     flat_samples = sampler.get_chain(discard=50, thin=15, flat=True)
     fig = corner.corner(flat_samples, labels=labels, show_titles=True)
     plt.savefig('emcee_ubulk.pdf')
