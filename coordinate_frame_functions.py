@@ -16,7 +16,7 @@ class fa_coordinates:
         self.velocity = None
         self.nanmask = None
 
-    def get_coors(self, vdf_dict, trange, plasma_frame=True, TH=75):
+    def get_coors(self, vdf_dict, trange, plasma_frame=True, TH=75, CREDENTIALS=None, CLIP=False):
         self.__init__()
 
         time = vdf_dict.unix_time.data
@@ -39,8 +39,9 @@ class fa_coordinates:
         vy = self.velocity * np.cos(np.radians(theta)) * np.sin(np.radians(phi))
         vz = self.velocity * np.sin(np.radians(theta))
 
-        filemoms = fn.get_psp_span_mom(trange)
-        data = fn.init_psp_moms(filemoms[0])
+        # filemoms = fn.get_psp_span_mom(trange, CREDENTIALS=CREDENTIALS)
+        # print(filemoms)
+        data = fn.init_psp_moms(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
 
         # obtaining the mangnetic field and v_bulk measured
         self.b_span = data.MAGF_INST.data

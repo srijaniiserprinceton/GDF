@@ -65,7 +65,7 @@ def init_psp_vdf(trange, CREDENTIALS=None, CLIP=False):
     files = _get_psp_vdf(trange, CREDENTIALS)
 
     if len(files) > 1:
-        xr_data = xr.concat([cdflib.cdf_to_xarray(f) for f in files], dim='Epoch')
+        xr_data = xr.concat([cdflib.cdf_to_xarray(f).drop_vars(['ROTMAT_SC_INST']) for f in files], dim='Epoch')
     else:
         xr_data = cdflib.cdf_to_xarray(*files)
 
@@ -167,13 +167,22 @@ def get_psp_span_mom(trange, CREDENTIALS=None):
 
     return(files)
 
-def init_psp_moms(filename):
-    xr_data = cdflib.cdf_to_xarray(filename)
+def init_psp_moms(trange, CREDENTIALS=None, CLIP=False):
+    files = get_psp_span_mom(trange, CREDENTIALS=CREDENTIALS)
+    # Check if there are multiple datasets loaded for the interval.
+    if len(files) > 1:
+        xr_data = xr.concat([cdflib.cdf_to_xarray(f).drop_vars(['ROTMAT_SC_INST']) for f in files], dim='Epoch')
+    else:
+        xr_data = cdflib.cdf_to_xarray(*files)
 
     xr_time_object = cdflib.epochs_astropy.CDFAstropy.convert_to_astropy(xr_data.Epoch.data)
     xr_time_array = xr_time_object.utc.datetime 
 
     xr_data['Epoch'] = xr_time_array
+    if CLIP is True:
+        xr_data = xr_data.sel(Epoch=slice(trange[0], trange[-1]))
+
+        xr_time_array = xr_data.Epoch.data
     
     return(xr_data)
 
