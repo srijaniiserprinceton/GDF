@@ -48,18 +48,12 @@ class fa_coordinates:
         v_span = data.VEL_INST.data
         
         # Shift into the plasma frame
-        # ux = vx - v_span[:, 0, NAX, NAX, NAX]
-        # uy = vy - v_span[:, 1, NAX, NAX, NAX]
-        # uz = vz - v_span[:, 2, NAX, NAX, NAX]
-
-        # # Shift into the plasma frame
-        ux = vx - (-419.9645)
-        uy = vy - (67.32)
-        uz = vz - (2.66)
-
+        ux = vx - v_span[:, 0, NAX, NAX, NAX]
+        uy = vy - v_span[:, 1, NAX, NAX, NAX]
+        uz = vz - v_span[:, 2, NAX, NAX, NAX]
 
         # Rotate the plasma frame data into the magnetic field aligned frame.
-        vpara, vperp1, vperp2 = np.array(fn.rotateVectorIntoFieldAligned(ux, uy, uz,
+        vpara, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(ux, uy, uz,
                                                                         *fn.field_aligned_coordinates(self.b_span)))
         self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
