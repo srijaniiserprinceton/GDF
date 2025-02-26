@@ -16,7 +16,7 @@ class fa_coordinates:
         self.velocity = None
         self.nanmask = None
 
-    def get_coors(self, vdf_dict, trange, plasma_frame=True, TH=75):
+    def get_coors(self, vdf_dict, trange, plasma_frame=True, TH=75, CREDENTIALS=None, CLIP=False):
         self.__init__()
 
         time = vdf_dict.unix_time.data
@@ -39,20 +39,21 @@ class fa_coordinates:
         vy = self.velocity * np.cos(np.radians(theta)) * np.sin(np.radians(phi))
         vz = self.velocity * np.sin(np.radians(theta))
 
-        filemoms = fn.get_psp_span_mom(trange)
-        data = fn.init_psp_moms(filemoms[0])
+        # filemoms = fn.get_psp_span_mom(trange, CREDENTIALS=CREDENTIALS)
+        # print(filemoms)
+        data = fn.init_psp_moms(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
 
         # obtaining the mangnetic field and v_bulk measured
         self.b_span = data.MAGF_INST.data
         v_span = data.VEL_INST.data
-
+        
         # Shift into the plasma frame
         ux = vx - v_span[:, 0, NAX, NAX, NAX]
         uy = vy - v_span[:, 1, NAX, NAX, NAX]
         uz = vz - v_span[:, 2, NAX, NAX, NAX]
 
         # Rotate the plasma frame data into the magnetic field aligned frame.
-        vpara, vperp1, vperp2 = np.array(fn.rotateVectorIntoFieldAligned(ux, uy, uz,
+        vpara, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(ux, uy, uz,
                                                                         *fn.field_aligned_coordinates(self.b_span)))
         self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)

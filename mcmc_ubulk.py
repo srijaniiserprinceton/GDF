@@ -51,8 +51,8 @@ class gyrovdf:
         self.vy = self.velocity * np.cos(np.radians(theta)) * np.sin(np.radians(phi))
         self.vz = self.velocity * np.sin(np.radians(theta))
 
-        filemoms = fn.get_psp_span_mom(trange)
-        data = fn.init_psp_moms(filemoms[0])
+        # filemoms = fn.get_psp_span_mom(trange)
+        data = fn.init_psp_moms(trange)
 
         # obtaining the mangnetic field and v_bulk measured
         self.b_span = data.MAGF_INST.data
@@ -186,7 +186,7 @@ class gyrovdf:
 @profile
 def log_prior(model_params):
     VY, VZ = model_params
-    if 0 < VY < 200 and -100 < VZ < 100:
+    if -200 < VY < 200 and -100 < VZ < 100:
         return 0.0
     return -np.inf
 
@@ -213,7 +213,7 @@ def log_likelihood(model_params, VX, vdfdata, tidx):
 if __name__=='__main__':
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
-    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    tidx = 1136 #np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
 
     # initializing the inversion class
     gvdf_tstamp = gyrovdf(psp_vdf, trange, N2D_restrict=False)

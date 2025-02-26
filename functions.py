@@ -65,7 +65,7 @@ def init_psp_vdf(trange, CREDENTIALS=None, CLIP=False):
     files = _get_psp_vdf(trange, CREDENTIALS)
 
     if len(files) > 1:
-        xr_data = xr.concat([cdflib.cdf_to_xarray(f) for f in files], dim='Epoch')
+        xr_data = xr.concat([cdflib.cdf_to_xarray(f).drop_vars(['ROTMAT_SC_INST']) for f in files], dim='Epoch')
     else:
         xr_data = cdflib.cdf_to_xarray(*files)
 
@@ -84,7 +84,6 @@ def init_psp_vdf(trange, CREDENTIALS=None, CLIP=False):
 
         xr_time_array = xr_data.Epoch.data
         unix_time = xr_data.TIME.data
-        print(f'{len(xr_time_array)}')
 
     # Differential energy flux taken from PSP
     energy_flux = xr_data.EFLUX.data
@@ -142,7 +141,7 @@ def init_psp_vdf(trange, CREDENTIALS=None, CLIP=False):
     
     return(xr_ds)
 
-def get_psp_span_mom(trange, CREDENTIALS=None):
+def _get_psp_span_mom(trange, CREDENTIALS=None):
     '''
     Get and download the latest version of the MMS data. 
 
@@ -167,13 +166,22 @@ def get_psp_span_mom(trange, CREDENTIALS=None):
 
     return(files)
 
-def init_psp_moms(filename):
-    xr_data = cdflib.cdf_to_xarray(filename)
+def init_psp_moms(trange, CREDENTIALS=None, CLIP=False):
+    files = _get_psp_span_mom(trange, CREDENTIALS=CREDENTIALS)
+    # Check if there are multiple datasets loaded for the interval.
+    if len(files) > 1:
+        xr_data = xr.concat([cdflib.cdf_to_xarray(f).drop_vars(['ROTMAT_SC_INST']) for f in files], dim='Epoch')
+    else:
+        xr_data = cdflib.cdf_to_xarray(*files)
 
     xr_time_object = cdflib.epochs_astropy.CDFAstropy.convert_to_astropy(xr_data.Epoch.data)
     xr_time_array = xr_time_object.utc.datetime 
 
     xr_data['Epoch'] = xr_time_array
+    if CLIP is True:
+        xr_data = xr_data.sel(Epoch=slice(trange[0], trange[-1]))
+
+        xr_time_array = xr_data.Epoch.data
     
     return(xr_data)
 
@@ -237,7 +245,7 @@ def field_aligned_coordinates(B_vec):
 
         return(Nx, Ny, Nz, Px, Py, Pz, Qx, Qy, Qz)
 
-def rotateVectorIntoFieldAligned(Ax, Ay, Az, Nx, Ny, Nz, Px, Py, Pz, Qx, Qy, Qz):
+def rotate_vector_field_aligned(Ax, Ay, Az, Nx, Ny, Nz, Px, Py, Pz, Qx, Qy, Qz):
     # For some Vector A in the SAME COORDINATE SYSTEM AS THE ORIGINAL B-FIELD VECTOR:
     if Ax.ndim == 4:
         An = (Ax * Nx[:, None, None, None]) + (Ay * Ny[:, None, None, None]) + (Az * Nz[:, None, None, None])  # A dot N = A_parallel

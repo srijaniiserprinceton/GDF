@@ -1,4 +1,5 @@
 import sys
+import json
 import numpy as np
 import astropy.constants as c
 import astropy.units as u
@@ -11,8 +12,12 @@ import eval_Slepians
 import functions as fn
 import coordinate_frame_functions as coor_fn
 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+
+
 class gyrovdf:
-    def __init__(self, vdf_dict, trange, TH=75, Lmax=20, N2D_restrict=True, p=3):
+    def __init__(self, vdf_dict, trange, TH=75, Lmax=16, N2D_restrict=True, p=3, ITERATE=False, CREDENTIALS=None, CLIP=False):
         self.vdf_dict = vdf_dict
         self.trange = trange
 
@@ -23,7 +28,7 @@ class gyrovdf:
 
         # obtaining the grid points from an actual PSP field-aligned VDF (instrument frame)
         self.fac = coor_fn.fa_coordinates()
-        self.fac.get_coors(self.vdf_dict, trange, plasma_frame=True)
+        self.fac.get_coors(self.vdf_dict, trange, plasma_frame=True, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
 
     @profile
     def setup_new_inversion(self, tidx, knots=None, plot_basis=False, mincount=7):
@@ -38,7 +43,6 @@ class gyrovdf:
             self.knots = knots
 
         # we first make the B-splines
-        # self.get_Bsplines(plot_basis)
         self.bsp = bsplines.bsplines(self.knots, self.p)
         self.B_i_n = self.bsp.eval_bsp_basis(self.vpara_nonan)
         # we then get the Slepian functions on the required theta grid
@@ -98,20 +102,44 @@ class gyrovdf:
         npoints = len(self.vpara_nonan)
         self.G_k_n = np.reshape(G_i_alpha_n, (-1, npoints))
 
+    def super_res(self, coeffs, Nth, Nr):
+        theta_sup = np.linspace(-np.max(self.theta_nonan), np.max(self.theta_nonan), Nth)
+        r_sup = np.linspace(np.min(self.vpara_nonan), np.max(self.vpara_nonan), Nr)
+
+        self.Slep.gen_Slep_basis(theta_sup * np.pi / 180)
+        S_n_alpha = self.Slep.G * 1.0
+        # swapping the axes
+        self.S_alpha_n = np.moveaxis(S_n_alpha, 0, 1)
+
+        # if(plot_basis): self.plot_Slepian_basis()
+
+        # truncating beyond Shannon number
+        N2D = int(np.sum(self.Slep.V))
+        if(self.N2D_restrict): self.S_alpha_n = self.S_alpha_n[:N2D,:]  
+
+        self.B_i_n = self.bsp.eval_bsp_basis(r_sup)
+
+        # taking the product to make the shape (i x alpha x Nr, Nth)
+        G_i_alpha_nr_nth = self.B_i_n[:,NAX,:,NAX] * self.S_alpha_n[NAX,:,NAX,:]
+        self.G_k_nr_nth = np.reshape(G_i_alpha_nr_nth, (-1, Nr, Nth))
+        vdf_sup = coeffs @ np.moveaxis(self.G_k_nr_nth, 0, 1)
+        return(r_sup, theta_sup, vdf_sup)
+        
 
     def inversion(self, tidx):
         # getting the vdf data
-        vdf_nonan_data = np.log10(self.vdf_dict.vdf.data[tidx, self.fac.nanmask[tidx]])
+        vdf_nonan = self.vdf_dict.vdf.data[tidx, self.fac.nanmask[tidx]]
+        self.vdf_nonan_data = np.log10(vdf_nonan/np.min(vdf_nonan))
 
         # obtaining the coefficients
         G_g = self.G_k_n @ self.G_k_n.T
         I = np.identity(len(G_g))
-        coeffs = np.linalg.pinv(G_g + 1e-3 * I) @ self.G_k_n @ vdf_nonan_data
+        coeffs = np.linalg.pinv(G_g + 1e-3 * I) @ self.G_k_n @ self.vdf_nonan_data
 
         # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
         vdf_rec = coeffs @ self.G_k_n
 
-        return vdf_rec
+        return vdf_rec, coeffs
 
     def plot_bsp(self):
         x_min = np.min(self.knots)
@@ -140,81 +168,118 @@ class gyrovdf:
             ax[row,col].set_xlim([0,None])
             ax[row,col].set_title(f'$\lambda$ = {self.Slep.V[i]:.6f}')
 
+def load_config(file_path):
+    with open(file_path, 'r') as file:
+        config = json.load(file)
+    return config
 
-if __name__=='__main__':
-    # loading VDF and defining timestamp
-    # trange = ['2020-01-29T00:00:00', '2020-01-29T00:00:00']
-    # psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
-    # tidx = 9355
-    trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
-    psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
-    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-
-    # initializing the inversion class
-    gvdf = gyrovdf(psp_vdf, trange, N2D_restrict=False)
-    gvdf.setup_new_inversion(tidx, plot_basis=True)
-
-    # performing the inversion to get the flattened vdf_rec
-    vdf_rec_nonan = gvdf.inversion(tidx)
-
-    # making the scatter plot of the gyrotropic VDF
-    plt.figure()
-    plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=vdf_rec_nonan, vmin=-25, vmax=-19)
-    plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=vdf_rec_nonan, vmin=-25, vmax=-19)
-    plt.title('Reconstructed VDF')
-    plt.colorbar()
-
-    filemoms = fn.get_psp_span_mom(trange)
-    data = fn.init_psp_moms(filemoms[0])
-    density = data.DENS.data
-    avg_den = np.convolve(density, np.ones(10)/10, 'same')      # 1-minute average
-
-    va_vec = ((gvdf.fac.b_span * u.nT) / (np.sqrt(c.m_p * c.mu0 * avg_den[:,None] * u.cm**(-3)))).to(u.km/u.s).value
-    va_mag = np.linalg.norm(va_vec, axis=1)
-
+def plot_span_vs_rec_scatter(gvdf, vdf_rec):
     # These are for plotting with the tricontourf routine.
     # getting the plasma frame coordinates
-    # gvdf.fac.get_coors(gvdf.vdf_dict, trange, plasma_frame=True)
     vpara_pf = gvdf.fac.vpara
     vperp_pf = gvdf.fac.vperp
     vpara_nonan = vpara_pf[tidx, gvdf.fac.nanmask[tidx]]
     vperp_nonan = vperp_pf[tidx, gvdf.fac.nanmask[tidx]]
 
-    # v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])
-    # v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])
     v_para_all = np.concatenate([vpara_nonan, vpara_nonan])
     v_perp_all = np.concatenate([-vperp_nonan, vperp_nonan])
-    vdf_nonan = gvdf.vdf_dict.vdf.data[tidx, gvdf.fac.nanmask[tidx]]
+    vdf_nonan = gvdf.vdf_nonan_data 
+    
     vdf_all = np.concatenate([vdf_nonan, vdf_nonan])
+    vdf_rec_all = np.concatenate([vdf_rec, vdf_rec])
 
-    plt.figure()
-    plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=np.log10(vdf_nonan), vmin=-25, vmax=-19)
-    plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=np.log10(vdf_nonan), vmin=-25, vmax=-19)
-    plt.title('SPAN VDF')
-    plt.colorbar()
+    fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
+    ax0 = ax[0].scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=(vdf_nonan), vmin=0, vmax=4)
+    ax[0].scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=(vdf_nonan), vmin=0, vmax=4)
+    ax[0].set_title('SPAN VDF')
+    ax[0].set_ylabel(r'$v_{\parallel}$')
+    ax[0].set_xlabel(r'$v_{\perp}$')
+    ax[0].set_aspect('equal')
+    # making the scatter plot of the gyrotropic VDF
+    ax1 = ax[1].scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=vdf_rec_nonan, vmin=0, vmax=4)
+    ax[1].scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=vdf_rec_nonan, vmin=0, vmax=4)
+    ax[1].set_title('Reconstructed VDF')
+    ax[1].set_xlabel(r'$v_{\perp}$')
+    ax[1].set_aspect('equal')
+    plt.colorbar(ax1)
 
 
-    vdf_rec_all = np.concatenate([vdf_rec_nonan, vdf_rec_nonan])
-    # masking the zeros
+    plt.show()
+
+def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
+    # These are for plotting with the tricontourf routine.
+    # getting the plasma frame coordinates
+    vpara_pf = gvdf.fac.vpara
+    vperp_pf = gvdf.fac.vperp
+    vpara_nonan = vpara_pf[tidx, gvdf.fac.nanmask[tidx]]
+    vperp_nonan = vperp_pf[tidx, gvdf.fac.nanmask[tidx]]
+
+    v_para_all = np.concatenate([vpara_nonan, vpara_nonan])
+    v_perp_all = np.concatenate([-vperp_nonan, vperp_nonan])
+    vdf_nonan = gvdf.vdf_nonan_data 
+    
+    vdf_all = np.concatenate([vdf_nonan, vdf_nonan])
+    vdf_rec_all = np.concatenate([vdf_rec, vdf_rec])
+
     zeromask = vdf_rec_all == 0
+    fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
+    ax[0].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], (vdf_all)[~zeromask], cmap='inferno', vmin=0, vmax=4)
+    ax[0].set_xlabel(r'$v_{\perp}$')
+    ax[0].set_ylabel(r'$v_{\parallel}')
+    ax[0].set_aspect('equal')
+    ax[0].set_title('SPAN VDF')
+
+    ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask], cmap='inferno', vmin=0, vmax=4)
+    ax[1].set_xlabel(r'$v_{\perp}$')
+    ax[1].set_aspect('equal')
+    ax[1].set_title('Reconstructed VDF')
+
+    if GRID:
+        [ax[i].scatter(vperp_nonan, vpara_nonan, color='k', marker='.', s=0.8) for i in range(2)]
+
+    plt.show()
+
+def plot_super_res(gvdf):
+    rsup, thetasup, vdf_rec_sup = gvdf.super_res(coeffs, 180, 200)
+
+    Rsup, Tsup = np.meshgrid(rsup, thetasup, indexing='ij')
+
+    v_para_s = Rsup
+    v_perp_s = Rsup * np.tan(np.radians(Tsup))
 
     plt.figure(figsize=(8,4))
-    # plt.tricontourf(v_perp_all[~zeromask]/va_mag[tidx], v_para_all[~zeromask]/va_mag[tidx], np.log10(vdf_all)[~zeromask], cmap='cool')
-    plt.tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], np.log10(vdf_all)[~zeromask], cmap='cool')
+    plt.contourf(v_perp_s, v_para_s, vdf_rec_sup, cmap='plasma', vmin=0, vmax=4, levels=100)
+    plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.')
+    plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.')
     plt.xlabel(r'$v_{\perp}/v_{a}$')
     plt.ylabel(r'$v_{\parallel}/v_{a}$')
-    plt.title('SPAN VDF')
-
-    # v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])
-    # v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])
-    v_para_all = np.concatenate([vpara_nonan, vpara_nonan])
-    v_perp_all = np.concatenate([-vperp_nonan, vperp_nonan])
-    vdf_nonan = gvdf.vdf_dict.vdf.data[tidx, gvdf.fac.nanmask[tidx]]
-    vdf_all = np.concatenate([vdf_nonan, vdf_nonan])
-
-    plt.figure(figsize=(8,4))
-    # plt.tricontourf(v_perp_all[~zeromask]/va_mag[tidx], v_para_all[~zeromask]/va_mag[tidx], vdf_rec_all[~zeromask], cmap='cool')
-    plt.tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask], cmap='cool')
-    plt.xlabel(r'$v_{\perp}/v_{a}$')
-    plt.ylabel(r'$v_{\parallel}/v_{a}$')
+    plt.gca().set_aspect('equal')
     plt.title('Reconstructed VDF')
+
+if __name__=='__main__':
+    # loading VDF and defining timestamp
+    trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
+    credentials = load_config('./config.json')
+    creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
+    # creds = None
+    
+    # Initialzise the PSP vdf
+    psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
+
+    # Choose a user defined time index
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T00:06:00')))
+    tidx = 1136
+
+    # initializing the inversion class
+    gvdf = gyrovdf(psp_vdf, trange, N2D_restrict=False, CREDENTIALS=creds, CLIP=True)
+    
+    # Loop over the specified time indicies.
+    gvdf.setup_new_inversion(tidx, plot_basis=False)
+
+    # performing the inversion to get the flattened vdf_rec
+    vdf_rec_nonan, coeffs = gvdf.inversion(tidx)
+
+    plot_span_vs_rec_scatter(gvdf, vdf_rec_nonan)
+    plot_span_vs_rec_contour(gvdf, vdf_rec_nonan)
+    plot_super_res(gvdf)
+
