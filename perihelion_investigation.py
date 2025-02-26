@@ -67,8 +67,8 @@ def plot_vdf_slices(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SUM=False, PLO
 
 
     if PLOT_TYPE == 'contourf':
-        ax[0].contourf(vxp1, vyp1, vdfp1, norm=LogNorm(), cmap='plasma')
-        ax[1].contourf(vxp2, vzp2, vdfp2, norm=LogNorm(), cmap='plasma')
+        ax[0].contourf(vxp1, vyp1, vdfp1, norm=LogNorm(), cmap='plasma', levels=20)
+        ax[1].contourf(vxp2, vzp2, vdfp2, norm=LogNorm(), cmap='plasma', levels=20)
     if PLOT_TYPE == 'pcolormesh':
         ax[0].pcolormesh(vxp1, vyp1, vdfp1, norm=LogNorm(), cmap='plasma')
         ax[1].pcolormesh(vxp2, vzp2, vdfp2, norm=LogNorm(), cmap='plasma')

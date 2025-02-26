@@ -51,6 +51,7 @@ class fa_coordinates:
         ux = vx - v_span[:, 0, NAX, NAX, NAX]
         uy = vy - v_span[:, 1, NAX, NAX, NAX]
         uz = vz - v_span[:, 2, NAX, NAX, NAX]
+        
 
         # Rotate the plasma frame data into the magnetic field aligned frame.
         vpara, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(ux, uy, uz,
@@ -59,8 +60,8 @@ class fa_coordinates:
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
 
         # Boosting the vparallel
-        max_r = np.nanmax(self.vperp/np.tan(np.radians(TH)) - np.abs(self.vpara), axis=(1,2,3))
-        self.vpara -= max_r[:, NAX, NAX, NAX]
+        self.max_r = np.nanmax(self.vperp/np.tan(np.radians(TH)) - np.abs(self.vpara), axis=(1,2,3))
+        self.vpara -= self.max_r[:, NAX, NAX, NAX]
 
         # converting the grid to spherical polar in the field aligned frame
         r, theta, phi = c2s(self.vperp1, self.vperp2, self.vpara)

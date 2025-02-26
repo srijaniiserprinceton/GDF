@@ -213,7 +213,7 @@ def log_likelihood(model_params, VX, vdfdata, tidx):
 if __name__=='__main__':
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
-    tidx = 667 #np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    tidx = 666 #np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
 
     # initializing the inversion class
     gvdf_tstamp = gyrovdf(psp_vdf, trange, N2D_restrict=False)

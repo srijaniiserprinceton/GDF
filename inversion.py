@@ -11,6 +11,7 @@ import bsplines
 import eval_Slepians
 import functions as fn
 import coordinate_frame_functions as coor_fn
+from scipy.interpolate import RBFInterpolator
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -181,13 +182,8 @@ def plot_span_vs_rec_scatter(gvdf, vdf_rec):
     vpara_nonan = vpara_pf[tidx, gvdf.fac.nanmask[tidx]]
     vperp_nonan = vperp_pf[tidx, gvdf.fac.nanmask[tidx]]
 
-    v_para_all = np.concatenate([vpara_nonan, vpara_nonan])
-    v_perp_all = np.concatenate([-vperp_nonan, vperp_nonan])
     vdf_nonan = gvdf.vdf_nonan_data 
     
-    vdf_all = np.concatenate([vdf_nonan, vdf_nonan])
-    vdf_rec_all = np.concatenate([vdf_rec, vdf_rec])
-
     fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
     ax0 = ax[0].scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=(vdf_nonan), vmin=0, vmax=4)
     ax[0].scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=(vdf_nonan), vmin=0, vmax=4)
@@ -223,16 +219,20 @@ def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
 
     zeromask = vdf_rec_all == 0
     fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
-    ax[0].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], (vdf_all)[~zeromask], cmap='inferno', vmin=0, vmax=4)
+    a0 = ax[0].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], (vdf_all)[~zeromask], cmap='inferno', levels=np.linspace(0,4,20))
     ax[0].set_xlabel(r'$v_{\perp}$')
-    ax[0].set_ylabel(r'$v_{\parallel}')
+    ax[0].set_ylabel(r'$v_{\parallel}$')
     ax[0].set_aspect('equal')
     ax[0].set_title('SPAN VDF')
 
-    ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask], cmap='inferno', vmin=0, vmax=4)
+    plt.colorbar(a0)
+
+    a1 = ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask], cmap='inferno', levels=np.linspace(0,4,20))
     ax[1].set_xlabel(r'$v_{\perp}$')
     ax[1].set_aspect('equal')
     ax[1].set_title('Reconstructed VDF')
+
+    plt.colorbar(a1)
 
     if GRID:
         [ax[i].scatter(vperp_nonan, vpara_nonan, color='k', marker='.', s=0.8) for i in range(2)]
@@ -256,6 +256,60 @@ def plot_super_res(gvdf):
     plt.gca().set_aspect('equal')
     plt.title('Reconstructed VDF')
 
+def RBF(gvdf, vdf_nonan, DIMS=(100,200), SMOOTH=0):
+    vpara_pf = gvdf.fac.vpara
+    vperp_pf = gvdf.fac.vperp
+    vpara_nonan = vpara_pf[tidx, gvdf.fac.nanmask[tidx]]
+    vperp_nonan = vperp_pf[tidx, gvdf.fac.nanmask[tidx]]
+
+    v_para_all = np.concatenate([vpara_nonan, vpara_nonan])
+    v_perp_all = np.concatenate([-vperp_nonan, vperp_nonan])
+    
+    vdf_all = np.concatenate([vdf_nonan, vdf_nonan])
+
+    x = np.linspace(np.min(v_para_all), np.max(v_para_all), DIMS[0])
+    y = np.linspace(-np.max(v_perp_all), np.max(v_perp_all), DIMS[1])
+
+    xgrid = np.asarray(np.meshgrid(x, y, indexing='ij'))
+
+    rbfinterp = RBFInterpolator(np.vstack((v_para_all, v_perp_all)).T, vdf_all, 
+                                kernel='thin_plate_spline', smoothing=SMOOTH)
+    int_vdf = np.reshape(rbfinterp(xgrid.reshape(2, -1).T), (xgrid[0].shape))
+
+    return(xgrid, int_vdf)
+
+def plot_rbf(gvdf, vdf_rec_nonan, GRID=True):
+    vpara_pf = gvdf.fac.vpara
+    vperp_pf = gvdf.fac.vperp
+    vpara_nonan = vpara_pf[tidx, gvdf.fac.nanmask[tidx]]
+    vperp_nonan = vperp_pf[tidx, gvdf.fac.nanmask[tidx]]
+
+    x, y = RBF(gvdf, vdf_rec_nonan)
+    x1, y1 = RBF(gvdf, gvdf.vdf_nonan_data, SMOOTH=100)
+
+    fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
+    a0 = ax[0].contourf(x1[1], x1[0], y1, cmap='inferno', levels=np.linspace(0,4,20))
+    ax[0].set_xlabel(r'$v_{\perp}$')
+    ax[0].set_ylabel(r'$v_{\parallel}$')
+    ax[0].set_aspect('equal')
+    ax[0].set_title('SPAN Data')
+
+    plt.colorbar(a0)
+    
+    # a1 = ax[1].contourf(x[1], x[0], y, cmap='inferno', vmin=0, vmax=4, levels=20)
+    a1 = ax[1].contourf(x[1], x[0], y, cmap='inferno', levels=np.linspace(0,4,20))
+    ax[1].set_xlabel(r'$v_{\perp}$')
+    ax[1].set_aspect('equal')
+    ax[1].set_title('Reconstructed VDF')
+    
+    plt.colorbar(a1)
+
+    if GRID:
+        [ax[i].scatter(vperp_nonan, vpara_nonan, color='k', marker='.', s=0.8) for i in range(2)]
+
+
+    plt.show()
+
 if __name__=='__main__':
     # loading VDF and defining timestamp
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
@@ -267,19 +321,22 @@ if __name__=='__main__':
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
 
     # Choose a user defined time index
-    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T00:06:00')))
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
     tidx = 666
 
     # initializing the inversion class
-    gvdf = gyrovdf(psp_vdf, trange, N2D_restrict=False, CREDENTIALS=creds, CLIP=True)
+    gvdf = gyrovdf(psp_vdf, trange, Lmax=16
+    , N2D_restrict=True, CREDENTIALS=creds, CLIP=True)
     
     # Loop over the specified time indicies.
-    gvdf.setup_new_inversion(tidx, plot_basis=False)
+    gvdf.setup_new_inversion(tidx, plot_basis=False, mincount=2)
 
     # performing the inversion to get the flattened vdf_rec
     vdf_rec_nonan, coeffs = gvdf.inversion(tidx)
 
     plot_span_vs_rec_scatter(gvdf, vdf_rec_nonan)
-    plot_span_vs_rec_contour(gvdf, vdf_rec_nonan, GRIDS=True)
+    plot_span_vs_rec_contour(gvdf, vdf_rec_nonan, GRID=True)
     plot_super_res(gvdf)
 
+    
+    plot_rbf(gvdf, vdf_rec_nonan)

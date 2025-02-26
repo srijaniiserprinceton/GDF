@@ -10,8 +10,10 @@ NAX = np.newaxis
 import functions as fn
 
 if __name__ == "__main__":
-    trange = ['2020-01-29T00:00:00', '2020-01-29T00:00:00']
-    idx = 9355
+    # trange = ['2020-01-29T00:00:00', '2020-01-29T00:00:00']
+    trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
+    # idx = 9355
+    idx = 666
 
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
 
@@ -35,8 +37,8 @@ if __name__ == "__main__":
     vy = velocity * np.cos(np.radians(theta)) * np.sin(np.radians(phi))
     vz = velocity * np.sin(np.radians(theta))
 
-    file = fn.get_psp_span_mom(trange)
-    data = fn.init_psp_moms(file[0])
+    # file = fn.get_psp_span_mom(trange)
+    data = fn.init_psp_moms(trange)
 
     b_span = data.MAGF_INST.data
     v_span = data.VEL_INST.data
@@ -52,7 +54,7 @@ if __name__ == "__main__":
     uz = vz - v_span[:, 2, NAX, NAX, NAX]
 
     # Rotate the plasma frame data into the magnetic field aligned frame.
-    v_para, vperp1, vperp2 = np.array(fn.rotateVectorIntoFieldAligned(ux, uy, uz, *fn.field_aligned_coordinates(b_span)))
+    v_para, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(ux, uy, uz, *fn.field_aligned_coordinates(b_span)))
 
     # converting the grid to spherical polar in the field aligned frame
     r, theta, phi = c2s(vperp1[idx], vperp2[idx], v_para[idx])
@@ -61,7 +63,7 @@ if __name__ == "__main__":
     phi = np.degrees(phi.value)
 
     # Rotate the plasma frame data into the magnetic field aligned frame.
-    v_para, vperp1, vperp2 = np.array(fn.rotateVectorIntoFieldAligned(ux, uy, uz, *fn.field_aligned_coordinates(b_span)))
+    v_para, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(ux, uy, uz, *fn.field_aligned_coordinates(b_span)))
 
     # Get the truly gyrotropic VDF
     v_perp = np.sqrt(vperp1**2 + vperp2**2)
