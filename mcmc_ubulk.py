@@ -67,7 +67,7 @@ class gyrovdf:
         uz = self.vz[tidx] - u_bulk[2, NAX, NAX, NAX]
 
         # Rotate the plasma frame data into the magnetic field aligned frame.
-        vpara, vperp1, vperp2 = np.array(fn.rotateVectorIntoFieldAligned(ux, uy, uz,
+        vpara, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(ux, uy, uz,
                                                                          *fn.field_aligned_coordinates(self.b_span[tidx])))
         self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
