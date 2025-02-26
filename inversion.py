@@ -100,7 +100,7 @@ class gyrovdf:
         self.G_k_n = np.reshape(G_i_alpha_n, (-1, npoints))
 
     def super_res(self, coeffs, Nth, Nr):
-        theta_sup = np.linspace(np.min(self.theta_nonan), np.max(self.theta_nonan), Nth)
+        theta_sup = np.linspace(-np.max(self.theta_nonan), np.max(self.theta_nonan), Nth)
         r_sup = np.linspace(np.min(self.vpara_nonan), np.max(self.vpara_nonan), Nr)
 
         self.Slep.gen_Slep_basis(theta_sup * np.pi / 180)
@@ -125,12 +125,13 @@ class gyrovdf:
 
     def inversion(self, tidx):
         # getting the vdf data
-        vdf_nonan_data = np.log10(self.vdf_dict.vdf.data[tidx, self.fac.nanmask[tidx]])
+        vdf_nonan = self.vdf_dict.vdf.data[tidx, self.fac.nanmask[tidx]]
+        self.vdf_nonan_data = np.log10(vdf_nonan/np.min(vdf_nonan))
 
         # obtaining the coefficients
         G_g = self.G_k_n @ self.G_k_n.T
         I = np.identity(len(G_g))
-        coeffs = np.linalg.pinv(G_g + 1e-3 * I) @ self.G_k_n @ vdf_nonan_data
+        coeffs = np.linalg.pinv(G_g + 1e-3 * I) @ self.G_k_n @ self.vdf_nonan_data
 
         # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
         vdf_rec = coeffs @ self.G_k_n
@@ -174,10 +175,12 @@ if __name__=='__main__':
     # trange = ['2020-01-29T00:00:00', '2020-01-29T00:00:00']
     # psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
     # tidx = 9355
-    '''
+    
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
-    psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
-    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T00:06:00')))
+    creds = None
+    psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T00:06:00')))
+    tidx = 1136
     '''
     # We are investigating the VDFs at perihelion
     trange = ['2024-12-24T20:00:00', '2024-12-24T21:00:00']
@@ -188,6 +191,7 @@ if __name__=='__main__':
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
     
     tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2024-12-24T20:43:46')))
+    '''
     print(tidx)
     # creds=None
     # initializing the inversion class
@@ -196,13 +200,6 @@ if __name__=='__main__':
 
     # performing the inversion to get the flattened vdf_rec
     vdf_rec_nonan, coeffs = gvdf.inversion(tidx)
-
-    # making the scatter plot of the gyrotropic VDF
-    plt.figure()
-    plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=vdf_rec_nonan, vmin=-25, vmax=-19)
-    plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=vdf_rec_nonan, vmin=-25, vmax=-19)
-    plt.title('Reconstructed VDF')
-    plt.colorbar()
 
     # filemoms = fn.get_psp_span_mom(trange)
     data = fn.init_psp_moms(trange, CREDENTIALS=creds, CLIP=True)
@@ -224,14 +221,19 @@ if __name__=='__main__':
     # v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])
     v_para_all = np.concatenate([vpara_nonan, vpara_nonan])
     v_perp_all = np.concatenate([-vperp_nonan, vperp_nonan])
-    vdf_nonan = gvdf.vdf_dict.vdf.data[tidx, gvdf.fac.nanmask[tidx]]
+    vdf_nonan = gvdf.vdf_nonan_data #gvdf.vdf_dict.vdf.data[tidx, gvdf.fac.nanmask[tidx]]
     vdf_all = np.concatenate([vdf_nonan, vdf_nonan])
 
-    plt.figure()
-    plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=np.log10(vdf_nonan), vmin=-25, vmax=-19)
-    plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=np.log10(vdf_nonan), vmin=-25, vmax=-19)
-    plt.title('SPAN VDF')
-    plt.colorbar()
+    fig, ax = plt.subplots(2, figsize=(8,8))
+    ax0 = ax[0].scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=(vdf_nonan), vmin=0, vmax=4)
+    ax[0].scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=(vdf_nonan), vmin=0, vmax=4)
+    ax[0].set_title('SPAN VDF')
+    plt.colorbar(ax0)
+    # making the scatter plot of the gyrotropic VDF
+    ax1 = ax[1].scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=vdf_rec_nonan, vmin=0, vmax=4)
+    ax[1].scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=vdf_rec_nonan, vmin=0, vmax=4)
+    ax[1].set_title('Reconstructed VDF')
+    plt.colorbar(ax1)
 
 
     vdf_rec_all = np.concatenate([vdf_rec_nonan, vdf_rec_nonan])
@@ -244,12 +246,12 @@ if __name__=='__main__':
     # v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])
     v_para_all = np.concatenate([vpara_nonan, vpara_nonan])
     v_perp_all = np.concatenate([-vperp_nonan, vperp_nonan])
-    vdf_nonan = gvdf.vdf_dict.vdf.data[tidx, gvdf.fac.nanmask[tidx]]
+    # vdf_nonan = gvdf.vdf_dict.vdf.data[tidx, gvdf.fac.nanmask[tidx]]
     vdf_all = np.concatenate([vdf_nonan, vdf_nonan])
 
     fig, ax = plt.subplots(2, figsize=(8,8))
     # plt.tricontourf(v_perp_all[~zeromask]/va_mag[tidx], v_para_all[~zeromask]/va_mag[tidx], np.log10(vdf_all)[~zeromask], cmap='cool')
-    ax[0].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], np.log10(vdf_all)[~zeromask], cmap='inferno', vmin=-25, vmax=-19)
+    ax[0].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], (vdf_all)[~zeromask], cmap='inferno', vmin=0, vmax=4)
     ax[0].set_xlabel(r'$v_{\perp}/v_{a}$')
     ax[0].set_ylabel(r'$v_{\parallel}/v_{a}$')
     ax[0].set_aspect('equal')
@@ -257,13 +259,13 @@ if __name__=='__main__':
 
     # plt.figure(figsize=(8,4))
     # plt.tricontourf(v_perp_all[~zeromask]/va_mag[tidx], v_para_all[~zeromask]/va_mag[tidx], vdf_rec_all[~zeromask], cmap='cool')
-    ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask], cmap='inferno', vmin=-25, vmax=-19)
+    ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask], cmap='inferno', vmin=0, vmax=4)
     ax[1].set_xlabel(r'$v_{\perp}$')
     ax[1].set_ylabel(r'$v_{\parallel}$')
     ax[1].set_aspect('equal')
     ax[1].set_title('Reconstructed VDF')
 
-    '''
+    
     rsup, thetasup, vdf_rec_sup = gvdf.super_res(coeffs, 180, 200)
 
     Rsup, Tsup = np.meshgrid(rsup, thetasup, indexing='ij')
@@ -275,9 +277,12 @@ if __name__=='__main__':
 
     plt.figure(figsize=(8,4))
     # plt.tricontourf(v_perp_all[~zeromask]/va_mag[tidx], v_para_all[~zeromask]/va_mag[tidx], vdf_rec_all[~zeromask], cmap='cool')
-    plt.pcolormesh(v_perp_s, v_para_s, vdf_rec_sup, cmap='cool', vmin=-25, vmax=-19)
+    # plt.pcolormesh(v_perp_s, v_para_s, vdf_rec_sup, cmap='plasma', vmin=0, vmax=4)
+    plt.contourf(v_perp_s, v_para_s, vdf_rec_sup, cmap='plasma', vmin=0, vmax=4, levels=100)
+    plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.')
+    plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.')
     plt.xlabel(r'$v_{\perp}/v_{a}$')
     plt.ylabel(r'$v_{\parallel}/v_{a}$')
     plt.gca().set_aspect('equal')
     plt.title('Reconstructed VDF')
-    '''
+    
