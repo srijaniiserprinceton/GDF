@@ -37,3 +37,16 @@ if __name__=='__main__':
     for b in bsp_basis:
         plt.plot(x,b)
     plt.title('B-spline basis elements')
+
+    # trying to create Bsplines using scipy
+    from scipy.interpolate import BSpline
+    t = np.array([knots[0] for i in range(p)])
+    t = np.append(t, knots)
+    t = np.append(t, np.array([knots[-1] for i in range(p)]))
+    c = np.identity(nknots + (p-1))
+    spl = BSpline(t, c, p)
+    x = np.linspace(0,1,1000)
+
+    # plotting the B-spline components
+    plt.figure()
+    plt.plot(x, spl(x))

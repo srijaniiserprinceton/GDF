@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import matplotlib.pyplot as plt; plt.ion()
+NAX = np.newaxis
 
 import functions as fn
 import coordinate_frame_functions as coor_fn
@@ -76,6 +77,8 @@ if __name__=='__main__':
         row, col = i//3, i%3
         ax[row,col].plot(Slep.th * 180 / np.pi, Slep.G[:,i], '.r')
 
+    plt.suptitle('Matlab Slepian generation')
+
     # plotting the 2D scatter plot colored according to the different Slepian functions
     fig, ax = plt.subplots(3,3,figsize=(8,8),sharex=True,sharey=True)
     
@@ -86,3 +89,32 @@ if __name__=='__main__':
         ax[row,col].scatter(-fac.vperp[idx, fac.nanmask[idx]], fac.vpara[idx, fac.nanmask[idx]],
                             c=Slep.G[:,i], vmin=-3, vmax=3, cmap='seismic')
         ax[row,col].set_title(f'$\lambda$ = {Slep.V[i]:.6f}')
+
+
+    # obtaining the Slepians using Scipy's legendre polynomials
+    from scipy.special import eval_legendre
+    # generating all the angular degrees we are interested in
+    L = np.arange(0,Lmax+1)
+    P_scipy = np.asarray([eval_legendre(ell, np.cos(theta_grid * np.pi / 180)) for ell in L])
+    # adding the normalization sqrt((2l+1) / 4pi)
+    P_scipy = P_scipy * (np.sqrt((2*L + 1) / (4 * np.pi)))[:,NAX]
+
+    G_scipy = P_scipy.T @ np.asarray(Slep.C)
+
+    # remaking the plots
+    fig, ax = plt.subplots(3,3,figsize=(8,8),sharex=True,sharey=True)
+    
+    # regenerating on a nice uniform theta grid
+    Slep.gen_Slep_basis(np.linspace(0, np.pi, 180))
+    for i in range(9):
+        row, col = i//3, i%3
+        ax[row,col].plot(Slep.th * 180 / np.pi, Slep.G[:,i], lw=0.5, color='k')
+        ax[row,col].set_title(f'$\lambda$ = {Slep.V[i]:.6f}')
+        ax[row,col].axvline(int(TH), ls='dashed', color='k')
+        ax[row,col].set_xlim([0,None])
+
+    for i in range(9):
+        row, col = i//3, i%3
+        ax[row,col].plot(theta_grid, G_scipy[:,i], '.r')
+
+    plt.suptitle('Scipy Slepian generation')

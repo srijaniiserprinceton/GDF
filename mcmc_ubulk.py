@@ -6,6 +6,8 @@ from astropy.coordinates import cartesian_to_spherical as c2s
 import emcee, corner
 import matplotlib.pyplot as plt; plt.ion()
 from line_profiler import profile
+from scipy.interpolate import BSpline
+from scipy.special import eval_legendre
 NAX = np.newaxis
 
 import bsplines
@@ -78,11 +80,11 @@ class gyrovdf:
         r, theta, phi = c2s(self.vperp1, self.vperp2, self.vpara)
         self.r_fa = r.value
         self.theta_fa = np.degrees(theta.value) + 90
-        self.phi_fa = np.degrees(phi.value)
+        # self.phi_fa = np.degrees(phi.value)
 
     def inversion(self, tidx, vdfdata):
             def make_knots(tidx):
-                self.knots, self.vpara_nonan, self.vperp_nonan = None, None, None
+                self.knots, self.vpara_nonan = None, None
 
                 # finding the minimum and maximum velocities with counts to find the knot locations
                 vmin = np.min(self.velocity[tidx, self.nanmask[tidx]])
@@ -98,9 +100,11 @@ class gyrovdf:
                 log_knots = log_knots[:-1][counts >= self.mincount]
                 self.knots = np.power(10, log_knots)
 
-                # also making the perp grid for future plotting purposes
-                self.vperp_nonan = self.vperp[self.nanmask[tidx]]
+                # arranging the knots in an increasing order
+                self.knots = np.sort(self.knots)
 
+                # # also making the perp grid for future plotting purposes
+                # self.vperp_nonan = self.vperp[self.nanmask[tidx]]
 
             def get_Bsplines():
                 self.B_i_n = None
@@ -108,6 +112,13 @@ class gyrovdf:
                 bsp = bsplines.bsplines(self.knots, self.p)
                 self.B_i_n = bsp.eval_bsp_basis(self.vpara_nonan)
 
+            def get_Bsplines_scipy():
+                t = np.array([self.knots[0] for i in range(self.p)])
+                t = np.append(t, self.knots)
+                t = np.append(t, np.array([self.knots[-1] for i in range(self.p)]))
+                bsp_basis_coefs = np.identity(len(self.knots) + (self.p-1))
+                spl = BSpline(t, bsp_basis_coefs, self.p)
+                self.B_i_n = spl(self.vpara_nonan).T
 
             def get_Slepians():
                 self.S_alpha_n = None
@@ -122,6 +133,23 @@ class gyrovdf:
                 N2D = int(np.sum(self.Slep.V))
                 self.S_alpha_n = self.S_alpha_n[:N2D,:]
 
+            def get_Slepians_scipy():
+                self.S_alpha_n = None
+
+                self.theta_nonan = self.theta_fa[self.nanmask[tidx]]
+
+                L = np.arange(0,self.Lmax+1)
+                P_scipy = np.asarray([eval_legendre(ell, np.cos(self.theta_nonan * np.pi / 180)) for ell in L])
+                # adding the normalization sqrt((2l+1) / 4pi)
+                P_scipy = P_scipy * (np.sqrt((2*L + 1) / (4 * np.pi)))[:,NAX]
+                S_n_alpha = P_scipy.T @ np.asarray(self.Slep.C)
+
+                # swapping the axes
+                self.S_alpha_n = np.moveaxis(S_n_alpha, 0, 1)
+
+                # truncating beyond Shannon number
+                N2D = int(np.sum(self.Slep.V))
+                self.S_alpha_n = self.S_alpha_n[:N2D,:]            
 
             def get_G_matrix():
                 self.G_k_n = None
@@ -137,7 +165,7 @@ class gyrovdf:
                 # obtaining the coefficients
                 G_g = self.G_k_n @ self.G_k_n.T
                 I = np.identity(len(G_g))
-                coeffs = np.linalg.pinv(G_g + 1e-3 * I) @ self.G_k_n @ vdfdata
+                coeffs = np.linalg.inv(G_g + 1e-3 * I) @ self.G_k_n @ vdfdata
 
                 # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                 vdf_rec = coeffs @ self.G_k_n
@@ -149,24 +177,27 @@ class gyrovdf:
 
 
             make_knots(tidx)
-            get_Bsplines()
-            get_Slepians()
+            get_Bsplines_scipy()
+            get_Slepians_scipy()
             get_G_matrix()
             return inversion(tidx, vdfdata)
 
 
+@profile
 def log_prior(model_params):
     VY, VZ = model_params
     if 0 < VY < 200 and -100 < VZ < 100:
         return 0.0
     return -np.inf
 
+@profile
 def log_probability(model_params, VX, vdfdata, tidx):
     lp = log_prior(model_params)
     if not np.isfinite(lp):
         return -np.inf
     return lp + log_likelihood(model_params, VX, vdfdata, tidx)
 
+@profile
 def log_likelihood(model_params, VX, vdfdata, tidx):
     VY, VZ = model_params
     u_bulk = np.asarray([VX, VY, VZ])
@@ -199,7 +230,7 @@ if __name__=='__main__':
     VZ_pos = np.random.rand(nwalkers)
     pos = np.array([VY_pos, VZ_pos]).T
     sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
-    sampler.run_mcmc(pos, 1000, progress=True)
+    sampler.run_mcmc(pos, 3333, progress=True)
 
     # plotting the results of the emcee
     labels = ["VY", "VZ"]
