@@ -268,7 +268,7 @@ if __name__=='__main__':
 
     # Choose a user defined time index
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T00:06:00')))
-    tidx = 1136
+    tidx = 666
 
     # initializing the inversion class
     gvdf = gyrovdf(psp_vdf, trange, N2D_restrict=False, CREDENTIALS=creds, CLIP=True)
@@ -280,6 +280,6 @@ if __name__=='__main__':
     vdf_rec_nonan, coeffs = gvdf.inversion(tidx)
 
     plot_span_vs_rec_scatter(gvdf, vdf_rec_nonan)
-    plot_span_vs_rec_contour(gvdf, vdf_rec_nonan)
+    plot_span_vs_rec_contour(gvdf, vdf_rec_nonan, GRIDS=True)
     plot_super_res(gvdf)
 

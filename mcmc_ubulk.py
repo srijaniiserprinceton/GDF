@@ -213,7 +213,7 @@ def log_likelihood(model_params, VX, vdfdata, tidx):
 if __name__=='__main__':
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
-    tidx = 1136 #np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    tidx = 667 #np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
 
     # initializing the inversion class
     gvdf_tstamp = gyrovdf(psp_vdf, trange, N2D_restrict=False)
@@ -223,11 +223,13 @@ if __name__=='__main__':
 
     # initializing the VR
     VX = gvdf_tstamp.v_span[tidx, 0]
+    VY_init= gvdf_tstamp.v_span[tidx, 1]
+    VZ_init= gvdf_tstamp.v_span[tidx, 2]
 
     # performing the mcmc of dtw 
     nwalkers = 5
-    VY_pos = np.random.rand(nwalkers) + 100
-    VZ_pos = np.random.rand(nwalkers)
+    VY_pos = np.random.rand(nwalkers) + VY_init
+    VZ_pos = np.random.rand(nwalkers) + VZ_init
     pos = np.array([VY_pos, VZ_pos]).T
     sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
     sampler.run_mcmc(pos, 3333, progress=True)
