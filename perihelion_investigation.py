@@ -10,12 +10,15 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.widgets import Slider
 
+import astropy.constants as c
+import astropy.units as u
+
 def load_config(file_path):
     with open(file_path, 'r') as file:
         config = json.load(file)
     return config
 
-def plot_vdf_slices(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SUM=False, PLOT_TYPE='pcolormesh', IT=None):
+def plot_vdf_slices(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SUM=False, PLOT_TYPE='pcolormesh', POINT=None):
     vdf = vdf_ds.vdf.data
     # Define the velocity
     velocity = 13.85 * np.sqrt(vdf_ds.energy.data)
@@ -36,7 +39,7 @@ def plot_vdf_slices(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SUM=False, PLO
             print("Now bulk speed. Defaulting to instrument frame")
 
     # Generate the VDF Slices
-    fig, ax = plt.subplots(1,2, figsize=(12,6))
+    fig, ax = plt.subplots(1,2, figsize=(12,6), layout='constrained')
 
     # Find the peak vdf index values
     vidx, tidx, pidx = np.unravel_index(np.nanargmax(vdf), vdf.shape)
@@ -81,21 +84,29 @@ def plot_vdf_slices(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SUM=False, PLO
     ax[0].set_ylabel(axis_label[1])
     ax[0].set_xlim([-1.2*np.max((max_vx, max_vy)), 0])
     ax[0].set_ylim([0, 1.2*np.max((max_vx, max_vy))])
+    ax[0].scatter(U_VEC[0], U_VEC[1], marker='d', color='r', s=50, label=f'(Vx, Vy, Vz) = ({str(np.round(U_VEC[0], 1))}, {str(np.round(U_VEC[1], 1))}, {str(np.round(U_VEC[2], 1))})')
 
+    if np.any(POINT):
+        ax[0].scatter(POINT[0], POINT[1], marker='*', color='blue', s=50, label=f'(Vx, Vy, Vz) = ({str(np.round(POINT[0], 1))}, {str(np.round(POINT[1], 1))}, {str(np.round(POINT[2], 1))})')
+        ax[1].scatter(POINT[0], POINT[2], marker='*', color='blue', s=50)
+
+    ax[0].legend(fontsize=12)
     
     ax[1].scatter(vxp2, vzp2, marker='.', color='k', alpha=0.2)
     ax[1].set_xlabel(axis_label[0])
     ax[1].set_ylabel(axis_label[2])
     ax[1].set_title(r'Vx-Vz plane on $\phi$ = '+f'{phi[0,0,pidx]} Slice')
     ax[1].set_xlim([-1.2*np.max((max_vx, max_vz)), 0])
-    ax[1].set_ylim([-1.2*np.max((max_vx, max_vz)), 1.2*np.max((max_vx, max_vz))])
+    ax[1].set_ylim([-1*np.max((max_vx, max_vz)), 1*np.max((max_vx, max_vz))])
+    ax[1].scatter(U_VEC[0], U_VEC[2], marker='d', color='r', s=50)
 
     [ax[i].set_aspect('equal') for i in range(2)]
     
     if np.any(U_VEC) and np.any(B_VEC):
-        ax[0].quiver(U_VEC[0], U_VEC[1], B_VEC[0], B_VEC[1])
-        ax[1].quiver(U_VEC[0], U_VEC[2], B_VEC[0], B_VEC[2])
-
+        ax[0].quiver(U_VEC[0], U_VEC[1], U_VEC[0] + B_VEC[0], U_VEC[1] + B_VEC[1], scale = 1, scale_units='xy')
+        ax[1].quiver(U_VEC[0], U_VEC[2], U_VEC[0] + B_VEC[0], U_VEC[2] + B_VEC[2], scale = 1, scale_units='xy')
+    
+    
     
     plt.show()
 
@@ -165,9 +176,9 @@ def plot_vdf_slices_interactive(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SU
         ax[1].set_ylim([-1.*np.max((max_vx, max_vz)), 1.*np.max((max_vx, max_vz))])
 
         if np.any(U_VEC) and np.any(B_VEC):
-            ax[0].quiver(U_VEC[idx,0], U_VEC[idx,1], B_VEC[idx,0], B_VEC[idx,1])
-            ax[1].quiver(U_VEC[idx,0], U_VEC[idx,2], B_VEC[idx,0], B_VEC[idx,2])
-        
+            ax[0].quiver(U_VEC[idx,0], U_VEC[idx,1], U_VEC[idx,0] + B_VEC[idx,0], U_VEC[idx,1] + B_VEC[idx,1], scale = 1, scale_units='xy')
+            ax[1].quiver(U_VEC[idx,0], U_VEC[idx,2], U_VEC[idx,0] + B_VEC[idx,0], U_VEC[idx,2] + B_VEC[idx,2], scale = 1, scale_units='xy')
+    
         for i in range(2):
             ax[i].set_aspect('equal')
         
@@ -184,7 +195,8 @@ def plot_vdf_slices_interactive(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SU
 if __name__ == "__main__":
     # We are investigating the VDFs at perihelion
     # trange = ['2024-12-24T20:00:00', '2024-12-24T21:00:00']
-    trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
+    # trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
+    trange = ['2020-01-29T00:00:00', '2020-01-29T23:00:00']
     # trange = ['2018-11-07T00:00:00', '2018-11-07T23:59:59']
     # Use the user credentials
     credentials = load_config('./config.json')
@@ -196,11 +208,17 @@ if __name__ == "__main__":
     psp_moms = fn.init_psp_moms(trange, CREDENTIALS=creds, CLIP=True)
 
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2024-12-24T20:43:46')))
-    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    tidx = 9355
     # # Get the PSP Flags
     # peak_theta = np.nanargmax(psp_moms.EFLUX_VS_THETA.data, axis=1)
     # peak_phi   = np.nanargmax(psp_moms.EFLUX_VS_PHI.data, axis=1)
+    density = psp_moms.DENS.data
+    avg_den = np.convolve(density, np.ones(10)/10, 'same')      # 1-minute average
 
-    plot_vdf_slices_interactive(psp_vdf, U_VEC=psp_moms.VEL_INST.data, B_VEC=psp_moms.MAGF_INST.data, PLOT_TYPE='contourf', SUM=True)
+    va_vec = ((psp_moms.MAGF_INST.data * u.nT) / (np.sqrt(c.m_p * c.mu0 * avg_den[:,None] * u.cm**(-3)))).to(u.km/u.s).value
+
+    u_vec = psp_moms.VEL_INST.data
+    # plot_vdf_slices_interactive(psp_vdf, U_VEC=psp_moms.VEL_INST.data, B_VEC=va_vec, PLOT_TYPE='contourf', SUM=True)
 
     

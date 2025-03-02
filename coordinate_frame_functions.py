@@ -51,6 +51,8 @@ class fa_coordinates:
         ux = vx - v_span[:, 0, NAX, NAX, NAX]
         uy = vy - v_span[:, 1, NAX, NAX, NAX]
         uz = vz - v_span[:, 2, NAX, NAX, NAX]
+        # uy = vy - 24.95
+        # uz = vz - 68.98
         
 
         # Rotate the plasma frame data into the magnetic field aligned frame.

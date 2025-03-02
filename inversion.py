@@ -225,7 +225,7 @@ def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
     ax[0].set_aspect('equal')
     ax[0].set_title('SPAN VDF')
 
-    plt.colorbar(a0)
+    # plt.colorbar(a0)
 
     a1 = ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask], cmap='inferno', levels=np.linspace(0,4,20))
     ax[1].set_xlabel(r'$v_{\perp}$')
@@ -294,7 +294,7 @@ def plot_rbf(gvdf, vdf_rec_nonan, GRID=True):
     ax[0].set_aspect('equal')
     ax[0].set_title('SPAN Data')
 
-    plt.colorbar(a0)
+    # plt.colorbar(a0)
     
     # a1 = ax[1].contourf(x[1], x[0], y, cmap='inferno', vmin=0, vmax=4, levels=20)
     a1 = ax[1].contourf(x[1], x[0], y, cmap='inferno', levels=np.linspace(0,4,20))
@@ -312,21 +312,20 @@ def plot_rbf(gvdf, vdf_rec_nonan, GRID=True):
 
 if __name__=='__main__':
     # loading VDF and defining timestamp
-    trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
+    trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
     credentials = load_config('./config.json')
-    creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
-    # creds = None
+    # creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
+    creds = None
     
     # Initialzise the PSP vdf
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
 
     # Choose a user defined time index
-    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    tidx = 666
+    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-29T18:10:06')))
+    # tidx = 9355
 
     # initializing the inversion class
-    gvdf = gyrovdf(psp_vdf, trange, Lmax=16
-    , N2D_restrict=True, CREDENTIALS=creds, CLIP=True)
+    gvdf = gyrovdf(psp_vdf, trange, Lmax=12, N2D_restrict=True, CREDENTIALS=creds, CLIP=True)
     
     # Loop over the specified time indicies.
     gvdf.setup_new_inversion(tidx, plot_basis=False, mincount=2)

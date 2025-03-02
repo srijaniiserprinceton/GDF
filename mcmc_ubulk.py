@@ -213,32 +213,39 @@ def log_likelihood(model_params, VX, vdfdata, tidx):
 if __name__=='__main__':
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
-    tidx = 666 #np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    # tidx = 6286 #np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
 
-    # initializing the inversion class
-    gvdf_tstamp = gyrovdf(psp_vdf, trange, N2D_restrict=False)
+    v_yz_corr  = {}
+    v_yz_lower = {}
+    v_yz_upper = {}
 
-    # initializing the vdf data to optimize
-    vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]])
+    for tidx in range(3750,3861):
+        # initializing the inversion class
+        gvdf_tstamp = gyrovdf(psp_vdf, trange, N2D_restrict=False)
 
-    # initializing the VR
-    VX = gvdf_tstamp.v_span[tidx, 0]
-    VY_init= gvdf_tstamp.v_span[tidx, 1]
-    VZ_init= gvdf_tstamp.v_span[tidx, 2]
+        # initializing the vdf data to optimize
+        vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]])
 
-    # performing the mcmc of dtw 
-    nwalkers = 5
-    VY_pos = np.random.rand(nwalkers) + VY_init
-    VZ_pos = np.random.rand(nwalkers) + VZ_init
-    pos = np.array([VY_pos, VZ_pos]).T
-    sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
-    sampler.run_mcmc(pos, 3333, progress=True)
+        # initializing the VR
+        VX = gvdf_tstamp.v_span[tidx, 0]
+        VY_init= gvdf_tstamp.v_span[tidx, 1]
+        VZ_init= gvdf_tstamp.v_span[tidx, 2]
 
-    # plotting the results of the emcee
-    labels = ["VY", "VZ"]
-    flat_samples = sampler.get_chain(discard=50, thin=15, flat=True)
-    fig = corner.corner(flat_samples, labels=labels, show_titles=True)
-    plt.savefig('emcee_ubulk.pdf')
+        # performing the mcmc of dtw 
+        nwalkers = 5
+        VY_pos = np.random.rand(nwalkers) + VY_init
+        VZ_pos = np.random.rand(nwalkers) + VZ_init
+        pos = np.array([VY_pos, VZ_pos]).T
+        sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
+        sampler.run_mcmc(pos, 500, progress=True)
 
-    # printing the 0.5 quantile values
-    np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
+        # plotting the results of the emcee
+        # labels = ["VY", "VZ"]
+        flat_samples = sampler.get_chain(discard=50, thin=15, flat=True)
+        # fig = corner.corner(flat_samples, labels=labels, show_titles=True)
+        # plt.savefig('emcee_ubulk.pdf')
+
+        # printing the 0.5 quantile values
+        v_yz_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
+        v_yz_lower[tidx] = np.quantile(flat_samples,q=[0.25],axis=0).squeeze()
+        v_yz_upper[tidx] = np.quantile(flat_samples,q=[0.75],axis=0).squeeze()
