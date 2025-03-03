@@ -106,7 +106,7 @@ if __name__ == "__main__":
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
     # trange = ['2018-11-07T00:00:00', '2018-11-07T23:59:59']
     # Use the user credentials
-    credentials = load_config('./config.json')
+    # credentials = load_config('./config.json')
     # creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
     creds = None
     # psp_vdf = fn._get_psp_vdf(trange, CREDENTIALS=creds)

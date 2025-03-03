@@ -186,7 +186,7 @@ class gyrovdf:
 @profile
 def log_prior(model_params):
     VY, VZ = model_params
-    if -200 < VY < 200 and -100 < VZ < 100:
+    if -200 < VY < 200 and -200 < VZ < 200:
         return 0.0
     return -np.inf
 
@@ -213,7 +213,8 @@ def log_likelihood(model_params, VX, vdfdata, tidx):
 if __name__=='__main__':
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
-    tidx = 666 #np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T05:23:54')))
 
     # initializing the inversion class
     gvdf_tstamp = gyrovdf(psp_vdf, trange, N2D_restrict=False)
@@ -232,7 +233,7 @@ if __name__=='__main__':
     VZ_pos = np.random.rand(nwalkers) + VZ_init
     pos = np.array([VY_pos, VZ_pos]).T
     sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
-    sampler.run_mcmc(pos, 3333, progress=True)
+    sampler.run_mcmc(pos, 10000, progress=True)
 
     # plotting the results of the emcee
     labels = ["VY", "VZ"]
@@ -240,5 +241,37 @@ if __name__=='__main__':
     fig = corner.corner(flat_samples, labels=labels, show_titles=True)
     plt.savefig('emcee_ubulk.pdf')
 
+    '''
     # printing the 0.5 quantile values
-    np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
+    VY_mean, VZ_mean = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
+
+    # plotting the location of the centroid
+    import matplotlib.patches as patches
+    radii = np.linspace(1,10,10)
+    samples = sampler.get_chain()
+    Nsamples = len(samples)
+    VY_cummean = np.cumsum(np.mean(samples[:,:,0], axis=1)) / np.linspace(1, Nsamples, Nsamples)
+    VZ_cummean = np.cumsum(np.mean(samples[:,:,1], axis=1)) / np.linspace(1, Nsamples, Nsamples)
+
+    for i in range(0,2000,5):
+        plt.figure()
+        plt.ylim([30, 70])
+        plt.xlim([120, 160])
+        plt.gca().set_aspect('equal')
+
+        plt.scatter(VY_cummean[-1], VZ_cummean[-1], color='red', marker='o')
+        for radius in radii:
+            circle = patches.Circle((VY_cummean[-1], VZ_cummean[-1]), radius, fill=False, edgecolor='blue', alpha=0.8)
+            plt.gca().add_patch(circle)
+
+        plt.plot(VY_cummean[i], VZ_cummean[i], 'ok')
+        plt.plot(VY_cummean[:i], VZ_cummean[:i], 'k', alpha=0.3)
+
+        for radius in radii:
+            circle = patches.Circle((VY_cummean[i], VZ_cummean[i]), radius, fill=False, edgecolor='black', alpha=0.5)
+            plt.gca().add_patch(circle)
+
+        plt.savefig(f'MCMC_demo_animation/{i:04d}.png')
+        plt.close()
+
+    '''
