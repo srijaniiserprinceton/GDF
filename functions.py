@@ -40,9 +40,9 @@ def _get_psp_vdf(trange, CREDENTIALS=None):
 
 
     if CREDENTIALS:
-        files = pyspedas.psp.spi(trange, datatype='spi_sf00', level='L2', notplot=True, time_clip=True, downloadonly=True, last_version=True, username=CREDENTIALS[0], password=CREDENTIALS[1])
+        files = pyspedas.psp.spi(trange, datatype='spi_sf00', level='L2', notplot=True, time_clip=True, downloadonly=True, last_version=True, get_support_data=True, username=CREDENTIALS[0], password=CREDENTIALS[1])
     else:
-        files = pyspedas.psp.spi(trange, datatype='spi_sf00_8dx32ex8a', level='l2', notplot=True, time_clip=True, downloadonly=True, last_version=True)
+        files = pyspedas.psp.spi(trange, datatype='spi_sf00_8dx32ex8a', level='l2', notplot=True, time_clip=True, downloadonly=True, last_version=True, get_support_data=True)
 
     return(files)
 
@@ -92,6 +92,8 @@ def init_psp_vdf(trange, CREDENTIALS=None, CLIP=False):
     theta  = xr_data.THETA.data
     phi    = xr_data.PHI.data
 
+    counts = xr_data.DATA.data
+
     theta_dim = 8
     phi_dim = 8
     energy_dim = 32
@@ -104,17 +106,21 @@ def init_psp_vdf(trange, CREDENTIALS=None, CLIP=False):
     phi_sort    = phi.reshape(LEN, phi_dim, energy_dim, theta_dim)
     energy_sort = energy.reshape(LEN, phi_dim, energy_dim, theta_dim)
 
+    count_sort  = counts.reshape(LEN, phi_dim, energy_dim, theta_dim)
+
     # Convert the data to be in uniform shape (E, theta, phi)
     eflux_sort  = np.transpose(eflux_sort, [0, 2, 3, 1])
     theta_sort  = np.transpose(theta_sort, [0, 2, 3, 1])
     phi_sort    = np.transpose(phi_sort, [0, 2, 3, 1])
     energy_sort = np.transpose(energy_sort, [0, 2, 3, 1])
+    count_sort  = np.transpose(count_sort, [0, 2, 3, 1])
 
     # Resort the arrays so the energy is increasing
     eflux_sort  = eflux_sort[:, ::-1, :, :]  
     theta_sort  = theta_sort[:, ::-1, :, :]  
     phi_sort    = phi_sort[:, ::-1, :, :]    
     energy_sort = energy_sort[:, ::-1, :, :]
+    count_sort  = count_sort[:, ::-1, :, :]
 
     # Convert energy flux into differential energy flux
     vdf = eflux_sort * ((mass_p * 1e-10)**2) /(2 * energy_sort**2)      # 1e-10 is used to convert km^2 to cm^2
@@ -125,7 +131,7 @@ def init_psp_vdf(trange, CREDENTIALS=None, CLIP=False):
     xr_phi    = xr.DataArray(phi_sort,    dims = ['time', 'energy_dim', 'theta_dim', 'phi_dim'], coords = dict(time = xr_time_array, energy_dim = np.arange(32), theta_dim = np.arange(8), phi_dim = np.arange(8)), attrs={'units':'degrees', 'fillval' : 'np.array([nan], dtype=float32)', 'validmin':'-180', 'validmax' : '360', 'scale' : 'linear'})
     xr_theta  = xr.DataArray(theta_sort,  dims = ['time', 'energy_dim', 'theta_dim', 'phi_dim'], coords = dict(time = xr_time_array, energy_dim = np.arange(32), theta_dim = np.arange(8), phi_dim = np.arange(8)), attrs={'units':'degrees', 'fillval' : 'np.array([nan], dtype=float32)', 'validmin':'-180', 'validmax' : '360', 'scale' : 'linear'})
     xr_vdf    = xr.DataArray(vdf,         dims = ['time', 'energy_dim', 'theta_dim', 'phi_dim'], coords = dict(time = xr_time_array, energy_dim = np.arange(32), theta_dim = np.arange(8), phi_dim = np.arange(8)), attrs={'units':'s^3/cm^6', 'fillval' : 'np.array([nan], dtype=float32)', 'validmin':'0.001', 'validmax' : '1e+16', 'scale' : 'log'})
-    
+    xr_count  = xr.DataArray(count_sort,  dims = ['time', 'energy_dim', 'theta_dim', 'phi_dim'], coords = dict(time = xr_time_array, energy_dim = np.arange(32), theta_dim = np.arange(8), phi_dim = np.arange(8)), attrs={'units':'integer', 'fillval' : 'np.array([0], dtype=float32)', 'validmin':'0', 'validmax' : '2048', 'scale' : 'linear'})
     xr_unix   = xr.DataArray(unix_time, dims=['time'], coords=dict(time = xr_time_array), attrs={'units' : 'time', 'description':'Unix time'}) 
 
     # Generate the xarray.Dataset
@@ -135,7 +141,8 @@ def init_psp_vdf(trange, CREDENTIALS=None, CLIP=False):
                         'energy' : xr_energy,
                         'phi' : xr_phi,
                         'theta' : xr_theta,
-                        'vdf' : xr_vdf
+                        'vdf' : xr_vdf,
+                        'counts' : xr_count
                        },
                        attrs={'description' : 'SPAN-i data recast into proper format. VDF unit is in s^3/cm^6.'})
     

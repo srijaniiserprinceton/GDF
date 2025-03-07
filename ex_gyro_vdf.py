@@ -12,8 +12,8 @@ import functions as fn
 if __name__ == "__main__":
     # trange = ['2020-01-29T00:00:00', '2020-01-29T00:00:00']
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
-    # idx = 9355
-    idx = 666
+    idx = 9355
+    # idx = 666
 
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
 
@@ -79,15 +79,16 @@ if __name__ == "__main__":
     v_perp_all = np.concatenate([-v_perp[idx, mask[idx]], v_perp[idx, mask[idx]]])
     vdf_all = np.concatenate([vdf[idx, mask[idx]], vdf[idx, mask[idx]]])
 
-    plt.figure(figsize=(8,4))
-    plt.tricontourf(v_perp_all/va_mag[idx], v_para_all/va_mag[idx], np.log10(vdf_all), cmap='cool')
+    plt.figure(figsize=(8,48))
+    plt.tricontourf(v_perp_all/va_mag[idx], v_para_all/va_mag[idx], np.log10(vdf_all), cmap='inferno')
+    plt.scatter(v_perp[idx, mask[idx]]/va_mag[idx], v_para[idx, mask[idx]]/va_mag[idx], marker='.', color='k')
     plt.xlabel(r'$v_{\perp}/v_{a}$')
     plt.ylabel(r'$v_{\parallel}/v_{a}$')
 
     plt.gca().set_aspect('equal')
 
     # plotting the grid by coloring according to the coordinate value [for verification]
-    fig, ax = plt.subplots(1, 3, figsize=(12,3), sharey=True)
+    fig, ax = plt.subplots(1, 3, figsize=(12,4), sharey=True)
 
     ax[0].scatter(v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=r[mask[idx]])
     ax[0].scatter(-v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=r[mask[idx]])
@@ -100,3 +101,6 @@ if __name__ == "__main__":
     ax[2].scatter(v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=phi[mask[idx]])
     ax[2].scatter(-v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=phi[mask[idx]])
     ax[2].set_aspect('equal')
+
+    [ax[i].set_xlabel(r'$v_{\perp}$') for i in range(3)]
+    [ax[i].set_ylabel(r'$v_{\parallel}$') for i in range(3)]
