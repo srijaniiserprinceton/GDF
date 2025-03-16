@@ -16,6 +16,8 @@ from scipy.interpolate import RBFInterpolator
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
+from scipy.integrate import simpson
+import pickle
 
 class gyrovdf:
     def __init__(self, vdf_dict, trange, TH=75, Lmax=16, N2D_restrict=True, p=3, ITERATE=False, CREDENTIALS=None, CLIP=False):
@@ -29,7 +31,7 @@ class gyrovdf:
 
         # obtaining the grid points from an actual PSP field-aligned VDF (instrument frame)
         self.fac = coor_fn.fa_coordinates()
-        self.fac.get_coors(self.vdf_dict, trange, plasma_frame=True, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
+        self.fac.get_coors(self.vdf_dict, trange, count_mask=2, plasma_frame=True, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
 
     @profile
     def setup_new_inversion(self, tidx, knots=None, plot_basis=False, mincount=7):
@@ -131,6 +133,7 @@ class gyrovdf:
         # getting the vdf data
         vdf_nonan = self.vdf_dict.vdf.data[tidx, self.fac.nanmask[tidx]]
         self.vdf_nonan_data = np.log10(vdf_nonan/np.min(vdf_nonan))
+        self.vdf_minval = np.min(vdf_nonan)
 
         # obtaining the coefficients
         G_g = self.G_k_n @ self.G_k_n.T
@@ -310,6 +313,42 @@ def plot_rbf(gvdf, vdf_rec_nonan, GRID=True):
 
     plt.show()
 
+def calc_gyrotropic_moments(gvdf, vdf_rec_nonan, DIMS=(101, 201)):
+    # Get the VDFs on the uniform grids.
+    x, ln_vdf_rec  = RBF(gvdf, vdf_rec_nonan, DIMS=DIMS)
+    _, ln_vdf_data = RBF(gvdf, gvdf.vdf_nonan_data, DIMS=DIMS)
+
+    # Scale by the minvalue
+    vdf_rec  = np.power(10, ln_vdf_rec) * gvdf.vdf_minval
+    vdf_data = np.power(10, ln_vdf_data) * gvdf.vdf_minval
+
+    # We are doing a cylindircal integration. 
+    # d3v = r dr dz dphi = 2pi v2_perp dv1 dv2, where v1 is parallel and v2 is perp
+    # r ---> [0,v2]
+    # z ---> [v1.min, v1.max]
+    # phi ---> 2pi
+    # Therefore, we need to select only the positive half of vperp
+    mask = x[1] > -0.01
+
+    vpara = x[0][mask].reshape((DIMS[0], -1)) * 1e5
+    vperp = x[1][mask].reshape((DIMS[0], -1)) * 1e5
+
+    vdf_rec_mask  = vdf_rec[mask].reshape((DIMS[0], -1))
+    vdf_data_mask = vdf_data[mask].reshape((DIMS[0], -1))
+
+    # Get the Density moments
+    n_rec = 2*np.pi*simpson(simpson(vdf_rec_mask * vperp, x=vperp, axis=1), x=vpara[:,0])
+    n_data = 2*np.pi*simpson(simpson(vdf_data_mask * vperp, x=vperp, axis=1), x=vpara[:,0])
+
+    # Get the v_parallel 
+    vpara_rec = 2*np.pi*simpson(simpson(vpara * vdf_rec_mask * vperp, x=vperp, axis=1), x=vpara[:,0])/n_rec
+    vpara_data = 2*np.pi*simpson(simpson(vpara * vdf_data_mask * vperp, x=vperp, axis=1), x=vpara[:,0])/n_data
+
+    vperp_rec =  2*np.pi*simpson(simpson(vperp * vdf_rec_mask * vperp, x=vperp, axis=1), x=vpara[:,0])/n_rec
+    vperp_data = 2*np.pi*simpson(simpson(vperp * vdf_data_mask * vperp, x=vperp, axis=1), x=vpara[:,0])/n_data
+
+    return(vpara, vperp, n_rec, vpara_rec, vperp_rec, n_data, vpara_data, vperp_data)
+
 if __name__=='__main__':
     # loading VDF and defining timestamp
     trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
@@ -339,3 +378,10 @@ if __name__=='__main__':
 
     
     plot_rbf(gvdf, vdf_rec_nonan)
+
+    uni_grid, y = RBF(gvdf, vdf_rec_nonan)
+
+    mydens = pickle.load(open('/home/michael/Research/GDF/SPAN_Densities_my_moms.pkl', 'rb'))
+    myvels = pickle.load(open('/home/michael/Research/GDF/SPAN_Velocities_my_moms.pkl', 'rb'))
+
+    vparagrid, vperpgrid, nrec, vpararec, vperprec, _, _, _ = calc_gyrotropic_moments(gvdf, vdf_rec_nonan)
