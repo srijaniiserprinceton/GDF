@@ -186,7 +186,7 @@ class gyrovdf:
 @profile
 def log_prior(model_params):
     VY, VZ = model_params
-    if -200 < VY < 200 and -100 < VZ < 100:
+    if -200 < VY < 200 and -200 < VZ < 200:
         return 0.0
     return -np.inf
 
