@@ -131,6 +131,7 @@ class gyrovdf:
         # getting the vdf data
         vdf_nonan = self.vdf_dict.vdf.data[tidx, self.fac.nanmask[tidx]]
         self.vdf_nonan_data = np.log10(vdf_nonan/np.min(vdf_nonan))
+        self.vdf_minval = np.min(vdf_nonan)
 
         # obtaining the coefficients
         G_g = self.G_k_n @ self.G_k_n.T
@@ -219,7 +220,8 @@ def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
 
     zeromask = vdf_rec_all == 0
     fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
-    a0 = ax[0].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], (vdf_all)[~zeromask], cmap='inferno', levels=np.linspace(0,4,20))
+    a0 = ax[0].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], (vdf_all)[~zeromask],
+                           cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),12))
     ax[0].set_xlabel(r'$v_{\perp}$')
     ax[0].set_ylabel(r'$v_{\parallel}$')
     ax[0].set_aspect('equal')
@@ -227,7 +229,8 @@ def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
 
     # plt.colorbar(a0)
 
-    a1 = ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask], cmap='inferno', levels=np.linspace(0,4,20))
+    a1 = ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask],
+                           cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),12))
     ax[1].set_xlabel(r'$v_{\perp}$')
     ax[1].set_aspect('equal')
     ax[1].set_title('Reconstructed VDF')
@@ -248,7 +251,7 @@ def plot_super_res(gvdf):
     v_perp_s = Rsup * np.tan(np.radians(Tsup))
 
     plt.figure(figsize=(8,4))
-    plt.contourf(v_perp_s, v_para_s, vdf_rec_sup, cmap='plasma', vmin=0, vmax=4, levels=100)
+    plt.contourf(v_perp_s, v_para_s, vdf_rec_sup, cmap='plasma', vmin=0, vmax=np.nanmax(gvdf.vdf_nonan_data), levels=100)
     plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.')
     plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.')
     plt.xlabel(r'$v_{\perp}/v_{a}$')
@@ -288,7 +291,7 @@ def plot_rbf(gvdf, vdf_rec_nonan, GRID=True):
     x1, y1 = RBF(gvdf, gvdf.vdf_nonan_data, SMOOTH=100)
 
     fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
-    a0 = ax[0].contourf(x1[1], x1[0], y1, cmap='inferno', levels=np.linspace(0,4,20))
+    a0 = ax[0].contourf(x1[1], x1[0], y1, cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),12))
     ax[0].set_xlabel(r'$v_{\perp}$')
     ax[0].set_ylabel(r'$v_{\parallel}$')
     ax[0].set_aspect('equal')
@@ -297,7 +300,7 @@ def plot_rbf(gvdf, vdf_rec_nonan, GRID=True):
     # plt.colorbar(a0)
     
     # a1 = ax[1].contourf(x[1], x[0], y, cmap='inferno', vmin=0, vmax=4, levels=20)
-    a1 = ax[1].contourf(x[1], x[0], y, cmap='inferno', levels=np.linspace(0,4,20))
+    a1 = ax[1].contourf(x[1], x[0], y, cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),12))
     ax[1].set_xlabel(r'$v_{\perp}$')
     ax[1].set_aspect('equal')
     ax[1].set_title('Reconstructed VDF')
@@ -312,8 +315,10 @@ def plot_rbf(gvdf, vdf_rec_nonan, GRID=True):
 
 if __name__=='__main__':
     # loading VDF and defining timestamp
-    trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    credentials = load_config('./config.json')
+    # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
+    trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
+    # trange = ['2019-04-05T00:00:00', '2019-04-05T23:59:59']
+    # credentials = load_config('./config.json')
     # creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
     creds = None
     
@@ -321,7 +326,9 @@ if __name__=='__main__':
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
 
     # Choose a user defined time index
-    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-29T18:10:06')))
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-29T18:10:06')))
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2019-04-05T20:21:36')))
+    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
     # tidx = 9355
 
     # initializing the inversion class
@@ -339,3 +346,24 @@ if __name__=='__main__':
 
     
     plot_rbf(gvdf, vdf_rec_nonan)
+
+    
+    # saving the data for MCMC fitting
+    vpara_pf = gvdf.fac.vpara
+    vperp_pf = gvdf.fac.vperp
+    vpara_nonan = vpara_pf[tidx, gvdf.fac.nanmask[tidx]]
+    vperp_nonan = vperp_pf[tidx, gvdf.fac.nanmask[tidx]]
+    v_para_all = np.concatenate([vpara_nonan, vpara_nonan])
+    v_perp_all = np.concatenate([-vperp_nonan, vperp_nonan])
+    vdf_rec_all = np.concatenate([vdf_rec_nonan, vdf_rec_nonan])
+    vdf_minval = gvdf.vdf_minval
+    '''
+    x, y = RBF(gvdf, vdf_rec_nonan)
+
+    vdf_rec_all = y
+    v_para_all, v_perp_all = x
+    '''
+
+    np.save('vdf_Sleprec.npy', np.power(10,vdf_rec_all) * vdf_minval)
+    np.save('vpara.npy', v_para_all)
+    np.save('vperp.npy', v_perp_all)

@@ -247,5 +247,5 @@ if __name__=='__main__':
 
         # printing the 0.5 quantile values
         v_yz_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
-        v_yz_lower[tidx] = np.quantile(flat_samples,q=[0.25],axis=0).squeeze()
-        v_yz_upper[tidx] = np.quantile(flat_samples,q=[0.75],axis=0).squeeze()
+        v_yz_lower[tidx] = np.quantile(flat_samples,q=[0.14],axis=0).squeeze()
+        v_yz_upper[tidx] = np.quantile(flat_samples,q=[0.86],axis=0).squeeze()
