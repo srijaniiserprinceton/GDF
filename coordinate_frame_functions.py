@@ -16,7 +16,7 @@ class fa_coordinates:
         self.velocity = None
         self.nanmask = None
 
-    def get_coors(self, vdf_dict, trange, plasma_frame=True, TH=75, CREDENTIALS=None, CLIP=False):
+    def get_coors(self, vdf_dict, trange, count_mask=0, plasma_frame=True, TH=75, CREDENTIALS=None, CLIP=False):
         self.__init__()
 
         time = vdf_dict.unix_time.data
@@ -24,8 +24,10 @@ class fa_coordinates:
         theta = vdf_dict.theta.data
         phi = vdf_dict.phi.data
         vdf = vdf_dict.vdf.data
+        count = vdf_dict.counts.data
 
         # masking the zero count bins where we have no constraints
+        vdf[count <= count_mask] = np.nan
         vdf[vdf == 0] = np.nan
         self.nanmask = np.isfinite(vdf)
 
