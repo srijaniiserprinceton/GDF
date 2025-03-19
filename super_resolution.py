@@ -45,8 +45,8 @@ class supres:
         def log_prior(biMax_params):
             uxcore, uxbeam, vxth_core, vthani_core, vxth_beam, vthani_beam, amp_core, amp_beam = biMax_params
 
-            if (-10 < uxcore < -1 and -10 < uxbeam < -4 and 0 < vxth_core < 20 and
-                1e-2 < vthani_core < 10 and 0 < vxth_beam < 20 and 0.5 < vthani_beam < 2 and
+            if (-10 < uxcore < -1 and -10 < uxbeam < -4 and 0 < vxth_core < 2 and
+                1e-2 < vthani_core < 10 and 0 < vxth_beam < 2 and 0.5 < vthani_beam < 2 and
                 -16 < amp_core < 16 and -16 < amp_beam < 16):
                 return 0.0
 
@@ -63,14 +63,14 @@ class supres:
             # logbiMax = np.log10(biMax_model) + np.log10(self.maxamp)
             logbiMax = biMax_model * self.maxamp
 
-            cost = np.nansum((self.data - logbiMax)**2)
+            cost = np.nansum(np.power(10.,self.data)*(self.data - logbiMax)**2)
             return -0.5 * cost
 
 
         # initializing the biMax_params
         uxcore_init = self.xdata[np.argmax(self.data)] * 1e-2  # -5
         uxbeam_init = uxcore_init - 2
-        vxth_core_init = 1
+        vxth_core_init = 0.5
         vthani_core_init = 1
         vxth_beam_init = 0.5
         vthani_beam_init = 1
@@ -163,10 +163,10 @@ def synthetic_test():
     # initializing the biMax_params
     uxcore = -3
     uxbeam = uxcore -1.7
-    vxth_core = 1.3
-    vthani_core = 0.5
-    vxth_beam = 0.6
-    vthani_beam = 0.5
+    vxth_core = 0.5
+    vthani_core = 1.0
+    vxth_beam = 0.5
+    vthani_beam = 1.0
     amp_core = 0
     amp_beam = -2
 
@@ -196,7 +196,7 @@ def synthetic_test():
 if __name__=='__main__':
     
     vdf_rec = np.load('vdf_Sleprec.npy').flatten()
-    vdf_rec = vdf_rec / np.nanmin(vdf_rec)
+    vdf_rec = vdf_rec / np.nanmin(vdf_rec) + 1.
     vpara = np.load('vpara.npy').flatten()
     vperp = np.load('vperp.npy').flatten()
     '''
