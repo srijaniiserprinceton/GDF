@@ -20,7 +20,7 @@ from scipy.integrate import simpson
 import pickle
 
 class gyrovdf:
-    def __init__(self, vdf_dict, trange, TH=75, Lmax=16, N2D_restrict=True, p=3, ITERATE=False, CREDENTIALS=None, CLIP=False):
+    def __init__(self, vdf_dict, trange, TH=60, Lmax=16, N2D_restrict=True, p=3, ITERATE=False, CREDENTIALS=None, CLIP=False):
         self.vdf_dict = vdf_dict
         self.trange = trange
 
@@ -31,7 +31,7 @@ class gyrovdf:
 
         # obtaining the grid points from an actual PSP field-aligned VDF (instrument frame)
         self.fac = coor_fn.fa_coordinates()
-        self.fac.get_coors(self.vdf_dict, trange, count_mask=2, plasma_frame=True, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
+        self.fac.get_coors(self.vdf_dict, trange, count_mask=1, plasma_frame=True, TH=TH, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
 
     @profile
     def setup_new_inversion(self, tidx, knots=None, plot_basis=False, mincount=7):
@@ -62,7 +62,7 @@ class gyrovdf:
         Nbins = int((np.log10(vmax) - np.log10(vmin)) / dlnv)
 
         # the knot locations
-        self.vpara_nonan = self.fac.r_fa[tidx, self.fac.nanmask[tidx]] 
+        self.vpara_nonan = self.fac.r_fa[tidx, self.fac.nanmask[tidx]] * np.cos(np.radians(self.fac.theta_fa[tidx, self.fac.nanmask[tidx]]))
         counts, log_knots = np.histogram(np.log10(self.vpara_nonan), bins=Nbins)
 
         # discarding knots at counts less than 10 (always discarding the last knot with low count)
@@ -70,7 +70,8 @@ class gyrovdf:
         self.knots = np.power(10, log_knots)
 
         # also making the perp grid for future plotting purposes
-        self.vperp_nonan = self.fac.vperp[tidx, self.fac.nanmask[tidx]]
+        # self.vperp_nonan = self.fac.vperp[tidx, self.fac.nanmask[tidx]]
+        self.vperp_nonan = self.fac.r_fa[tidx, self.fac.nanmask[tidx]] * np.sin(np.radians(self.fac.theta_fa[tidx, self.fac.nanmask[tidx]]))
 
     def get_Bsplines(self, plot_basis):
         # loading the bsplines at the r location grid
@@ -209,13 +210,13 @@ def plot_span_vs_rec_scatter(gvdf, vdf_rec):
 def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
     # These are for plotting with the tricontourf routine.
     # getting the plasma frame coordinates
-    vpara_pf = gvdf.fac.vpara
-    vperp_pf = gvdf.fac.vperp
-    vpara_nonan = vpara_pf[tidx, gvdf.fac.nanmask[tidx]]
-    vperp_nonan = vperp_pf[tidx, gvdf.fac.nanmask[tidx]]
+    # vpara_pf = gvdf.fac.vpara
+    # vperp_pf = gvdf.fac.vperp
+    # vpara_nonan = vpara_pf[tidx, gvdf.fac.nanmask[tidx]]
+    # vperp_nonan = vperp_pf[tidx, gvdf.fac.nanmask[tidx]]
 
-    v_para_all = np.concatenate([vpara_nonan, vpara_nonan])
-    v_perp_all = np.concatenate([-vperp_nonan, vperp_nonan])
+    v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])
+    v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])
     vdf_nonan = gvdf.vdf_nonan_data 
     
     vdf_all = np.concatenate([vdf_nonan, vdf_nonan])
@@ -224,7 +225,7 @@ def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
     zeromask = vdf_rec_all == 0
     fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
     a0 = ax[0].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], (vdf_all)[~zeromask],
-                           cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),12))
+                           cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),8))
     ax[0].set_xlabel(r'$v_{\perp}$')
     ax[0].set_ylabel(r'$v_{\parallel}$')
     ax[0].set_aspect('equal')
@@ -233,7 +234,7 @@ def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
     # plt.colorbar(a0)
 
     a1 = ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask],
-                           cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),12))
+                           cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),8))
     ax[1].set_xlabel(r'$v_{\perp}$')
     ax[1].set_aspect('equal')
     ax[1].set_title('Reconstructed VDF')
@@ -241,7 +242,7 @@ def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
     plt.colorbar(a1)
 
     if GRID:
-        [ax[i].scatter(vperp_nonan, vpara_nonan, color='k', marker='.', s=0.8) for i in range(2)]
+        [ax[i].scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=0.8) for i in range(2)]
 
     plt.show()
 
@@ -258,16 +259,18 @@ def plot_super_res(gvdf):
     y_line = rsup * np.sin((90-gvdf.TH) * np.pi / 180)
 
     plt.figure(figsize=(8,4))
-    plt.contourf(v_perp_s, v_para_s, vdf_rec_sup, cmap='plasma', vmin=0, vmax=np.nanmax(gvdf.vdf_nonan_data), levels=12)
-    plt.scatter(gvdf.fac.vperp[tidx].flatten(), gvdf.fac.r_fa[tidx].flatten() , color='k', marker='x')
-    plt.scatter(-gvdf.fac.vperp[tidx].flatten(), gvdf.fac.r_fa[tidx].flatten(), color='k', marker='x')
+    plt.contourf(v_perp_s, v_para_s, vdf_rec_sup, cmap='plasma')
+    plt.colorbar()
+    # plt.scatter(gvdf.fac.vperp[tidx].flatten(), gvdf.fac.r_fa[tidx].flatten() , color='k', marker='x')
+    # plt.scatter(-gvdf.fac.vperp[tidx].flatten(), gvdf.fac.r_fa[tidx].flatten(), color='k', marker='x')
     plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.')
     plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.')
-    plt.plot(x_line, y_line, 'k')
-    plt.plot(-x_line, y_line, 'k')
+    # plt.plot(x_line, y_line, 'k')
+    # plt.plot(-x_line, y_line, 'k')
+    
     plt.xlabel(r'$v_{\perp}/v_{a}$')
     plt.ylabel(r'$v_{\parallel}/v_{a}$')
-    plt.xlim([-2000,2000])
+    plt.xlim([-500,500])
     plt.ylim([0,None])
     plt.gca().set_aspect('equal')
     plt.title('Reconstructed VDF')
@@ -304,7 +307,7 @@ def plot_rbf(gvdf, vdf_rec_nonan, GRID=True):
     x1, y1 = RBF(gvdf, gvdf.vdf_nonan_data, SMOOTH=100)
 
     fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
-    a0 = ax[0].contourf(x1[1], x1[0], y1, cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),12))
+    a0 = ax[0].contourf(x1[1], x1[0], y1, cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),8))
     ax[0].set_xlabel(r'$v_{\perp}$')
     ax[0].set_ylabel(r'$v_{\parallel}$')
     ax[0].set_aspect('equal')
@@ -313,7 +316,7 @@ def plot_rbf(gvdf, vdf_rec_nonan, GRID=True):
     # plt.colorbar(a0)
     
     # a1 = ax[1].contourf(x[1], x[0], y, cmap='inferno', vmin=0, vmax=4, levels=20)
-    a1 = ax[1].contourf(x[1], x[0], y, cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),12))
+    a1 = ax[1].contourf(x[1], x[0], y, cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),8))
     ax[1].set_xlabel(r'$v_{\perp}$')
     ax[1].set_aspect('equal')
     ax[1].set_title('Reconstructed VDF')
@@ -366,7 +369,7 @@ if __name__=='__main__':
     # loading VDF and defining timestamp
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
-    # trange = ['2019-04-05T00:00:00', '2019-04-05T23:59:59']
+    # trange = ['2024-12-24T14:00:00', '2024-12-24T16:00:00']
     # credentials = load_config('./config.json')
     # creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
     creds = None
@@ -377,12 +380,13 @@ if __name__=='__main__':
     # Choose a user defined time index
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-29T18:10:06')))
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2019-04-05T20:21:36')))
-    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2024-12-24T14:08:34')))
     # tidx = 11146
-    tidx = 9956
+    # tidx = 200
 
     # initializing the inversion class
-    gvdf = gyrovdf(psp_vdf, trange, Lmax=12, N2D_restrict=True, CREDENTIALS=creds, CLIP=True)
+    gvdf = gyrovdf(psp_vdf, trange, TH=60, Lmax=12, N2D_restrict=True, CREDENTIALS=creds, CLIP=True)
     
     # Loop over the specified time indicies.
     gvdf.setup_new_inversion(tidx, plot_basis=False, mincount=2)

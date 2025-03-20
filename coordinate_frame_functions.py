@@ -64,11 +64,17 @@ class fa_coordinates:
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
 
         # Boosting the vparallel
-        masked_vpara, masked_vperp = np.ma.masked_array(self.vpara, self.nanmask),\
-                                     np.ma.masked_array(self.vperp, self.nanmask)
+        masked_vpara, masked_vperp = np.ma.masked_array(self.vpara, ~self.nanmask),\
+                                     np.ma.masked_array(self.vperp, ~self.nanmask)
         # self.max_r = np.nanmax(self.vperp/np.tan(np.radians(TH)) - np.abs(self.vpara), axis=(1,2,3))
-        self.max_r = np.nanmax(masked_vperp/np.tan(np.radians(TH)) - np.abs(masked_vpara), axis=(1,2,3))
-        self.vpara -= self.max_r[:, NAX, NAX, NAX]
+        self.max_r = np.nanmax(masked_vperp/np.tan(np.radians(TH)) + masked_vpara, axis=(1,2,3))
+
+        # NOTE: We need to consider the case in which we shift back to the "instrument frame". We essentially
+        # add |v_span| in place of max_r. 
+        # self.vpara -= self.max_r[:, NAX, NAX, NAX]
+        self.vpara -= np.linalg.norm(v_span, axis=1)[:,NAX,NAX,NAX]
+
+        self.mask_vpara, self.mask_vperp = masked_vpara, masked_vperp
 
         # converting the grid to spherical polar in the field aligned frame
         r, theta, phi = c2s(self.vperp1, self.vperp2, self.vpara)
