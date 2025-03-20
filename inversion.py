@@ -106,7 +106,8 @@ class gyrovdf:
         self.G_k_n = np.reshape(G_i_alpha_n, (-1, npoints))
 
     def super_res(self, coeffs, Nth, Nr):
-        theta_sup = np.linspace(-np.max(self.theta_nonan), np.max(self.theta_nonan), Nth)
+        # theta_sup = np.linspace(-np.max(self.theta_nonan), np.max(self.theta_nonan), Nth)
+        theta_sup = np.linspace(-90, 90, Nth)
         r_sup = np.linspace(np.min(self.vpara_nonan), np.max(self.vpara_nonan), Nr)
 
         self.Slep.gen_Slep_basis(theta_sup * np.pi / 180)
@@ -252,12 +253,22 @@ def plot_super_res(gvdf):
     v_para_s = Rsup
     v_perp_s = Rsup * np.tan(np.radians(Tsup))
 
+    # getting the polar cap lines
+    x_line = rsup * np.cos((90-gvdf.TH) * np.pi / 180)
+    y_line = rsup * np.sin((90-gvdf.TH) * np.pi / 180)
+
     plt.figure(figsize=(8,4))
-    plt.contourf(v_perp_s, v_para_s, vdf_rec_sup, cmap='plasma', vmin=0, vmax=np.nanmax(gvdf.vdf_nonan_data), levels=100)
+    plt.contourf(v_perp_s, v_para_s, vdf_rec_sup, cmap='plasma', vmin=0, vmax=np.nanmax(gvdf.vdf_nonan_data), levels=12)
+    plt.scatter(gvdf.fac.vperp[tidx].flatten(), gvdf.fac.r_fa[tidx].flatten() , color='k', marker='x')
+    plt.scatter(-gvdf.fac.vperp[tidx].flatten(), gvdf.fac.r_fa[tidx].flatten(), color='k', marker='x')
     plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.')
     plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.')
+    plt.plot(x_line, y_line, 'k')
+    plt.plot(-x_line, y_line, 'k')
     plt.xlabel(r'$v_{\perp}/v_{a}$')
     plt.ylabel(r'$v_{\parallel}/v_{a}$')
+    plt.xlim([-2000,2000])
+    plt.ylim([0,None])
     plt.gca().set_aspect('equal')
     plt.title('Reconstructed VDF')
 
