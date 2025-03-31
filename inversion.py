@@ -403,6 +403,9 @@ if __name__=='__main__':
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2024-12-24T14:08:34')))
     # tidx = 11146
     # tidx = 200
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    # tidx = 9960
+    tidx = 9956
 
     # initializing the inversion class
     gvdf = gyrovdf(psp_vdf, trange, TH=60, Lmax=12, N2D_restrict=True, CREDENTIALS=creds, CLIP=True)
