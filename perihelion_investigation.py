@@ -194,14 +194,14 @@ def plot_vdf_slices_interactive(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SU
 
 if __name__ == "__main__":
     # We are investigating the VDFs at perihelion
-    # trange = ['2024-12-24T20:00:00', '2024-12-24T21:00:00']
+    trange = ['2024-12-24T16:00:00', '2024-12-24T18:00:00']
     # trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
-    trange = ['2020-01-29T00:00:00', '2020-01-29T23:00:00']
+    # trange = ['2020-01-29T00:00:00', '2020-01-29T23:00:00']
     # trange = ['2018-11-07T00:00:00', '2018-11-07T23:59:59']
     # Use the user credentials
-    # credentials = load_config('./config.json')
-    # creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
-    creds = None
+    credentials = load_config('./config.json')
+    creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
+    # creds = None
     # psp_vdf = fn._get_psp_vdf(trange, CREDENTIALS=creds)
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
 
@@ -209,7 +209,7 @@ if __name__ == "__main__":
 
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2024-12-24T20:43:46')))
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    tidx = 9355
+    tidx = 200
     # # Get the PSP Flags
     # peak_theta = np.nanargmax(psp_moms.EFLUX_VS_THETA.data, axis=1)
     # peak_phi   = np.nanargmax(psp_moms.EFLUX_VS_PHI.data, axis=1)
