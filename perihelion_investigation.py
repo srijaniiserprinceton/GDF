@@ -18,6 +18,95 @@ def load_config(file_path):
         config = json.load(file)
     return config
 
+
+def plot_vdf_slices_phi(vdf_ds, idx = 0, U_VEC=None, B_VEC=None, GRIDS=None):
+    vdf = vdf_ds.vdf.data
+    # Define the velocity
+    velocity = 13.85 * np.sqrt(vdf_ds.energy.data)
+    theta = vdf_ds.theta.data
+    phi   = vdf_ds.phi.data
+
+    # This will load in the VDF for a given timestamp
+    vx = velocity * np.cos(np.radians(theta)) * np.cos(np.radians(phi))
+    vy = velocity * np.cos(np.radians(theta)) * np.sin(np.radians(phi))
+    vz = velocity * np.sin(np.radians(theta))
+
+    vxp2, vzp2 = vx[:,:,idx], vz[:,:,idx]
+    vdfp2 = vdf[:,:,idx]
+    
+    fig, ax = plt.subplots(figsize=(8,12))
+    ax.set_facecolor('lightblue')
+    if GRIDS: ax.scatter(vxp2, vzp2, marker='o', color='k', s=20)
+    ax.contourf(vxp2, vzp2, vdfp2, norm=LogNorm(), cmap='plasma', vmin=1.3e-24, vmax=3.3e-20, levels=20)
+    # ax.set_aspect('equal')
+
+    # if np.any(U_VEC) and np.any(B_VEC):
+    #     ax.quiver(U_VEC[0], U_VEC[2], U_VEC[0] + B_VEC[0], U_VEC[2] + B_VEC[2], scale = 1, scale_units='xy', color='cyan', width=0.01)
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    # ax.axis('off')
+    # for axis in ['top','bottom','left','right']:
+    #     ax.spines[axis].set_linewidth(2)
+    
+    ax.set_xlim([-1000,0])
+    ax.set_ylim([-1000,1000])
+    
+    # plt.savefig(f'{idx}_fig.png')
+    # plt.close()
+    
+    plt.show()
+
+# def plot_VDF_slices_phi(vdf_ds):
+#     vdf = vdf_ds.vdf.data
+#     # Define the velocity
+#     velocity = 13.85 * np.sqrt(vdf_ds.energy.data)
+#     theta = vdf_ds.theta.data
+#     phi   = vdf_ds.phi.data
+
+#     # This will load in the VDF for a given timestamp
+#     vx = velocity * np.cos(np.radians(theta)) * np.cos(np.radians(phi))
+#     vy = velocity * np.cos(np.radians(theta)) * np.sin(np.radians(phi))
+#     vz = velocity * np.sin(np.radians(theta))
+
+#     # Define phi slices to plot
+#     phi_slices = np.arange(8)
+
+#     fig = plt.figure(figsize=(10, 8))
+#     ax = fig.add_subplot(111, projection='3d')
+
+#     # Normalize phi values for stacking
+#     phi_offsets = np.linspace(0, len(phi_slices) - 1, len(phi_slices))
+
+#     for i, phi_val in enumerate(phi_slices):
+#         phi_idx = i  # Closest index
+        
+#         vx_slice = vx[:, :, phi_idx]
+#         vy_slice = vy[:, :, phi_idx]
+#         vz_slice = vz[:, :, phi_idx]
+#         VDF_slice = vdf[:, :, phi_idx]
+
+#         # Use an artificial "phi_offset" as the third dimension
+#         phi_layer = np.full_like(vx_slice, phi_offsets[i])
+        
+#         # Plot contours stacked along phi_offset
+#         # ax.plot_surface(vx_slice, vy_slice, vz_slice, facecolors=plt.cm.inferno(np.log10(VDF_slice)), rstride=2, cstride=2, alpha=0.7)
+#         ax.contourf(vx_slice, vy_slice, vz_slice, np.log10(VDF_slice), levels=20, cmap='inferno', alpha=0.8)
+
+#         # Mark grid points on the first plane
+#         # if i == 0:
+#         #     ax.scatter(vx_slice, vz_slice, phi_layer, s=2, color='white', alpha=0.5)
+
+#         vz_slice += 11.25
+
+#     # Labels and visualization settings
+#     ax.set_xlabel("vx")
+#     ax.set_ylabel("vy")
+#     ax.set_zlabel("Stacked Phi Layers")
+#     ax.set_title("Stacked VDF Slices at Different Phi Angles")
+
+#     plt.show()
+
 def plot_vdf_slices(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SUM=False, PLOT_TYPE='pcolormesh', POINT=None):
     vdf = vdf_ds.vdf.data
     # Define the velocity
@@ -194,10 +283,10 @@ def plot_vdf_slices_interactive(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SU
 
 if __name__ == "__main__":
     # We are investigating the VDFs at perihelion
-    trange = ['2024-12-24T16:00:00', '2024-12-24T18:00:00']
+    trange = ['2024-12-23T00:00:00', '2024-12-23T18:00:00']
     # trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:00:00']
-    # trange = ['2018-11-07T00:00:00', '2018-11-07T23:59:59']
+    # trange = ['2019-04-06T00:00:00', '2019-04-06T23:59:59']
     # Use the user credentials
     credentials = load_config('./config.json')
     creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
@@ -209,7 +298,8 @@ if __name__ == "__main__":
 
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2024-12-24T20:43:46')))
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    tidx = 200
+    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2019-04-06T00:04:48')))
+    # tidx = 200
     # # Get the PSP Flags
     # peak_theta = np.nanargmax(psp_moms.EFLUX_VS_THETA.data, axis=1)
     # peak_phi   = np.nanargmax(psp_moms.EFLUX_VS_PHI.data, axis=1)

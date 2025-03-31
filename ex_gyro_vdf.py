@@ -12,10 +12,12 @@ import functions as fn
 if __name__ == "__main__":
     # trange = ['2020-01-29T00:00:00', '2020-01-29T00:00:00']
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
-    idx = 9355
+    psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
+    idx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    # idx = 9355
     # idx = 666
 
-    psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
+    
 
     time = psp_vdf.unix_time.data
     energy = psp_vdf.energy.data
@@ -62,8 +64,8 @@ if __name__ == "__main__":
     theta = np.degrees(theta.value) + 90
     phi = np.degrees(phi.value)
 
-    # Rotate the plasma frame data into the magnetic field aligned frame.
-    v_para, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(ux, uy, uz, *fn.field_aligned_coordinates(b_span)))
+    # # Rotate the plasma frame data into the magnetic field aligned frame.
+    # v_para, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(ux, uy, uz, *fn.field_aligned_coordinates(b_span)))
 
     # Get the truly gyrotropic VDF
     v_perp = np.sqrt(vperp1**2 + vperp2**2)
@@ -88,19 +90,27 @@ if __name__ == "__main__":
     plt.gca().set_aspect('equal')
 
     # plotting the grid by coloring according to the coordinate value [for verification]
-    fig, ax = plt.subplots(1, 3, figsize=(12,4), sharey=True)
+    fig, ax = plt.subplots(1, 3, figsize=(12,5), sharey=True, layout='constrained')
 
-    ax[0].scatter(v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=r[mask[idx]])
+    v_para = -(v_para - np.linalg.norm(v_span, axis=1)[idx])
+
+    im1 = ax[0].scatter(v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=r[mask[idx]])
     ax[0].scatter(-v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=r[mask[idx]])
     ax[0].set_aspect('equal')
+    cb1 = fig.colorbar(im1, ax=ax[0], location='bottom', shrink=0.8)
+    cb1.set_label('r')
 
-    ax[1].scatter(v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=theta[mask[idx]])
+    im2 = ax[1].scatter(v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=theta[mask[idx]])
     ax[1].scatter(-v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=theta[mask[idx]])
     ax[1].set_aspect('equal')
+    cb2 = fig.colorbar(im2, ax=ax[1], location='bottom', shrink=0.8)
+    cb2.set_label(r'$\theta$')
 
-    ax[2].scatter(v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=phi[mask[idx]])
-    ax[2].scatter(-v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=phi[mask[idx]])
+    im3 = ax[2].scatter(v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=phi[mask[idx]], cmap='berlin')
+    ax[2].scatter(-v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=phi[mask[idx]], cmap='berlin')
     ax[2].set_aspect('equal')
+    cb3 = fig.colorbar(im3, ax=ax[2], location='bottom', shrink=0.8)
+    cb3.set_label(r'$\phi$')
 
-    [ax[i].set_xlabel(r'$v_{\perp}$') for i in range(3)]
-    [ax[i].set_ylabel(r'$v_{\parallel}$') for i in range(3)]
+    [ax[i].set_xlabel(r'$v_{\perp}$', fontsize=12) for i in range(3)]
+    ax[0].set_ylabel(r'$v_{\parallel}$', fontsize=12) 

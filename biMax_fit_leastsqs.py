@@ -24,7 +24,7 @@ def biMax_model(vpara, vperp, fit_params):
 def residuals(fit_params, vpara, vperp, vdf):
     fit = biMax_model(vpara, vperp, fit_params)
     return(abs(vdf)*np.abs(np.log10(vdf) - np.log10(fit))**2)
-    # return(np.abs((vdf) - fit)**2)
+    # return(np.abs(np.log10(vdf) - np.log10(fit)**2))
 
 
 if __name__ == "__main__":

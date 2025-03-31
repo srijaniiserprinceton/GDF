@@ -34,7 +34,7 @@ class gyrovdf:
         self.fac.get_coors(self.vdf_dict, trange, count_mask=1, plasma_frame=True, TH=TH, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
 
     @profile
-    def setup_new_inversion(self, tidx, knots=None, plot_basis=False, mincount=7):
+    def setup_new_inversion(self, tidx, knots=None, plot_basis=False, mincount=2):
         self.vpara_nonan, self.theta_nonan = None, None
         self.B_i_n = None
         self.S_alpha_n = None
@@ -155,9 +155,10 @@ class gyrovdf:
         bsp_basis = self.bsp.eval_bsp_basis(x)
 
         # plotting the B-spline components
+        fig, ax = plt.subplots(figsize=(8,4), layout='constrained')
         for b in bsp_basis:
-            plt.plot(x, b)
-        plt.title('B-spline basis elements')
+            ax.plot(x, b)
+        # plt.title('B-spline basis elements')
 
     def plot_Slepian_basis(self):
         # generating a regular grid for background plot
@@ -173,6 +174,19 @@ class gyrovdf:
             ax[row,col].axvline(int(self.TH), ls='dashed', color='k')
             ax[row,col].set_xlim([0,None])
             ax[row,col].set_title(f'$\lambda$ = {self.Slep.V[i]:.6f}')
+
+    def plot_Slepian_basis_2(self):
+        # generating a regular grid for background plot
+        theta_grid = np.linspace(0, np.pi, 180)
+        self.Slep.gen_Slep_basis(theta_grid)
+        
+        fig, ax = plt.subplots(figsize=(8,4), layout='constrained')
+
+        [ax.plot(self.Slep.th * 180 / np.pi, self.Slep.G[:,i], lw=1) for i in range(5)]
+        # ax.plot(self.theta_nonan, self.S_alpha_n[i], '.r')
+        ax.axvline(int(self.TH), ls='dashed', color='k')
+        ax.set_xlim([0,None])
+        # ax.set_title(f'$\lambda$ = {self.Slep.V[i]:.6f}')
 
 def load_config(file_path):
     with open(file_path, 'r') as file:
@@ -224,18 +238,21 @@ def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
 
     zeromask = vdf_rec_all == 0
     fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
-    a0 = ax[0].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], (vdf_all)[~zeromask],
-                           cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),8))
-    ax[0].set_xlabel(r'$v_{\perp}$')
-    ax[0].set_ylabel(r'$v_{\parallel}$')
+    # a0 = ax[0].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], (vdf_all)[~zeromask],
+    #                        cmap='plasma', levels=np.linspace(0,4.2,8))
+    a0 = ax[0].tricontourf(v_perp_all, v_para_all, (vdf_all),
+                           cmap='plasma', levels=np.linspace(0,4.2,8))
+    ax[0].set_xlabel(r'$v_{\perp}$', fontsize=12)
+    ax[0].set_ylabel(r'$v_{\parallel}$', fontsize=12)
     ax[0].set_aspect('equal')
     ax[0].set_title('SPAN VDF')
 
     # plt.colorbar(a0)
 
     a1 = ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask],
-                           cmap='jet', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),8))
-    ax[1].set_xlabel(r'$v_{\perp}$')
+                           cmap='plasma', levels=np.linspace(0,4.2,8))
+    ax[1].set_xlabel(r'$v_{\perp}$', fontsize=12)
+    # ax[1].set_ylabel(r'$v_{\parallel}$', fontsize=12)
     ax[1].set_aspect('equal')
     ax[1].set_title('Reconstructed VDF')
 
@@ -368,11 +385,11 @@ def calc_gyrotropic_moments(gvdf, vdf_rec_nonan, DIMS=(101, 201)):
 if __name__=='__main__':
     # loading VDF and defining timestamp
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
-    # trange = ['2024-12-24T14:00:00', '2024-12-24T16:00:00']
-    # credentials = load_config('./config.json')
-    # creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
-    creds = None
+    # trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
+    trange = ['2024-12-23T00:00:00', '2024-12-24T16:00:00']
+    credentials = load_config('./config.json')
+    creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
+    # creds = None
     
     # Initialzise the PSP vdf
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
@@ -380,7 +397,9 @@ if __name__=='__main__':
     # Choose a user defined time index
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-29T18:10:06')))
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2019-04-05T20:21:36')))
-    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    tidx = 4252
+    # tidx = 4500
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2024-12-24T14:08:34')))
     # tidx = 11146
     # tidx = 200
