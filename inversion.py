@@ -31,7 +31,7 @@ class gyrovdf:
 
         # obtaining the grid points from an actual PSP field-aligned VDF (instrument frame)
         self.fac = coor_fn.fa_coordinates()
-        self.fac.get_coors(self.vdf_dict, trange, count_mask=1, plasma_frame=True, TH=TH, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
+        self.fac.get_coors(self.vdf_dict, trange, count_mask=2, plasma_frame=True, TH=TH, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
 
     @profile
     def setup_new_inversion(self, tidx, knots=None, plot_basis=False, mincount=2):
@@ -384,9 +384,10 @@ def calc_gyrotropic_moments(gvdf, vdf_rec_nonan, DIMS=(101, 201)):
 
 if __name__=='__main__':
     # loading VDF and defining timestamp
+    # trange = ['2024-03-26T00:00:00', '2024-03-26T12:00:00']
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    # trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
-    trange = ['2024-12-23T00:00:00', '2024-12-24T16:00:00']
+    trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
+    # trange = ['2024-12-23T00:00:00', '2024-12-23T10:00:00']
     credentials = load_config('./config.json')
     creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
     # creds = None
@@ -398,14 +399,14 @@ if __name__=='__main__':
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-29T18:10:06')))
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2019-04-05T20:21:36')))
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    tidx = 4252
-    # tidx = 4500
+    # tidx = 4252
+    tidx = 4500
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2024-12-24T14:08:34')))
     # tidx = 11146
     # tidx = 200
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
     # tidx = 9960
-    tidx = 9956
+    # tidx = 9956
 
     # initializing the inversion class
     gvdf = gyrovdf(psp_vdf, trange, TH=60, Lmax=12, N2D_restrict=True, CREDENTIALS=creds, CLIP=True)
