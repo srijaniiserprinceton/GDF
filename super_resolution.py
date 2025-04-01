@@ -49,7 +49,7 @@ class supres:
 
             if (-10 < uxcore < -1 and -10 < uxbeam < -4 and np.log10(0.2) < vxth_core < np.log10(2) and
                 np.log10(1e-2) < vthani_core < np.log10(10) and np.log10(0.2) < vxth_beam < np.log10(2) and
-                np.log10(1e-2) < vthani_beam < np.log10(10) and -16 < amp_core < 16 and -16 < beam_core_ampratio < 0):
+                np.log10(1e-2) < vthani_beam < np.log10(10) and -16 < amp_core < 0 and -16 < beam_core_ampratio < 0):
                 return 0.0
 
             return -np.inf
@@ -61,16 +61,34 @@ class supres:
             return lp + log_likelihood(biMax_params)
 
         def log_likelihood(biMax_params):
+            vxcore, _, vxth_core, vthani_core, _, _, _, _ = biMax_params
             biMax_model = self.biMax(biMax_params)
-            logbiMax = np.log10(biMax_model)
+            logbiMax = np.log10(biMax_model + 1e-4)
             # logbiMax = biMax_model
 
+            residual = self.data - logbiMax
+
             # mask = self.data - np.nanmax(self.data) >= -3
-            mask = np.ones_like(self.data, dtype='bool')
+            # mask = np.ones_like(self.data, dtype='bool')
+            # vyth_core = 300 #vthani_core * vxth_core
+            # mask = (self.ydata >= -vyth_core) * (self.ydata <= vyth_core)
+            # vxth_core = 50
+            # mask2 =  (self.xdata <= (vxcore - vxth_core))
+            # weight = np.ones_like(self.data)
+            # weight[(self.data <= -0.889) * (self.data >= -1.333)] += 100
+            # alpha = 10.0
+            # quantile = np.quantile(residual, 0.9)
+            # weight = 1.0 + alpha * np.maximum(residual, 0)**2
+            # weight2 = np.where(residual > quantile, alpha, 1.0)
+            # weight[mask * mask2] = alpha #* weight2[mask]
+            weight = 1 / np.sqrt(np.abs(self.ydata / 100))
+            # weight[(self.data <= 0) * (self.data >= -1.5)] += 100
             # cost = np.nansum(np.power(10.,self.data)*(self.data - logbiMax)**2)
             # cost = np.nansum(np.power(10.,self.data[mask]) * (self.data[mask] - logbiMax[mask])**2)
-            cost = np.nansum((self.data[mask] - logbiMax[mask])**2)
+            cost = np.nansum(weight * residual**2)
             # cost = np.nansum(np.log10(np.power(10,logbiMax[mask]) / np.power(10,self.data[mask]))**2)
+
+
             return -0.5 * cost
 
 
@@ -92,7 +110,7 @@ class supres:
         vthani_core_pos = np.random.rand(nwalkers) + vthani_core_init
         vxth_beam_pos = np.random.rand(nwalkers) + vxth_beam_init
         vthani_beam_pos = np.random.rand(nwalkers) + vthani_beam_init
-        amp_core_pos = np.random.rand(nwalkers) + amp_core_init
+        amp_core_pos = (np.random.rand(nwalkers) - 1) + amp_core_init
         beam_core_ampratio_pos = np.random.rand(nwalkers) + beam_core_ampratio_init
 
         pos = np.array([uxcore_pos, uxbeam_pos, vxth_core_pos, vthani_core_pos,
@@ -103,7 +121,7 @@ class supres:
         flat_samples = sampler.get_chain(discard=5000, thin=15, flat=True)
 
         # converting the temperatures and anisotropies to linear scale
-        flat_samples[:,2:6] = np.power(10, flat_samples[:,2:6])
+        # flat_samples[:,2:6] = np.power(10, flat_samples[:,2:6])
 
         labels = ["uxcore", "uxbeam", "vxth_core", "vthani_core", "vxth_beam", "vthani_beam", "amp_core", "beam_core"]
         fig = corner.corner(flat_samples, labels=labels, show_titles=True)
@@ -128,7 +146,7 @@ class supres:
             amp_beam = beam_core_ampratio + amp_core
 
             # converting from log to linear space
-            # vxth_core, vthani_core, vxth_beam, vthani_beam = np.power(10, (vxth_core, vthani_core, vxth_beam, vthani_beam))
+            vxth_core, vthani_core, vxth_beam, vthani_beam = np.power(10, (vxth_core, vthani_core, vxth_beam, vthani_beam))
 
             # core parameters
             Max_core = Maxwellian((amp_core, uxcore, vxth_core, vthani_core * vxth_core))
@@ -142,13 +160,13 @@ class supres:
             return Max_total
 
         plt.figure()
-
         # plotting the data
         zeromask = self.data == 0
         plt.tricontourf(self.ydata[~zeromask], self.xdata[~zeromask], self.data[~zeromask] - amp_shift,
                         cmap='jet', levels=np.linspace(-4,0,10), alpha=0.7)
         plt.colorbar()
-        # plt.contourf(self.xdata, self.ydata, self.data, levels=(0, self.maxamp, 12))
+        plt.scatter(self.ydata[~zeromask], self.xdata[~zeromask], c='k', s=2)
+        plt.tight_layout()
 
         # plotting the contour of the fit over the data
         x = np.linspace(np.nanmin(self.xdata), np.nanmax(self.xdata), 120)
@@ -156,13 +174,11 @@ class supres:
         xgrid, ygrid = np.meshgrid(x, y, indexing='ij')
 
         biMax_fit_values = np.log10(biMax(self.biMax_fit_params))
-        plt.contour(ygrid, xgrid, biMax_fit_values - amp_shift, color='k', cmap='jet', vmin=-4, vmax=0)
-        # plt.colorbar()
-        plt.tight_layout()
 
         plt.figure()
         plt.contourf(ygrid, xgrid, biMax_fit_values - amp_shift, cmap='jet', levels=np.linspace(-4,0,10), alpha=0.7)
         plt.colorbar()
+        plt.scatter(self.ydata[~zeromask], self.xdata[~zeromask], c='k', s=2)
         plt.tight_layout()
 
     '''
