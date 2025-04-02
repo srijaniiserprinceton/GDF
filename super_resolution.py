@@ -197,7 +197,7 @@ class supres:
         plt.figure()
         # plotting the data
         zeromask = self.data == 0
-        plt.tricontourf(self.ydata[~zeromask], self.xdata[~zeromask], self.data[~zeromask] - amp_shift,
+        plt.tricontourf(self.ydata[~zeromask], self.xdata[~zeromask], self.data[~zeromask],
                         cmap='jet', levels=np.linspace(-4,0,10), alpha=0.7)
         plt.colorbar()
         plt.scatter(self.ydata[~zeromask], self.xdata[~zeromask], c='k', s=2)
@@ -211,14 +211,13 @@ class supres:
         biMax_fit_values = np.log10(biMax(self.biMax_fit_params))
 
         plt.figure()
-        plt.contourf(ygrid, xgrid, biMax_fit_values - amp_shift, cmap='jet', levels=np.linspace(-4,0,10), alpha=0.7)
+        plt.contourf(ygrid, xgrid, biMax_fit_values, cmap='jet', levels=np.linspace(-4,0,10), alpha=0.7)
         plt.colorbar()
         plt.scatter(self.ydata[~zeromask], self.xdata[~zeromask], c='k', s=2)
         plt.tight_layout()   
 
 if __name__=='__main__':
     vdf_rec = np.load('vdf_Sleprec.npy').flatten()
-    amp_shift = 0
     vpara = np.load('vpara.npy').flatten()
     vperp = np.load('vperp.npy').flatten()
 
