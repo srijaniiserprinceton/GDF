@@ -8,23 +8,66 @@ import numpy as np
 import emcee, corner
 import matplotlib.pyplot as plt; plt.ion()
 
+from line_profiler import profile
+from numba import njit
+
+@njit
+def Maxwellian_numba(Max_params, xdata, ydata):
+    # extracting the fitting parameters
+    amp, ux, vxth, vyth = Max_params
+
+    # 100 is scaled with the velocities to make the paramters of order unity
+    return (10**amp) * np.exp(-((xdata - 100*ux) / (100*vxth))**2 - (ydata / (100*vyth))**2)
+
+@njit
+def biMax_numba(biMax_params, xdata, ydata):
+    uxcore, uxbeam, vxth_core, vthani_core, vxth_beam, vthani_beam, amp_core, beam_core_ampratio = biMax_params
+    # since amplitudes are in log-scale
+    amp_beam = beam_core_ampratio + amp_core
+
+    # converting thermal velocities and anisotropies from log to linear space
+    vxth_core = 10**vxth_core
+    vthani_core = 10**vthani_core
+    vxth_beam = 10**vxth_beam
+    vthani_beam = 10**vthani_beam
+
+    # core parameters (only amplitude is still in log scale)
+    Max_core = Maxwellian_numba((amp_core, uxcore, vxth_core, vthani_core * vxth_core), xdata, ydata)
+
+    # beam parameters (only amplitude is still in log scale)
+    Max_beam = Maxwellian_numba((amp_beam, uxbeam, vxth_beam, vthani_beam * vxth_beam), xdata, ydata)
+
+    # adding the core and beam Maxwellians
+    Max_total = (Max_core + Max_beam)
+
+    return Max_total
+
 class supres:
     def __init__(self, vdf, vpara, vperp, baseline=1e-4):
         self.data = np.log10((vdf / np.nanmax(vdf)) + baseline)
-        self.xdata = vpara
-        self.ydata = vperp
+        self.xdata = vpara.astype(np.float32)
+        self.ydata = vperp.astype(np.float32)
         # to be also used in the forward model when comparing fitted data with input data
         self.baseline = baseline
 
         # to be filled in at the end of plotting
         self.biMax_fit_params = None
 
+        # creating the dominant weight masks
+        self.mask = (self.data <= -0.678) & (self.data >= -2.71)
+        # self.mask = (self.data <= -0.678) & (self.data >= -1.737)
+
+        # generating weights once and for all
+        self.weight = np.ones_like(self.data)
+        self.weight[self.mask] += 100
+
     def Maxwellian(self, Max_params):
         # extracting the fitting parameters
         amp, ux, vxth, vyth = Max_params
 
         # 100 is scaled with the velocities to make the paramters of order unity
-        return np.power(10., amp) * np.exp(-((self.xdata - 100*ux) / (100*vxth))**2 - (self.ydata / (100*vyth))**2)
+        return (10**amp) * np.exp(-((self.xdata - 100*ux) / (100*vxth))**2 - (self.ydata / (100*vyth))**2)
+
 
     def biMax(self, biMax_params):
         uxcore, uxbeam, vxth_core, vthani_core, vxth_beam, vthani_beam, amp_core, beam_core_ampratio = biMax_params
@@ -32,7 +75,10 @@ class supres:
         amp_beam = beam_core_ampratio + amp_core
 
         # converting thermal velocities and anisotropies from log to linear space
-        vxth_core, vthani_core, vxth_beam, vthani_beam = np.power(10, (vxth_core, vthani_core, vxth_beam, vthani_beam))
+        vxth_core = 10**vxth_core
+        vthani_core = 10**vthani_core
+        vxth_beam = 10**vxth_beam
+        vthani_beam = 10**vthani_beam
 
         # core parameters (only amplitude is still in log scale)
         Max_core = self.Maxwellian((amp_core, uxcore, vxth_core, vthani_core * vxth_core))
@@ -65,8 +111,10 @@ class supres:
                 return -np.inf
             return lp + log_likelihood(biMax_params)
 
+        @profile
         def log_likelihood(biMax_params):
-            biMax_model = self.biMax(biMax_params)
+            # biMax_model = self.biMax(biMax_params)
+            biMax_model = biMax_numba(biMax_params, self.xdata, self.ydata)
 
             # adding a small baseline; 1e-4 was chosen since the lowest values were around 10^4 less than core
             # this number can be changed later
@@ -75,11 +123,7 @@ class supres:
             # residual values between data and model fitting
             residual = self.data - logbiMax
 
-            weight = np.ones_like(self.data)
-            # weight[(self.data <= -0.678) * (self.data >= -1.737)] += 100
-            weight[(self.data <= -0.678) * (self.data >= -2.71)] += 100
-
-            cost = np.nansum(weight * residual**2)
+            cost = np.dot(self.weight, np.square(residual))
 
             return -0.5 * cost
 
@@ -177,6 +221,10 @@ if __name__=='__main__':
     amp_shift = 0
     vpara = np.load('vpara.npy').flatten()
     vperp = np.load('vperp.npy').flatten()
+
+    # dummy biMax function compilation
+    dummy_params = np.zeros(8)
+    _ = biMax_numba(dummy_params, np.zeros_like(vpara), np.zeros_like(vperp))
 
     # initializing the super-resolution class
     supres_vdf = supres(vdf_rec, vpara, vperp)
