@@ -139,7 +139,7 @@ class supres:
         beam_core_ampratio_init = amp_core_init - 2
 
         # performing the mcmc of dtw 
-        nwalkers = 32
+        nwalkers = 16
         uxcore_pos = np.random.rand(nwalkers) + uxcore_init
         uxbeam_pos = np.random.rand(nwalkers) + uxbeam_init
         vxth_core_pos = np.random.rand(nwalkers) + vxth_core_init
