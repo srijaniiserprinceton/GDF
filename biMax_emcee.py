@@ -217,9 +217,10 @@ class supres:
         plt.tight_layout()   
 
 if __name__=='__main__':
-    vdf_rec = np.load('vdf_Sleprec.npy').flatten()
-    vpara = np.load('vpara.npy').flatten()
-    vperp = np.load('vperp.npy').flatten()
+    tidx = 7300
+    vdf_rec = np.load(f'vdf_Sleprec_{tidx}.npy').flatten()
+    vpara = np.load(f'vpara_{tidx}.npy').flatten()
+    vperp = np.load(f'vperp_{tidx}.npy').flatten()
 
     # dummy biMax function compilation
     dummy_params = np.zeros(8)
