@@ -567,7 +567,7 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
     cbar.ax.tick_params(labelsize=18) 
     ax.set_xlabel(r'$v_{\perp}$', fontsize=20)
     ax.set_ylabel(r'$v_{\parallel}$', fontsize=20)
-    ax.set_title(f'Super Resolution | {str(gvdf.l2_time[tidx])[:21]}', fontsize=20)
+    ax.set_title(f'Super Resolution | {str(gvdf.l2_time[tidx])[:19]}', fontsize=20)
     ax.tick_params(axis='both', which='major', labelsize=18)
     ax.set_aspect('equal')
 
@@ -649,7 +649,7 @@ if __name__=='__main__':
         vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=101)
 
         plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx)
-        plot_super_resolution(gvdf_tstamp, tidx, vdf_super)
+        plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel)
 
         # grids = gvdf_tstamp.grid_points
         # mask = gvdf_tstamp.hull_mask
@@ -688,7 +688,3 @@ if __name__=='__main__':
         vdf_rec_bundle[tidx] = bundle
 
     write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{idx}_to_{tidx}')
-
-        # plt.figure(); plt.tricontourf(grids[mask,1], grids[mask,0], vdf_super[mask], levels=np.linspace(0,4.0,10), cmap='plasma'); plt.colorbar()
-
-        # vdf_moments(gvdf_tstamp, vdf_super)

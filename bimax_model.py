@@ -58,8 +58,6 @@ def get_model_params(cdfdata, tidx, grids):
     f = f_core + f_beam
     return(f)
 
-
-
 def biMax_model(v_para, v_perp, den, u_para, w_perp, w_para):
     # all units should be converted to cm!
     const = den/(np.pi**(3/2) * w_perp**2 * w_para)

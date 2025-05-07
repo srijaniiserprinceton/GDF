@@ -80,6 +80,13 @@ def _get_psp_vdf(trange, CREDENTIALS=None, OVERRIDE=False):
             latest_version = get_latest_version(glob.glob(file))
 
             files = [latest_version]
+
+        if files == None:
+            if CREDENTIALS:
+                files = pyspedas.psp.spi(trange, datatype='spi_sf00', level='L2', notplot=True, time_clip=True, downloadonly=True, last_version=True, get_support_data=True, username=CREDENTIALS[0], password=CREDENTIALS[1])
+            else:
+                files = pyspedas.psp.spi(trange, datatype='spi_sf00_8dx32ex8a', level='l2', notplot=True, time_clip=True, downloadonly=True, last_version=True, get_support_data=True)
+
             
 
     else:
@@ -222,7 +229,7 @@ def _get_psp_span_mom(trange, CREDENTIALS=None, OVERRIDE=False):
     pwd = os.getcwd()
 
     files = None
-    if (os.path.exists(f'{pwd}/psp_data/sweap/spi')) and (OVERRIDE == False):
+    if (os.path.exists(f'{pwd}/psp_data/sweap/spi/')) and (OVERRIDE == False):
         preamble = 'psp_swp_spi_sf00'
         if CREDENTIALS:
             # Credentials means we are using the private data directory.
@@ -242,6 +249,13 @@ def _get_psp_span_mom(trange, CREDENTIALS=None, OVERRIDE=False):
             latest_version = get_latest_version(glob.glob(file))
 
             files = [latest_version]
+
+        if files == None:
+            if CREDENTIALS:
+                files = pyspedas.psp.spi(trange, datatype='spi_sf00', level='L3', notplot=True, time_clip=True, downloadonly=True, last_version=True, username=CREDENTIALS[0], password=CREDENTIALS[1])
+            else:
+                files = pyspedas.psp.spi(trange, datatype='spi_sf00_l3_mom', level='l3', notplot=True, time_clip=True, downloadonly=True, last_version=True)
+
 
     else:
         if CREDENTIALS:
