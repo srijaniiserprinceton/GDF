@@ -108,6 +108,8 @@ class gyrovdf:
                 vmin = np.min(self.velocity[tidx, self.nanmask[tidx]])
                 vmax = np.max(self.velocity[tidx, self.nanmask[tidx]])
                 dlnv = 0.0348
+                vmin = np.power(10, np.log10(vmin) - dlnv)
+                vmax = np.power(10, np.log10(vmax) + dlnv)
                 Nbins = int((np.log10(vmax) - np.log10(vmin)) / dlnv)
 
                 # the knot locations
@@ -137,9 +139,12 @@ class gyrovdf:
                 t = np.append(t, self.knots)
                 t = np.append(t, np.array([self.knots[-1] for i in range(self.p)]))
                 bsp_basis_coefs = np.identity(len(self.knots) + (self.p-1))
-                spl = BSpline(t, bsp_basis_coefs, self.p)
+                spl = BSpline(t, bsp_basis_coefs, self.p, extrapolate=False)
                 # self.B_i_n = spl(self.vpara_nonan).T
-                self.B_i_n = spl(self.rfac).T
+                self.B_i_n = np.nan_to_num(spl(self.rfac).T)
+                
+                # excluding the first and last Bsplines to prevent function from blowing up
+                self.B_i_n = self.B_i_n[1:-1]
 
             def get_Slepians():
                 self.S_alpha_n = None
@@ -410,6 +415,7 @@ class gyrovdf:
 
             make_knots(tidx)
             get_Bsplines_scipy()
+            # get_Bsplines()
             get_Slepians_scipy()
             get_G_matrix()
 
@@ -582,11 +588,11 @@ def write_pickle(x, fname):
 
 if __name__=='__main__':
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    # trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
-    trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
-    credentials = fn.load_config('./config.json')
-    creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
-    # creds = None
+    trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
+    # trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
+    # credentials = fn.load_config('./config.json')
+    # creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
+    creds = None
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
     
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
@@ -604,7 +610,7 @@ if __name__=='__main__':
     vdf_rec_bundle = {}
     for tidx in tqdm(range(1)): #range(len(psp_vdf.time.data))):
         # initializing the inversion class
-        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=12, N2D_restrict=False, count_mask=2, mincount=7, ITERATE=False, CREDENTIALS=creds, CLIP=True)
+        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=12, TH=60, N2D_restrict=False, count_mask=2, mincount=2, ITERATE=False, CREDENTIALS=creds, CLIP=True)
 
         # initializing the vdf data to optimize
         vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/np.nanmin(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]))
@@ -646,6 +652,7 @@ if __name__=='__main__':
         u_corr = np.hstack([VX, v_yz_corr[tidx]])  
 
         gvdf_tstamp.get_coors(u_corr, tidx)
+        sys.exit()
         vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=101)
 
         plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx)

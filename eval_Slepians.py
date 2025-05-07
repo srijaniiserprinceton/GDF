@@ -36,7 +36,7 @@ class Slep_transverse:
 if __name__=='__main__':
     # defining the concentration problem to obtain the Slepian tapers
     TH = 75
-    Lmax = 16
+    Lmax = 12
     Slep = Slep_transverse()
     Slep.gen_Slep_tapers(TH, Lmax)
 
