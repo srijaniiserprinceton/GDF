@@ -54,12 +54,12 @@ class supres:
         self.biMax_fit_params = None
 
         # creating the dominant weight masks
-        self.mask = (self.data <= -0.678) & (self.data >= -2.71)
+        # self.mask = (self.data <= -0.678) & (self.data >= -2.71)
         # self.mask = (self.data <= -0.678) & (self.data >= -1.737)
 
         # generating weights once and for all
         self.weight = np.ones_like(self.data)
-        self.weight[self.mask] += 100
+        # self.weight[self.mask] += 100
 
     def Maxwellian(self, Max_params):
         # extracting the fitting parameters
@@ -98,7 +98,7 @@ class supres:
         def log_prior(biMax_params):
             uxcore, uxbeam, vxth_core, vthani_core, vxth_beam, vthani_beam, amp_core, beam_core_ampratio = biMax_params
 
-            if (-10 < uxcore < -1 and -10 < uxbeam < -4 and np.log10(0.2) < vxth_core < np.log10(2) and
+            if (-5 < uxcore < 4 and -5 < uxbeam < 0 and np.log10(0.2) < vxth_core < np.log10(2) and
                 np.log10(1e-2) < vthani_core < np.log10(10) and np.log10(0.2) < vxth_beam < np.log10(2) and
                 np.log10(1e-2) < vthani_beam < np.log10(10) and -16 < amp_core < 0 and -16 < beam_core_ampratio < 0):
                 return 0.0
@@ -217,10 +217,14 @@ class supres:
         plt.tight_layout()   
 
 if __name__=='__main__':
-    tidx = 7300
-    vdf_rec = np.load(f'vdf_Sleprec_{tidx}.npy').flatten()
-    vpara = np.load(f'vpara_{tidx}.npy').flatten()
-    vperp = np.load(f'vperp_{tidx}.npy').flatten()
+    tidx = 7290
+    # vdf_rec = np.load(f'Near_Kris_Event/vdf_Sleprec_{tidx}.npy').flatten()
+    # vpara = np.load(f'Near_Kris_Event/vpara_{tidx}.npy').flatten()
+    # vperp = np.load(f'Near_Kris_Event/vperp_{tidx}.npy').flatten()
+
+    vdf_rec = np.load('vdf_Sleprec_7300.npy').flatten()
+    vpara = np.load('vpara_7300.npy').flatten()
+    vperp = np.load('vperp_7300.npy').flatten()
 
     # dummy biMax function compilation
     dummy_params = np.zeros(8)

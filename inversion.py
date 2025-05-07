@@ -20,7 +20,7 @@ from scipy.integrate import simpson
 import pickle
 
 class gyrovdf:
-    def __init__(self, vdf_dict, trange, TH=60, Lmax=16, N2D_restrict=True, p=3, ITERATE=False, CREDENTIALS=None, CLIP=False):
+    def __init__(self, vdf_dict, trange, TH=60, Lmax=16, N2D_restrict=True, count_mask=0, mincount=0, p=3, ITERATE=False, CREDENTIALS=None, CLIP=False):
         self.vdf_dict = vdf_dict
         self.trange = trange
 
@@ -28,20 +28,22 @@ class gyrovdf:
         self.Lmax = Lmax
         self.N2D_restrict = N2D_restrict
         self.p = p
+        self.mincount = mincount
+        self.count_mask = count_mask
 
         # obtaining the grid points from an actual PSP field-aligned VDF (instrument frame)
         self.fac = coor_fn.fa_coordinates()
-        self.fac.get_coors(self.vdf_dict, trange, count_mask=2, plasma_frame=True, TH=TH, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
+        self.fac.get_coors(self.vdf_dict, trange, count_mask=self.count_mask, plasma_frame=True, TH=TH, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
 
     @profile
-    def setup_new_inversion(self, tidx, knots=None, plot_basis=False, mincount=2):
+    def setup_new_inversion(self, tidx, knots=None, plot_basis=False):#, mincount=2):
         self.vpara_nonan, self.theta_nonan = None, None
         self.B_i_n = None
         self.S_alpha_n = None
         self.G_k_n = None
 
         if(knots is None):
-            self.make_knots(tidx, mincount)
+            self.make_knots(tidx)
         else:
             self.knots = knots
 
@@ -54,7 +56,7 @@ class gyrovdf:
         self.get_G_matrix()
 
 
-    def make_knots(self, tidx, mincount):
+    def make_knots(self, tidx):
         # finding the minimum and maximum velocities with counts to find the knot locations
         vmin = np.min(self.fac.velocity[tidx, self.fac.nanmask[tidx]])
         vmax = np.max(self.fac.velocity[tidx, self.fac.nanmask[tidx]])
@@ -66,7 +68,7 @@ class gyrovdf:
         counts, log_knots = np.histogram(np.log10(self.vpara_nonan), bins=Nbins)
 
         # discarding knots at counts less than 10 (always discarding the last knot with low count)
-        log_knots = log_knots[:-1][counts >= mincount]
+        log_knots = log_knots[:-1][counts >= self.mincount]
         self.knots = np.power(10, log_knots)
 
         # also making the perp grid for future plotting purposes
@@ -221,16 +223,26 @@ def plot_span_vs_rec_scatter(gvdf, vdf_rec):
 
     plt.show()
 
-def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
+def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False, VA=None):
     # These are for plotting with the tricontourf routine.
     # getting the plasma frame coordinates
     # vpara_pf = gvdf.fac.vpara
     # vperp_pf = gvdf.fac.vperp
     # vpara_nonan = vpara_pf[tidx, gvdf.fac.nanmask[tidx]]
     # vperp_nonan = vperp_pf[tidx, gvdf.fac.nanmask[tidx]]
+    if VA:
+        v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])/VA
+        v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])/VA
+        xlabel = r'$v_{\perp}/v_{A}$'
+        ylabel = r'$v_{\parallel}/v_{A}$'
+    else:
+        v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])
+        v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])
+        xlabel = r'$v_{\perp}$'
+        ylabel = r'$v_{\parallel}$'
 
-    v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])
-    v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])
+    v_para_all -= gvdf.fac.vshift[tidx]
+
     vdf_nonan = gvdf.vdf_nonan_data 
     
     vdf_all = np.concatenate([vdf_nonan, vdf_nonan])
@@ -241,17 +253,17 @@ def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
     # a0 = ax[0].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], (vdf_all)[~zeromask],
     #                        cmap='plasma', levels=np.linspace(0,4.2,8))
     a0 = ax[0].tricontourf(v_perp_all, v_para_all, (vdf_all),
-                           cmap='plasma', levels=np.linspace(0,4.2,8))
-    ax[0].set_xlabel(r'$v_{\perp}$', fontsize=12)
-    ax[0].set_ylabel(r'$v_{\parallel}$', fontsize=12)
+                           cmap='plasma', levels=np.linspace(0,4.6,8))
+    ax[0].set_xlabel(xlabel, fontsize=12)
+    ax[0].set_ylabel(ylabel, fontsize=12)
     ax[0].set_aspect('equal')
     ax[0].set_title('SPAN VDF')
 
     # plt.colorbar(a0)
 
     a1 = ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask],
-                           cmap='plasma', levels=np.linspace(0,4.2,8))
-    ax[1].set_xlabel(r'$v_{\perp}$', fontsize=12)
+                           cmap='plasma', levels=np.linspace(0,4.6,8))
+    ax[1].set_xlabel(xlabel, fontsize=12)
     # ax[1].set_ylabel(r'$v_{\parallel}$', fontsize=12)
     ax[1].set_aspect('equal')
     ax[1].set_title('Reconstructed VDF')
@@ -259,7 +271,7 @@ def plot_span_vs_rec_contour(gvdf, vdf_rec, GRID=False):
     plt.colorbar(a1)
 
     if GRID:
-        [ax[i].scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=0.8) for i in range(2)]
+        [ax[i].scatter(v_perp_all[len(v_para_all)//2:,], v_para_all[len(v_para_all)//2:,], color='k', marker='.', s=0.8) for i in range(2)]
 
     plt.show()
 
@@ -276,20 +288,15 @@ def plot_super_res(gvdf):
     y_line = rsup * np.sin((90-gvdf.TH) * np.pi / 180)
 
     plt.figure(figsize=(8,4))
-    plt.contourf(v_perp_s, v_para_s, vdf_rec_sup, cmap='plasma')
+    plt.contourf(v_perp_s, v_para_s, vdf_rec_sup, cmap='plasma', levels=np.linspace(0,np.nanmax(gvdf.vdf_nonan_data),10))
     plt.colorbar()
-    # plt.scatter(gvdf.fac.vperp[tidx].flatten(), gvdf.fac.r_fa[tidx].flatten() , color='k', marker='x')
-    # plt.scatter(-gvdf.fac.vperp[tidx].flatten(), gvdf.fac.r_fa[tidx].flatten(), color='k', marker='x')
-    plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.')
-    plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.')
-    # plt.plot(x_line, y_line, 'k')
-    # plt.plot(-x_line, y_line, 'k')
+    plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=0.8)
     
     plt.xlabel(r'$v_{\perp}/v_{a}$')
     plt.ylabel(r'$v_{\parallel}/v_{a}$')
-    plt.xlim([-500,500])
-    plt.ylim([0,None])
-    plt.gca().set_aspect('equal')
+    plt.xlim([-300,300])
+    # plt.ylim([0,None])
+    # plt.gca().set_aspect('equal')
     plt.title('Reconstructed VDF')
 
 def RBF(gvdf, vdf_nonan, DIMS=(100,200), SMOOTH=0):
@@ -386,47 +393,55 @@ if __name__=='__main__':
     # loading VDF and defining timestamp
     # trange = ['2024-03-26T00:00:00', '2024-03-26T12:00:00']
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
+    # trange = ['2024-07-01T16:00:00', '2024-07-01T19:00:00']
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
-    # trange = ['2024-12-23T00:00:00', '2024-12-23T10:00:00']
-    credentials = load_config('./config.json')
-    creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
-    # creds = None
+    # trange = ['2024-12-24T10:00:00', '2024-12-24T02:00:00']
+    # credentials = load_config('./config.json')
+    # creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
+    creds = None
     
-    # Initialzise the PSP vdf
+    # Initialzise the PSP vdf and load in plasma moments.
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
+    psp_moms = fn.init_psp_moms(trange, CREDENTIALS=creds, CLIP=True)
+
+    # Let us calculate the Alfven speed.
+    # density = psp_moms.DENS.data
+    # avg_den = np.convolve(density, np.ones(10)/10, 'same')
+    b_span  = psp_moms.MAGF_INST.data
+
+    # va_vec = ((b_span * u.nT) / (np.sqrt(c.m_p * c.mu0 * avg_den[:,None] * u.cm**(-3)))).to(u.km/u.s).value
+    # va_mag = np.linalg.norm(va_vec, axis=1)
 
     # Choose a user defined time index
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-29T18:10:06')))
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2019-04-05T20:21:36')))
-    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    # tidx = 4252
-    tidx = 4500
+    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    # tidx = 0
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2024-12-24T10:06:29.470673')))
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2024-07-01T17:14:46')))
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2024-12-24T14:08:34')))
-    # tidx = 11146
-    # tidx = 200
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    # tidx = 9960
-    # tidx = 9956
 
     # initializing the inversion class
-    gvdf = gyrovdf(psp_vdf, trange, TH=60, Lmax=12, N2D_restrict=True, CREDENTIALS=creds, CLIP=True)
+    gvdf = gyrovdf(psp_vdf, trange, TH=60, Lmax=12, count_mask=1, mincount=2, N2D_restrict=True, CREDENTIALS=creds, CLIP=True)
     
+    # for tidx in range(tidx0-10, tidx0+10):
     # Loop over the specified time indicies.
-    gvdf.setup_new_inversion(tidx, plot_basis=False, mincount=2)
+    gvdf.setup_new_inversion(tidx, plot_basis=False)
 
     # performing the inversion to get the flattened vdf_rec
     vdf_rec_nonan, coeffs = gvdf.inversion(tidx)
 
+    tag = psp_vdf.time.data[tidx].astype(str)[:19]
+
     plot_span_vs_rec_scatter(gvdf, vdf_rec_nonan)
-    plot_span_vs_rec_contour(gvdf, vdf_rec_nonan, GRID=True)
+    plot_span_vs_rec_contour(gvdf, vdf_rec_nonan, GRID=True)#, VA=va_mag[tidx])
     plot_super_res(gvdf)
-
     
-    plot_rbf(gvdf, vdf_rec_nonan)
-
+    # plot_rbf(gvdf, vdf_rec_nonan)
     
     # saving the data for MCMC fitting
-    vpara_pf = gvdf.fac.vpara
+    vpara_pf = gvdf.fac.vpara + gvdf.fac.vshift[:,None,None,None]
     vperp_pf = gvdf.fac.vperp
     vpara_nonan = vpara_pf[tidx, gvdf.fac.nanmask[tidx]]
     vperp_nonan = vperp_pf[tidx, gvdf.fac.nanmask[tidx]]
@@ -436,15 +451,17 @@ if __name__=='__main__':
     vdf_minval = gvdf.vdf_minval
     '''
     x, y = RBF(gvdf, vdf_rec_nonan)
-
     vdf_rec_all = y
     v_para_all, v_perp_all = x
     '''
+    np.save(f'vdf_Sleprec_{tidx}.npy', np.power(10,vdf_rec_all) * vdf_minval)
+    np.save(f'vpara_{tidx}.npy', v_para_all)
+    np.save(f'vperp_{tidx}.npy', v_perp_all)
 
-    np.save('vdf_Sleprec.npy', np.power(10,vdf_rec_all) * vdf_minval)
-    np.save('vpara.npy', v_para_all)
-    np.save('vperp.npy', v_perp_all)
-    uni_grid, y = RBF(gvdf, vdf_rec_nonan)
+    np.save(f'vpara_va_{tag}.npy', v_para_all) #/va_mag[tidx])
+    np.save(f'vperp_va_{tag}.npy', v_perp_all) #/va_mag[tidx])
+
+    # uni_grid, y = RBF(gvdf, vdf_rec_nonan)
 
     '''
     mydens = pickle.load(open('/home/michael/Research/GDF/SPAN_Densities_my_moms.pkl', 'rb'))

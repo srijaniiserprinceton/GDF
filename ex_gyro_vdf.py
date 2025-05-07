@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 import cdflib
 import xarray as xr
 import matplotlib.pyplot as plt; plt.ion()
@@ -10,14 +11,10 @@ NAX = np.newaxis
 import functions as fn
 
 if __name__ == "__main__":
-    # trange = ['2020-01-29T00:00:00', '2020-01-29T00:00:00']
-    trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
+    trange = ['2020-01-29T00:00:00', '2020-01-29T00:00:00']
+    # trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=None)
     idx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    # idx = 9355
-    # idx = 666
-
-    
 
     time = psp_vdf.unix_time.data
     energy = psp_vdf.energy.data
@@ -46,18 +43,36 @@ if __name__ == "__main__":
     v_span = data.VEL_INST.data
 
     # # Not shifting into plasma frame to get the correct spherical grid for Slepians
-    # ux = vx
-    # uy = vy
-    # uz = vz
+    ux = vx
+    uy = vy
+    uz = vz
 
     # Shift into the plasma frame
-    ux = vx - v_span[:, 0, NAX, NAX, NAX]
-    uy = vy - v_span[:, 1, NAX, NAX, NAX]
-    uz = vz - v_span[:, 2, NAX, NAX, NAX]
+    ux0 = vx - v_span[:, 0, NAX, NAX, NAX]
+    uy0 = vy - v_span[:, 1, NAX, NAX, NAX]
+    uz0 = vz - v_span[:, 2, NAX, NAX, NAX]
 
     # Rotate the plasma frame data into the magnetic field aligned frame.
-    v_para, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(ux, uy, uz, *fn.field_aligned_coordinates(b_span)))
+    v_para, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(ux0, uy0, uz0, *fn.field_aligned_coordinates(b_span)))
 
+    # Rotate the original SPAN grids into the field aligned direction
+    v_para0, vperp01, vperp02 = np.array(fn.rotate_vector_field_aligned(ux, uy, uz, *fn.field_aligned_coordinates(b_span)))
+    vspan_para, vspan_perp1, vspan_perp2 = np.array(fn.rotate_vector_field_aligned(v_span[:,0], v_span[:,1], v_span[:,2], *fn.field_aligned_coordinates(b_span)))
+
+    v_para1, vperp11, vperp12 = v_para0 - vspan_para[:, NAX, NAX, NAX], vperp01 - vspan_perp1[:, NAX, NAX, NAX], vperp02 - vspan_perp2[:, NAX, NAX, NAX]
+
+    v_perp  = np.sqrt(vperp1**2 + vperp2**2)
+    v_perp1 = np.sqrt(vperp11**2 + vperp12**2)
+
+    tidx = 9589
+    mask = np.isfinite(vdf[tidx])
+    fig, ax = plt.subplots(figsize=(8,8), sharey=True, layout='constrained')
+    ax.scatter(v_para[tidx, mask], v_perp[tidx, mask], marker = 'o', color='r', alpha=0.5)
+    ax.scatter(v_para1[tidx, mask], v_perp1[tidx, mask], marker = 'x', color='b', alpha=0.5)
+
+    plt.show()
+
+    sys.exit()
     # converting the grid to spherical polar in the field aligned frame
     r, theta, phi = c2s(vperp1[idx], vperp2[idx], v_para[idx])
     r = r.value
@@ -106,11 +121,22 @@ if __name__ == "__main__":
     cb2 = fig.colorbar(im2, ax=ax[1], location='bottom', shrink=0.8)
     cb2.set_label(r'$\theta$')
 
-    im3 = ax[2].scatter(v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=phi[mask[idx]], cmap='berlin')
-    ax[2].scatter(-v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=phi[mask[idx]], cmap='berlin')
+    im3 = ax[2].scatter(v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=phi[mask[idx]], cmap='twilight')
+    ax[2].scatter(-v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=phi[mask[idx]], cmap='twilight')
     ax[2].set_aspect('equal')
     cb3 = fig.colorbar(im3, ax=ax[2], location='bottom', shrink=0.8)
     cb3.set_label(r'$\phi$')
 
     [ax[i].set_xlabel(r'$v_{\perp}$', fontsize=12) for i in range(3)]
     ax[0].set_ylabel(r'$v_{\parallel}$', fontsize=12) 
+
+    fig, ax = plt.subplots(figsize=(8,9), layout='constrained')
+    im3 = ax.scatter(v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=phi[mask[idx]], cmap='twilight')
+    ax.scatter(-v_perp[idx, mask[idx]], v_para[idx, mask[idx]], c=phi[mask[idx]], cmap='twilight')
+    ax.set_aspect('equal')
+    cb3 = fig.colorbar(im3, ax=ax, location='bottom', shrink=0.8)
+    cb3.set_label(r'$\phi$', fontsize=24)
+    ax.set_ylabel(r'$v_{\parallel}$', fontsize=24)
+    ax.set_xlabel(r'$v_{\perp}$', fontsize=24)
+    ax.tick_params(axis='both', which='major', labelsize=20)
+    cb3.ax.tick_params(labelsize=18)

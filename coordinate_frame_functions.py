@@ -16,7 +16,7 @@ class fa_coordinates:
         self.velocity = None
         self.nanmask = None
 
-    def get_coors(self, vdf_dict, trange, count_mask=0, plasma_frame=True, TH=75, CREDENTIALS=None, CLIP=False):
+    def get_coors(self, vdf_dict, trange, tidx=7300, count_mask=0, plasma_frame=True, TH=60, CREDENTIALS=None, CLIP=False):
         self.__init__()
 
         time = vdf_dict.unix_time.data
@@ -37,44 +37,51 @@ class fa_coordinates:
         self.velocity = np.sqrt(2 * q_p * energy / m_p)
 
         # Define the Cartesian Coordinates
-        vx = self.velocity * np.cos(np.radians(theta)) * np.cos(np.radians(phi))
-        vy = self.velocity * np.cos(np.radians(theta)) * np.sin(np.radians(phi))
-        vz = self.velocity * np.sin(np.radians(theta))
+        self.vx = self.velocity * np.cos(np.radians(theta)) * np.cos(np.radians(phi))
+        self.vy = self.velocity * np.cos(np.radians(theta)) * np.sin(np.radians(phi))
+        self.vz = self.velocity * np.sin(np.radians(theta))
 
         # filemoms = fn.get_psp_span_mom(trange, CREDENTIALS=CREDENTIALS)
         # print(filemoms)
+        print("Clip status:", CLIP)
         data = fn.init_psp_moms(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
 
         # obtaining the mangnetic field and v_bulk measured
         self.b_span = data.MAGF_INST.data
-        v_span = data.VEL_INST.data
+
+        print(len(self.b_span), self.vx.shape)
+        self.v_span = data.VEL_INST.data
         
         # Shift into the plasma frame
-        ux = vx - v_span[:, 0, NAX, NAX, NAX]
-        uy = vy - v_span[:, 1, NAX, NAX, NAX]
-        uz = vz - v_span[:, 2, NAX, NAX, NAX]
-        # uy = vy - 24.95
-        # uz = vz - 68.98
+        self.ux = self.vx - self.v_span[:, 0, NAX, NAX, NAX]
+        self.uy = self.vy - self.v_span[:, 1, NAX, NAX, NAX]
+        self.uz = self.vz - self.v_span[:, 2, NAX, NAX, NAX]
+        # self.uy = vy - 24.95
+        # self.uz = vz - 68.98
         
 
         # Rotate the plasma frame data into the magnetic field aligned frame.
-        vpara, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(ux, uy, uz,
+        vpara, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(self.ux, self.uy, self.uz,
                                                                         *fn.field_aligned_coordinates(self.b_span)))
+        
+        print(self.b_span[tidx])
+
         self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
 
         # Boosting the vparallel
-        masked_vpara, masked_vperp = np.ma.masked_array(self.vpara, ~self.nanmask),\
-                                     np.ma.masked_array(self.vperp, ~self.nanmask)
+        # masked_vpara, masked_vperp = np.ma.masked_array(self.vpara, ~self.nanmask),\
+                                    #  np.ma.masked_array(self.vperp, ~self.nanmask)
         # self.max_r = np.nanmax(self.vperp/np.tan(np.radians(TH)) - np.abs(self.vpara), axis=(1,2,3))
-        self.max_r = np.nanmax(masked_vperp/np.tan(np.radians(TH)) + masked_vpara, axis=(1,2,3))
+        # self.max_r = np.nanmax(masked_vperp/np.tan(np.radians(TH)) + masked_vpara, axis=(1,2,3))
 
         # NOTE: We need to consider the case in which we shift back to the "instrument frame". We essentially
         # add |v_span| in place of max_r. 
         # self.vpara -= self.max_r[:, NAX, NAX, NAX]
-        self.vpara -= np.linalg.norm(v_span, axis=1)[:,NAX,NAX,NAX]
+        self.vshift = np.linalg.norm(self.v_span, axis=1)
+        self.vpara -= np.linalg.norm(self.v_span, axis=1)[:,NAX,NAX,NAX]
 
-        self.mask_vpara, self.mask_vperp = masked_vpara, masked_vperp
+        # self.mask_vpara, self.mask_vperp = masked_vpara, masked_vperp
 
         # converting the grid to spherical polar in the field aligned frame
         r, theta, phi = c2s(self.vperp1, self.vperp2, self.vpara)
@@ -92,8 +99,8 @@ if __name__=='__main__':
     fac = fa_coordinates()
     fac.get_coors(psp_vdf, trange)
 
-    filemoms = fn.get_psp_span_mom(trange)
-    data = fn.init_psp_moms(filemoms[0])
+    # filemoms = fn._get_psp_span_mom(trange)
+    data = fn.init_psp_moms(trange)
     density = data.DENS.data
     avg_den = np.convolve(density, np.ones(10)/10, 'same')      # 1-minute average
 

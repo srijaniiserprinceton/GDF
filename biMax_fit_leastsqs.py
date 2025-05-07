@@ -23,17 +23,18 @@ def biMax_model(vpara, vperp, fit_params):
 
 def residuals(fit_params, vpara, vperp, vdf):
     fit = biMax_model(vpara, vperp, fit_params)
-    return(abs(vdf)*np.abs(np.log10(vdf) - np.log10(fit))**2)
+    # return(abs(vdf)*np.abs(np.log10(vdf) - np.log10(fit))**2)
     # return(np.abs(np.log10(vdf) - np.log10(fit)**2))
+    return(vdf - fit)
 
 
 if __name__ == "__main__":
-    vdf_rec = np.load('vdf_Sleprec.npy').flatten()
+    vdf_rec = np.load('vdf_Sleprec_7300.npy').flatten()
     # vdf_rec = vdf_rec
     # vdf_rec[np.log10(vdf_rec) < -25] = np.nan
     vdf_rec = vdf_rec
-    vpara = np.load('vpara.npy').flatten()
-    vperp = np.load('vperp.npy').flatten()
+    vpara = np.load('vpara_7300.npy').flatten()
+    vperp = np.load('vperp_7300.npy').flatten()
 
     # Mask out nan values
     mask = np.isnan(vdf_rec)
@@ -56,7 +57,7 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(1,2, figsize=(12,6), sharex=True, sharey=True, layout='constrained')
     levels = np.linspace(8, 11, 10) - 30 
     axs = ax[0].tricontourf(vpara, vperp, np.log10(vdf_rec), cmap='plasma', levels=levels)
-    ax[0].contour(VX, VY, np.log10(fit), cmap='jet')
+    ax[0].contour(VX, VY, np.log10(fit), cmap='jet', levels=levels)
 
     # divider = make_axes_locatable(ax[0])
     # cax = divider.append_axes('right', size='5%', pad=0.05)

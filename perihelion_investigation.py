@@ -283,7 +283,7 @@ def plot_vdf_slices_interactive(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SU
 
 if __name__ == "__main__":
     # We are investigating the VDFs at perihelion
-    trange = ['2024-12-23T00:00:00', '2024-12-23T18:00:00']
+    trange = ['2024-12-24T00:00:00', '2024-12-24T18:00:00']
     # trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:00:00']
     # trange = ['2019-04-06T00:00:00', '2019-04-06T23:59:59']
