@@ -20,6 +20,43 @@ from tqdm import tqdm
 
 import pickle
 
+import numpy as np
+
+def merge_bins(bin_edges, counts, threshold=5):
+    merged_edges = []
+    merged_counts = []
+
+    current_count = 0
+    start_edge = bin_edges[0]
+
+    for i in range(len(counts)):
+        current_count += counts[i]
+
+        # If merged count is at or above threshold, finalize the current bin
+        if current_count >= threshold:
+            end_edge = bin_edges[i + 1]
+            merged_edges.append((start_edge, end_edge))
+            merged_counts.append(current_count)
+            if i + 1 < len(bin_edges):  # Prepare for next merge
+                start_edge = bin_edges[i + 1]
+            current_count = 0
+        # else continue merging into the next bin
+
+    # Handle any remaining counts (less than threshold at end)
+    if current_count > 0:
+        if merged_edges:
+            # Merge remaining with last bin
+            last_start, last_end = merged_edges[-1]
+            merged_edges[-1] = (last_start, bin_edges[-1])
+            merged_counts[-1] += current_count
+        else:
+            # If everything was under threshold, merge all into one
+            merged_edges.append((bin_edges[0], bin_edges[-1]))
+            merged_counts.append(current_count)
+
+    return merged_edges, merged_counts
+
+
 class gyrovdf:
     def __init__(self, vdf_dict, trange, TH=75, Lmax=16, N2D_restrict=True, p=3, mincount=2, count_mask=1, ITERATE=False, CREDENTIALS=None, CLIP=False):
         self.TH = TH
@@ -108,18 +145,21 @@ class gyrovdf:
                 vmin = np.min(self.velocity[tidx, self.nanmask[tidx]])
                 vmax = np.max(self.velocity[tidx, self.nanmask[tidx]])
                 dlnv = 0.0348
-                vmin = np.power(10, np.log10(vmin) - dlnv)
-                vmax = np.power(10, np.log10(vmax) + dlnv)
+                # vmin = np.power(10, np.log10(vmin) - dlnv)
+                # vmax = np.power(10, np.log10(vmax) + dlnv)
                 Nbins = int((np.log10(vmax) - np.log10(vmin)) / dlnv)
 
                 # the knot locations
                 self.vpara_nonan = self.r_fa[self.nanmask[tidx]] * np.cos(np.radians(self.theta_fa[self.nanmask[tidx]]))
                 self.rfac = self.r_fa[self.nanmask[tidx]]
 
-                counts, log_knots = np.histogram(np.log10(self.rfac), bins=Nbins)
+                counts, bin_edges = np.histogram(np.log10(self.rfac), bins=Nbins)
+
+                new_edges, new_count = merge_bins(bin_edges, counts, threshold=self.mincount)
+                log_knots = np.sum(new_edges, axis=1)/2
 
                 # discarding knots at counts less than 10 (always discarding the last knot with low count)
-                log_knots = log_knots[:-1][counts >= self.mincount]
+                # log_knots = log_knots[:-1][counts >= self.mincount]
                 self.knots = np.power(10, log_knots)
 
                 # arranging the knots in an increasing order
@@ -139,12 +179,12 @@ class gyrovdf:
                 t = np.append(t, self.knots)
                 t = np.append(t, np.array([self.knots[-1] for i in range(self.p)]))
                 bsp_basis_coefs = np.identity(len(self.knots) + (self.p-1))
-                spl = BSpline(t, bsp_basis_coefs, self.p, extrapolate=False)
-                # self.B_i_n = spl(self.vpara_nonan).T
+                spl = BSpline(t, bsp_basis_coefs, self.p, extrapolate=True)
+                self.B_i_n = spl(self.rfac).T
                 self.B_i_n = np.nan_to_num(spl(self.rfac).T)
                 
                 # excluding the first and last Bsplines to prevent function from blowing up
-                self.B_i_n = self.B_i_n[1:-1]
+                # self.B_i_n = self.B_i_n[0:-1]
 
             def get_Slepians():
                 self.S_alpha_n = None
@@ -299,8 +339,13 @@ class gyrovdf:
                 t = np.append(t, self.knots)
                 t = np.append(t, np.array([self.knots[-1] for i in range(self.p)]))
                 bsp_basis_coefs = np.identity(len(self.knots) + (self.p-1))
-                spl = BSpline(t, bsp_basis_coefs, self.p)
+                spl = BSpline(t, bsp_basis_coefs, self.p, extrapolate=True)
                 self.super_B_i_n = spl(self.super_rfac).T
+
+                self.super_B_i_n = np.nan_to_num(spl(self.super_rfac).T)
+                
+                # excluding the first and last Bsplines to prevent function from blowing up
+                # self.super_B_i_n = self.super_B_i_n[0:-1]
 
             def super_G_matrix_scipy():
                 self.super_G_k_n = None
@@ -588,15 +633,15 @@ def write_pickle(x, fname):
 
 if __name__=='__main__':
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
-    # trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
-    # credentials = fn.load_config('./config.json')
-    # creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
-    creds = None
+    # trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
+    trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
+    credentials = fn.load_config('./config.json')
+    creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
+    # creds = None
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
     
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    tidx = 0
+    tidx = 1
 
     idx = tidx 
 
@@ -608,9 +653,9 @@ if __name__=='__main__':
     vels = {}
     v_rec = {}
     vdf_rec_bundle = {}
-    for tidx in tqdm(range(1)): #range(len(psp_vdf.time.data))):
+    for tidx in tqdm(range(3)): #range(len(psp_vdf.time.data))):
         # initializing the inversion class
-        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=12, TH=60, N2D_restrict=False, count_mask=2, mincount=2, ITERATE=False, CREDENTIALS=creds, CLIP=True)
+        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=12, TH=60, N2D_restrict=False, count_mask=2, mincount=5, ITERATE=False, CREDENTIALS=creds, CLIP=True)
 
         # initializing the vdf data to optimize
         vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/np.nanmin(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]))
@@ -652,8 +697,8 @@ if __name__=='__main__':
         u_corr = np.hstack([VX, v_yz_corr[tidx]])  
 
         gvdf_tstamp.get_coors(u_corr, tidx)
-        sys.exit()
         vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=101)
+        den, vel = vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
         plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx)
         plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel)
@@ -661,7 +706,6 @@ if __name__=='__main__':
         # grids = gvdf_tstamp.grid_points
         # mask = gvdf_tstamp.hull_mask
 
-        den, vel = vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
         dens[tidx] = den
         vels[tidx] = vel
