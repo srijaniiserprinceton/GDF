@@ -458,6 +458,47 @@ class gyrovdf:
 
                 return vdf_rec, zeromask, coeffs, vdf_super
 
+            def super_inversion_revised(tidx, vdfdata):
+                NSleps = self.S_alpha_n.shape[0]
+                coeffs_ref = np.power(10., np.flip(np.arange(-NSleps+1, 1)))
+
+                # obtaining the coefficients
+                G_i_alpha_n = coeffs_ref[NAX,:,NAX] * self.G_i_alpha_n
+                G_k_n = np.reshape(G_i_alpha_n, (-1, G_i_alpha_n.shape[-1]))
+
+                G_g = G_k_n @ G_k_n.T
+                I = np.identity(len(G_g))
+
+                lambda_arr = np.linspace(-9,-1,100)
+                model_misfit = []
+                data_misfit = []
+
+                # for lam in lambda_arr:
+                # for now lambda is 1e-5 a choice
+                coeffs = np.linalg.inv(G_g + 1e-5 * I) @ G_k_n @ vdfdata
+                # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
+                vdf_rec = coeffs @ G_k_n
+
+                data_misfit.append(np.linalg.norm((vdfdata - vdf_rec)))
+                model_misfit.append(np.linalg.norm(coeffs))
+
+                # model_misfit = np.asarray(model_misfit)
+                # data_misfit = np.asarray(data_misfit)
+
+                plt.figure()
+                plt.plot(model_misfit, data_misfit, '.k')
+
+                # sys.exit()
+
+                super_G_i_alpha_n = coeffs_ref[NAX,:,NAX] * self.super_G_i_alpha_n
+                super_G_k_n = np.reshape(super_G_i_alpha_n, (-1, super_G_i_alpha_n.shape[-1]))
+                vdf_super = coeffs.flatten() @ super_G_k_n
+
+                # finding the zeros which need to be masked to avoid bad cost functions
+                zeromask = vdf_rec == 0
+
+                return vdf_rec, zeromask, coeffs, vdf_super
+
             make_knots(tidx)
             get_Bsplines_scipy()
             # get_Bsplines()
@@ -469,7 +510,7 @@ class gyrovdf:
                 super_Bsplines_scipy()
                 super_Slepians_scipy()
                 super_G_matrix_scipy()
-                return super_inversion(tidx, vdfdata)
+                return super_inversion_revised(tidx, vdfdata)
             
             if self.ITERATE:
                 return iterative_inversion(tidx, vdfdata)
@@ -591,7 +632,7 @@ def plot_span_vs_rec_contour(gvdf, vdf_data, vdf_rec, tidx=None, GRID=False, VA=
     plt.colorbar(a1)
 
     if GRID:
-        [ax[i].scatter(v_perp_all[len(v_para_all)//2:,], v_para_all[len(v_para_all)//2:,], color='k', marker='.', s=0.8) for i in range(2)]
+        [ax[i].scatter(v_perp_all[len(v_para_all)//2:,], v_para_all[len(v_para_all)//2:,], color='k', marker='.', s=3) for i in range(2)]
 
     if SAVE:
         plt.savefig(f'./Figures/span_rec_contour/tricontour_plot_{tidx}')
@@ -608,12 +649,15 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
 
     if VDFUNITS:
         f_super = np.power(10, vdf_super) * gvdf.minval[tidx]
+        lvls = np.linspace(int(np.log10(gvdf.minval[tidx]) - 1), int(np.log10(gvdf.maxval[tidx])+1), 10)
         if VSHIFT:
-            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), cmap='plasma')
+            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
         else:
-            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), cmap='plasma')
+            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
     else:
         ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], vdf_super[mask], levels=np.linspace(0,4.0,10), cmap='plasma')
+        
+    ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf_tstamp.vshift[tidx], color='k', marker='.', s=3)
     cbar = plt.colorbar(ax1)
     cbar.ax.tick_params(labelsize=18) 
     ax.set_xlabel(r'$v_{\perp}$', fontsize=20)
@@ -633,15 +677,15 @@ def write_pickle(x, fname):
 
 if __name__=='__main__':
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    # trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
-    trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
-    credentials = fn.load_config('./config.json')
-    creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
-    # creds = None
+    trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
+    # trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
+    # credentials = fn.load_config('./config.json')
+    # creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
+    creds = None
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
     
-    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    tidx = 1
+    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    # tidx = 1
 
     idx = tidx 
 
@@ -653,7 +697,7 @@ if __name__=='__main__':
     vels = {}
     v_rec = {}
     vdf_rec_bundle = {}
-    for tidx in tqdm(range(3)): #range(len(psp_vdf.time.data))):
+    for tidx in tqdm(range(idx, idx+3)): #range(len(psp_vdf.time.data))):
         # initializing the inversion class
         gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=12, TH=60, N2D_restrict=False, count_mask=2, mincount=5, ITERATE=False, CREDENTIALS=creds, CLIP=True)
 
