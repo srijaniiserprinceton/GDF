@@ -173,7 +173,7 @@ def plot_vdf_slices(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SUM=False, PLO
     ax[0].set_ylabel(axis_label[1])
     ax[0].set_xlim([-1.2*np.max((max_vx, max_vy)), 0])
     ax[0].set_ylim([0, 1.2*np.max((max_vx, max_vy))])
-    ax[0].scatter(U_VEC[0], U_VEC[1], marker='d', color='r', s=50, label=f'(Vx, Vy, Vz) = ({str(np.round(U_VEC[0], 1))}, {str(np.round(U_VEC[1], 1))}, {str(np.round(U_VEC[2], 1))})')
+    # ax[0].scatter(U_VEC[0], U_VEC[1], marker='d', color='r', s=50, label=f'(Vx, Vy, Vz) = ({str(np.round(U_VEC[0], 1))}, {str(np.round(U_VEC[1], 1))}, {str(np.round(U_VEC[2], 1))})')
 
     if np.any(POINT):
         ax[0].scatter(POINT[0], POINT[1], marker='*', color='blue', s=50, label=f'(Vx, Vy, Vz) = ({str(np.round(POINT[0], 1))}, {str(np.round(POINT[1], 1))}, {str(np.round(POINT[2], 1))})')
@@ -187,7 +187,7 @@ def plot_vdf_slices(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SUM=False, PLO
     ax[1].set_title(r'Vx-Vz plane on $\phi$ = '+f'{phi[0,0,pidx]} Slice')
     ax[1].set_xlim([-1.2*np.max((max_vx, max_vz)), 0])
     ax[1].set_ylim([-1*np.max((max_vx, max_vz)), 1*np.max((max_vx, max_vz))])
-    ax[1].scatter(U_VEC[0], U_VEC[2], marker='d', color='r', s=50)
+    # ax[1].scatter(U_VEC[0], U_VEC[2], marker='d', color='r', s=50)
 
     [ax[i].set_aspect('equal') for i in range(2)]
     
@@ -283,7 +283,8 @@ def plot_vdf_slices_interactive(vdf_ds, FRAME='INST', U_VEC=None, B_VEC=None, SU
 
 if __name__ == "__main__":
     # We are investigating the VDFs at perihelion
-    trange = ['2024-12-24T00:00:00', '2024-12-24T18:00:00']
+    # trange = ['2024-12-24T09:59:59', '2024-12-24T18:00:00']
+    trange = ['2024-12-25T09:00:00', '2024-12-25T23:59:59']
     # trange = ['2020-01-26T00:00:00', '2020-01-26T23:00:00']
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:00:00']
     # trange = ['2019-04-06T00:00:00', '2019-04-06T23:59:59']
