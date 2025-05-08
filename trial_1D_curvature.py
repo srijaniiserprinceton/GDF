@@ -52,7 +52,7 @@ coeffs_ref = np.array([ 1e0, 1e-1,  1e-2, 1e-3])
 # coeffs_ref = np.ones_like(coeffs_ref)
 
 # generating on a sparse grid
-theta_sparse = np.linspace(0, 75, 10)[3:]
+theta_sparse = np.linspace(0, 75, 10)[6:]
 data_sparse = (1 / np.sqrt(2 * np.pi * sigma**2)) * np.exp(-0.5 * (theta_sparse / sigma)**2)
 
 # generating Slepians on the same grid

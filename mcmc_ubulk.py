@@ -14,6 +14,7 @@ import bsplines
 import eval_Slepians
 import functions as fn
 import coordinate_frame_functions as coor_fn
+import misc_plotter
 
 from scipy.spatial import Delaunay
 from tqdm import tqdm
@@ -214,7 +215,7 @@ class gyrovdf:
                 self.S_alpha_n = np.moveaxis(S_n_alpha, 0, 1)
 
                 # truncating beyond Shannon number
-                N2D = 3  #int(np.sum(self.Slep.V))
+                N2D = 5  #int(np.sum(self.Slep.V))
                 self.S_alpha_n = self.S_alpha_n[:N2D,:]            
 
             def get_G_matrix():
@@ -329,7 +330,7 @@ class gyrovdf:
                 self.super_S_alpha_n = np.moveaxis(S_n_alpha, 0, 1)
 
                 # truncating beyond Shannon number
-                N2D = 3 #int(np.sum(self.Slep.V))
+                N2D = 5 #int(np.sum(self.Slep.V))
                 self.super_S_alpha_n = self.super_S_alpha_n[:N2D,:]
 
             def super_Bsplines_scipy():
@@ -485,8 +486,8 @@ class gyrovdf:
                 # model_misfit = np.asarray(model_misfit)
                 # data_misfit = np.asarray(data_misfit)
 
-                plt.figure()
-                plt.plot(model_misfit, data_misfit, '.k')
+                # plt.figure()
+                # plt.plot(model_misfit, data_misfit, '.k')
 
                 # sys.exit()
 
@@ -656,7 +657,7 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
     else:
         ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], vdf_super[mask], levels=np.linspace(0,4.0,10), cmap='plasma')
-        
+
     ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf_tstamp.vshift[tidx], color='k', marker='.', s=3)
     cbar = plt.colorbar(ax1)
     cbar.ax.tick_params(labelsize=18) 
@@ -679,13 +680,13 @@ if __name__=='__main__':
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
     trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
     # trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
-    # credentials = fn.load_config('./config.json')
-    # creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
-    creds = None
+    credentials = fn.load_config('./config.json')
+    creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
+    # creds = None
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
     
-    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    # tidx = 1
+    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    tidx = 0
 
     idx = tidx 
 
@@ -697,7 +698,7 @@ if __name__=='__main__':
     vels = {}
     v_rec = {}
     vdf_rec_bundle = {}
-    for tidx in tqdm(range(idx, idx+3)): #range(len(psp_vdf.time.data))):
+    for tidx in tqdm(range(idx, idx+100)): #range(len(psp_vdf.time.data))):
         # initializing the inversion class
         gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=12, TH=60, N2D_restrict=False, count_mask=2, mincount=5, ITERATE=False, CREDENTIALS=creds, CLIP=True)
 
@@ -727,8 +728,8 @@ if __name__=='__main__':
         labels = ["VY", "VZ"]
         flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
         fig = corner.corner(flat_samples, labels=labels, show_titles=True)
-        # plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
-        # plt.close(fig)
+        plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
+        plt.close(fig)
 
         # vdf_inv, zeromask, coeffs = gvdf_tstamp.inversion(tidx, vdfdata)
         # plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True)
@@ -741,6 +742,10 @@ if __name__=='__main__':
         u_corr = np.hstack([VX, v_yz_corr[tidx]])  
 
         gvdf_tstamp.get_coors(u_corr, tidx)
+
+        misc_plotter.plot_changing_grids(gvdf_tstamp, tidx)
+        continue
+
         vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=101)
         den, vel = vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
@@ -782,4 +787,6 @@ if __name__=='__main__':
 
         vdf_rec_bundle[tidx] = bundle
 
-    write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{idx}_to_{tidx}')
+        # misc_plotter.color_gyrogrids(gvdf_tstamp)
+
+    # write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{idx}_to_{tidx}')
