@@ -107,6 +107,10 @@ class gyrovdf:
         # obtaining the mangnetic field and v_bulk measured
         self.b_span = data.MAGF_INST.data
         self.v_span = data.VEL_INST.data
+
+        # Get the angle between b and v.
+        self.theta_bv = np.degrees(np.arccos(np.einsum('ij, ij->i', self.v_span, self.b_span)/(np.linalg.norm(self.v_span, axis=1) * np.linalg.norm(self.b_span, axis=1))))
+
         self.l3_time = data.Epoch.data     # check to make sure the span moments match the l2 data!
         self.l2_time = time
 
@@ -124,6 +128,15 @@ class gyrovdf:
         
         self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
+
+        # Check the sign of the background magnetic field
+        self.bx_sign = np.sign(self.b_span[tidx,0])
+
+        if (self.theta_bv[tidx] < 90):
+            self.vpara = -1.0 * self.vpara
+            self.theta_sign = -1.0
+        else: self.theta_sign = 1.0
+
 
         # Boosting the vparallel
         # max_r = np.nanmax(self.vperp/np.tan(np.radians(self.TH)) - np.abs(self.vpara))
@@ -608,10 +621,11 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
 
     if VDFUNITS:
         f_super = np.power(10, vdf_super) * gvdf.minval[tidx]
+        lvls = np.linspace(int(np.log10(gvdf.minval[tidx]) - 1), int(np.log10(gvdf.maxval[tidx])+1), 10)
         if VSHIFT:
-            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), cmap='plasma')
+            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
         else:
-            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), cmap='plasma')
+            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
     else:
         ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], vdf_super[mask], levels=np.linspace(0,4.0,10), cmap='plasma')
     cbar = plt.colorbar(ax1)
@@ -631,17 +645,30 @@ def write_pickle(x, fname):
     with open(f'{fname}.pkl', 'wb') as handle:
         pickle.dump(x, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+def write_super_resolution_file(gvdf, tidx, vdf_super):
+    # 
+    grids = gvdf_tstamp.grid_points
+    mask = gvdf_tstamp.hull_mask
+
+    f_super = np.power(10, vdf_super) * gvdf.minval[tidx]
+
+
+
+
 if __name__=='__main__':
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
     # trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
-    trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
+    # trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
+    # trange = ['2025-03-21T13:00:00', '2025-03-21T15:00:00']
+    trange = ['2025-03-22T01:00:00', '2025-03-22T03:00:00']
     credentials = fn.load_config('./config.json')
     creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
     # creds = None
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
     
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    tidx = 1
+    tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2025-03-22T02:19:00')))
+    # tidx = 649
 
     idx = tidx 
 
@@ -653,9 +680,9 @@ if __name__=='__main__':
     vels = {}
     v_rec = {}
     vdf_rec_bundle = {}
-    for tidx in tqdm(range(3)): #range(len(psp_vdf.time.data))):
+    for tidx in tqdm(range(idx, idx+1)): #range(len(psp_vdf.time.data))):
         # initializing the inversion class
-        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=12, TH=60, N2D_restrict=False, count_mask=2, mincount=5, ITERATE=False, CREDENTIALS=creds, CLIP=True)
+        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=12, TH=60, N2D_restrict=False, count_mask=2, mincount=7, ITERATE=False, CREDENTIALS=creds, CLIP=True)
 
         # initializing the vdf data to optimize
         vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/np.nanmin(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]))
@@ -697,15 +724,11 @@ if __name__=='__main__':
         u_corr = np.hstack([VX, v_yz_corr[tidx]])  
 
         gvdf_tstamp.get_coors(u_corr, tidx)
-        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=101)
+        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=501)
         den, vel = vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
         plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx)
         plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel)
-
-        # grids = gvdf_tstamp.grid_points
-        # mask = gvdf_tstamp.hull_mask
-
 
         dens[tidx] = den
         vels[tidx] = vel
@@ -718,7 +741,6 @@ if __name__=='__main__':
 
         # get the assume u_parallel, u_perp1, and u_perp2. from the set 
         u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-
         u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
 
         u_adj = np.array([u_xnew, u_ynew, u_znew])
