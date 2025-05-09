@@ -20,8 +20,9 @@ from scipy.spatial import Delaunay
 from tqdm import tqdm
 
 import pickle
-
+import plasmapy.formulary as form
 import numpy as np
+
 
 def merge_bins(bin_edges, counts, threshold=5):
     merged_edges = []
@@ -108,6 +109,10 @@ class gyrovdf:
         # obtaining the mangnetic field and v_bulk measured
         self.b_span = data.MAGF_INST.data
         self.v_span = data.VEL_INST.data
+
+        # Get the angle between b and v.
+        self.theta_bv = np.degrees(np.arccos(np.einsum('ij, ij->i', self.v_span, self.b_span)/(np.linalg.norm(self.v_span, axis=1) * np.linalg.norm(self.b_span, axis=1))))
+
         self.l3_time = data.Epoch.data     # check to make sure the span moments match the l2 data!
         self.l2_time = time
 
@@ -125,6 +130,15 @@ class gyrovdf:
         
         self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
+
+        # Check the sign of the background magnetic field
+        self.bx_sign = np.sign(self.b_span[tidx,0])
+
+        if (self.theta_bv[tidx] < 90):
+            self.vpara = -1.0 * self.vpara
+            self.theta_sign = -1.0
+        else: self.theta_sign = 1.0
+
 
         # Boosting the vparallel
         # max_r = np.nanmax(self.vperp/np.tan(np.radians(self.TH)) - np.abs(self.vpara))
@@ -486,9 +500,7 @@ class gyrovdf:
                 # model_misfit = np.asarray(model_misfit)
                 # data_misfit = np.asarray(data_misfit)
 
-                # plt.figure()
-                # plt.plot(model_misfit, data_misfit, '.k')
-
+                
                 # sys.exit()
 
                 super_G_i_alpha_n = coeffs_ref[NAX,:,NAX] * self.super_G_i_alpha_n
@@ -613,19 +625,20 @@ def plot_span_vs_rec_contour(gvdf, vdf_data, vdf_rec, tidx=None, GRID=False, VA=
     
     vdf_data_all = np.concatenate([vdf_nonan, vdf_nonan])
     vdf_rec_all  = np.concatenate([vdf_rec, vdf_rec])
+    
+    lvls = np.linspace(0, int(np.log10(gvdf.maxval[tidx])+1) - int(np.log10(gvdf.minval[tidx]) - 1), 10)
 
     zeromask = vdf_rec_all == 0
     fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
     a0 = ax[0].tricontourf(v_perp_all, v_para_all, vdf_data_all, 
-                           cmap='plasma')#, levels=np.linspace(-23, -19, 10))
+                           cmap='plasma', levels=lvls)#, levels=np.linspace(-23, -19, 10))
     ax[0].set_xlabel(xlabel, fontsize=12)
     ax[0].set_ylabel(ylabel, fontsize=12)
     ax[0].set_aspect('equal')
     ax[0].set_title('SPAN VDF')
-    plt.colorbar(a0)
 
     a1 = ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask],
-                           cmap='plasma')#, levels=np.linspace(-23, -19, 10))
+                           cmap='plasma', levels=lvls)#, levels=np.linspace(-23, -19, 10))
     ax[1].set_xlabel(xlabel, fontsize=12)
     ax[1].set_aspect('equal')
     ax[1].set_title('Reconstructed VDF')
@@ -641,7 +654,7 @@ def plot_span_vs_rec_contour(gvdf, vdf_data, vdf_rec, tidx=None, GRID=False, VA=
 
     else: plt.show()
 
-def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSHIFT=None):
+def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSHIFT=None, DENSITY=None):
     grids = gvdf_tstamp.grid_points
     mask = gvdf_tstamp.hull_mask
 
@@ -653,7 +666,16 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
         lvls = np.linspace(int(np.log10(gvdf.minval[tidx]) - 1), int(np.log10(gvdf.maxval[tidx])+1), 10)
         if VSHIFT:
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
+            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
+            if DENSITY:
+                Bmag = np.linalg.norm(gvdf.b_span[tidx])
+                VA = form.speeds.Alfven_speed(Bmag * u.nT, DENSITY * u.cm**(-3), ion='p+').to(u.km/u.s)
+
+                ax.arrow(0, 0, 0, VA.value, fc='k', ec='k')
+
+
         else:
+            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
     else:
         ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], vdf_super[mask], levels=np.linspace(0,4.0,10), cmap='plasma')
@@ -661,9 +683,9 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
     ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf_tstamp.vshift[tidx], color='k', marker='.', s=3)
     cbar = plt.colorbar(ax1)
     cbar.ax.tick_params(labelsize=18) 
-    ax.set_xlabel(r'$v_{\perp}$', fontsize=20)
-    ax.set_ylabel(r'$v_{\parallel}$', fontsize=20)
-    ax.set_title(f'Super Resolution | {str(gvdf.l2_time[tidx])[:19]}', fontsize=20)
+    ax.set_xlabel(r'$v_{\perp}$', fontsize=19)
+    ax.set_ylabel(r'$v_{\parallel}$', fontsize=19)
+    ax.set_title(f'Super Resolution | {str(gvdf.l2_time[tidx])[:19]}', fontsize=19)
     ax.tick_params(axis='both', which='major', labelsize=18)
     ax.set_aspect('equal')
 
@@ -676,17 +698,25 @@ def write_pickle(x, fname):
     with open(f'{fname}.pkl', 'wb') as handle:
         pickle.dump(x, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+
+
+
+
 if __name__=='__main__':
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
-    # trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
+    # trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
+    trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
+    # trange = ['2024-12-25T09:00:00', '2024-12-25T12:00:00']
+    # trange = ['2025-03-21T13:00:00', '2025-03-21T15:00:00']
+    # trange = ['2025-03-22T01:00:00', '2025-03-22T03:00:00']
     credentials = fn.load_config('./config.json')
     creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
     # creds = None
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
     
     # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    tidx = 0
+    tidx = 0 # np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2025-03-22T02:19:00')))
+    # tidx = 649
 
     idx = tidx 
 
@@ -698,95 +728,94 @@ if __name__=='__main__':
     vels = {}
     v_rec = {}
     vdf_rec_bundle = {}
-    for tidx in tqdm(range(idx, idx+100)): #range(len(psp_vdf.time.data))):
-        # initializing the inversion class
-        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=12, TH=60, N2D_restrict=False, count_mask=2, mincount=5, ITERATE=False, CREDENTIALS=creds, CLIP=True)
+    for tidx in tqdm(range(idx+1, idx+1001)): #range(len(psp_vdf.time.data))):
+        try:
+            print(tidx)
+            # initializing the inversion class
+            gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=12, TH=60, N2D_restrict=False, count_mask=2, mincount=7, ITERATE=False, CREDENTIALS=creds, CLIP=True)
 
-        # initializing the vdf data to optimize
-        vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/np.nanmin(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]))
+            # initializing the vdf data to optimize
+            vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/np.nanmin(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]))
 
-        # initializing the VR
-        VX = gvdf_tstamp.v_span[tidx, 0]
-        VY_init= gvdf_tstamp.v_span[tidx, 1]
-        VZ_init= gvdf_tstamp.v_span[tidx, 2]
+            # initializing the VR
+            VX = gvdf_tstamp.v_span[tidx, 0]
+            VY_init= gvdf_tstamp.v_span[tidx, 1]
+            VZ_init= gvdf_tstamp.v_span[tidx, 2]
 
-        u_bulk = np.asarray([VX, VY_init, VZ_init])
-        # gvdf_tstamp.get_coors(u_bulk, tidx)
-        # vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True)
-        # mask, grids, vdf_super = super_resolve(gvdf_tstamp, coeffs, vdf_inv)
+            u_bulk = np.asarray([VX, VY_init, VZ_init])
+            # gvdf_tstamp.get_coors(u_bulk, tidx)
+            # vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True)
+            # mask, grids, vdf_super = super_resolve(gvdf_tstamp, coeffs, vdf_inv)
 
-        # sys.exit()
-        # performing the mcmc of dtw 
-        nwalkers = 8
-        VY_pos = np.random.rand(nwalkers) + VY_init
-        VZ_pos = np.random.rand(nwalkers) + VZ_init
-        pos = np.array([VY_pos, VZ_pos]).T
-        sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
-        sampler.run_mcmc(pos, 700, progress=False)
-        
-        # plotting the results of the emcee
-        labels = ["VY", "VZ"]
-        flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
-        fig = corner.corner(flat_samples, labels=labels, show_titles=True)
-        plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
-        plt.close(fig)
+            # sys.exit()
+            # performing the mcmc of dtw 
+            nwalkers = 8
+            VY_pos = np.random.rand(nwalkers) + VY_init
+            VZ_pos = np.random.rand(nwalkers) + VZ_init
+            pos = np.array([VY_pos, VZ_pos]).T
+            sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
+            sampler.run_mcmc(pos, 700, progress=False)
+            
+            # plotting the results of the emcee
+            labels = ["VY", "VZ"]
+            flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
+            fig = corner.corner(flat_samples, labels=labels, show_titles=True)
+            plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
+            plt.close(fig)
 
-        # vdf_inv, zeromask, coeffs = gvdf_tstamp.inversion(tidx, vdfdata)
-        # plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True)
+            # vdf_inv, zeromask, coeffs = gvdf_tstamp.inversion(tidx, vdfdata)
+            # plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True)
 
-        # printing the 0.5 quantile values
-        v_yz_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
-        v_yz_lower[tidx] = np.quantile(flat_samples,q=[0.14],axis=0).squeeze()
-        v_yz_upper[tidx] = np.quantile(flat_samples,q=[0.86],axis=0).squeeze()
+            # printing the 0.5 quantile values
+            v_yz_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
+            v_yz_lower[tidx] = np.quantile(flat_samples,q=[0.14],axis=0).squeeze()
+            v_yz_upper[tidx] = np.quantile(flat_samples,q=[0.86],axis=0).squeeze()
 
-        u_corr = np.hstack([VX, v_yz_corr[tidx]])  
+            u_corr = np.hstack([VX, v_yz_corr[tidx]])  
 
-        gvdf_tstamp.get_coors(u_corr, tidx)
+            gvdf_tstamp.get_coors(u_corr, tidx)
 
-        misc_plotter.plot_changing_grids(gvdf_tstamp, tidx)
-        continue
+            # misc_plotter.plot_changing_grids(gvdf_tstamp, tidx)
+            # continue
 
-        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=101)
-        den, vel = vdf_moments(gvdf_tstamp, vdf_super, tidx)
+            vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=501)
+            den, vel = vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
-        plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx)
-        plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel)
+            plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=True)
+            plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel, SAVE=True)
 
-        # grids = gvdf_tstamp.grid_points
-        # mask = gvdf_tstamp.hull_mask
+            dens[tidx] = den
+            vels[tidx] = vel
+            
+            v_span = gvdf_tstamp.v_span[tidx]
+            v_mag  = np.linalg.norm(v_span)
+            
+            # This tells us how far off our v_parallel is from the defined assumed v_parallel
+            delta_v = vel - gvdf_tstamp.vshift[tidx]
 
+            # get the assume u_parallel, u_perp1, and u_perp2. from the set 
+            u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
+            u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
 
-        dens[tidx] = den
-        vels[tidx] = vel
-        
-        v_span = gvdf_tstamp.v_span[tidx]
-        v_mag  = np.linalg.norm(v_span)
-        
-        # This tells us how far off our v_parallel is from the defined assumed v_parallel
-        delta_v = vel - gvdf_tstamp.vshift[tidx]
-
-        # get the assume u_parallel, u_perp1, and u_perp2. from the set 
-        u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-
-        u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-
-        u_adj = np.array([u_xnew, u_ynew, u_znew])
-        v_rec[tidx] = u_adj
+            u_adj = np.array([u_xnew, u_ynew, u_znew])
+            v_rec[tidx] = u_adj
 
 
-        bundle = {}
-        bundle['den'] = den
-        bundle['vel_mom_noshift'] = vel
-        bundle['time'] = gvdf_tstamp.l2_time[tidx]
-        bundle['vshift'] = gvdf_tstamp.vshift[tidx]
-        bundle['u_corr'] = u_corr
-        bundle['u_final'] = u_adj
-        bundle['v_yz_corr'] = v_yz_corr
-        bundle['v_yz_lower'] = v_yz_lower
-        bundle['v_yz_upper'] = v_yz_upper
+            bundle = {}
+            bundle['den'] = den
+            # bundle['vel_mom_noshift'] = vel
+            bundle['time'] = gvdf_tstamp.l2_time[tidx]
+            # bundle['vshift'] = gvdf_tstamp.vshift[tidx]
+            # bundle['u_corr'] = u_corr
+            bundle['u_final'] = u_adj
+            bundle['v_yz_corr'] = v_yz_corr
+            bundle['v_yz_lower'] = v_yz_lower
+            bundle['v_yz_upper'] = v_yz_upper
 
-        vdf_rec_bundle[tidx] = bundle
+            vdf_rec_bundle[tidx] = bundle
 
-        # misc_plotter.color_gyrogrids(gvdf_tstamp)
+            # misc_plotter.color_gyrogrids(gvdf_tstamp)
+        except: continue
 
-    # write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{idx}_to_{tidx}')
+    dt = str(gvdf_tstamp.l2_time[tidx])[0:10]
+    write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{dt}_to_{tidx}')
