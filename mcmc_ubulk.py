@@ -23,7 +23,7 @@ import plasmapy.formulary as form
 import numpy as np
 
 
-def merge_bins(bin_edges, counts, threshold=5):
+def merge_bins(bin_edges, counts, threshold):
     merged_edges = []
     merged_counts = []
 
@@ -59,10 +59,10 @@ def merge_bins(bin_edges, counts, threshold=5):
 
 
 class gyrovdf:
-    def __init__(self, vdf_dict, trange, TH=75, Lmax=16, N2D_restrict=True, p=3, mincount=2, count_mask=1, ITERATE=False, CREDENTIALS=None, CLIP=False):
-        self.TH = TH
+    def __init__(self, vdf_dict, trange, TH=60, Lmax=12, N2D=None, p=3, mincount=2, count_mask=5, ITERATE=False, CREDENTIALS=None, CLIP=False):
+        self.TH = TH  
         self.Lmax = Lmax
-        self.N2D_restrict = N2D_restrict
+        self.N2D = N2D
         self.p = p
         self.count_mask = count_mask 
         self.mincount = mincount
@@ -71,6 +71,10 @@ class gyrovdf:
         # loading the Slepians tapers once
         self.Slep = eval_Slepians.Slep_transverse()
         self.Slep.gen_Slep_tapers(self.TH, self.Lmax)
+
+        # truncating beyond Shannon number
+        if self.N2D is None:
+            self.N2D = int(np.sum(self.Slep.V))
 
         # obtaining the grid points from an actual PSP field-aligned VDF (instrument frame)
         self.setup_timestamp_props(vdf_dict, trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
@@ -118,6 +122,7 @@ class gyrovdf:
     def get_coors(self, u_bulk, tidx):
         self.vpara, self.vperp1, self.vperp2, self.vperp = None, None, None, None
         self.ubulk = u_bulk         # Just to store the data.
+
         # Shift into the plasma frame
         self.ux = self.vx[tidx] - u_bulk[0, NAX, NAX, NAX]
         self.uy = self.vy[tidx] - u_bulk[1, NAX, NAX, NAX]
@@ -130,17 +135,15 @@ class gyrovdf:
         self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
 
-        # Check the sign of the background magnetic field
-        self.bx_sign = np.sign(self.b_span[tidx,0])
-
+        # # Check angle between flow and magnetic field. 
         if (self.theta_bv[tidx] < 90):
             self.vpara = -1.0 * self.vpara
             self.theta_sign = -1.0
         else: self.theta_sign = 1.0
-
+        # NOTE: NEED TO CHECK ABOVE CALCULATION.
+        # self.sign = -1.0*(np.sign(np.median(vpara)))
 
         # Boosting the vparallel
-        # max_r = np.nanmax(self.vperp/np.tan(np.radians(self.TH)) - np.abs(self.vpara))
         self.vshift = np.linalg.norm(self.v_span, axis=1)
         
         self.vpara -= self.vshift[tidx,NAX,NAX,NAX]
@@ -149,7 +152,6 @@ class gyrovdf:
         r, theta, phi = c2s(self.vperp1, self.vperp2, self.vpara)
         self.r_fa = r.value
         self.theta_fa = np.degrees(theta.value) + 90
-        # self.phi_fa = np.degrees(phi.value)
 
     def inversion(self, tidx, vdfdata, SUPER=False, NPTS=100):
             def make_knots(tidx):
@@ -159,34 +161,26 @@ class gyrovdf:
                 vmin = np.min(self.velocity[tidx, self.nanmask[tidx]])
                 vmax = np.max(self.velocity[tidx, self.nanmask[tidx]])
                 dlnv = 0.0348
-                # vmin = np.power(10, np.log10(vmin) - dlnv)
-                # vmax = np.power(10, np.log10(vmax) + dlnv)
+                
                 Nbins = int((np.log10(vmax) - np.log10(vmin)) / dlnv)
 
                 # the knot locations
                 self.vpara_nonan = self.r_fa[self.nanmask[tidx]] * np.cos(np.radians(self.theta_fa[self.nanmask[tidx]]))
-                self.rfac = self.r_fa[self.nanmask[tidx]]
+                self.rfac_nonan = self.r_fa[self.nanmask[tidx]]
 
-                counts, bin_edges = np.histogram(np.log10(self.rfac), bins=Nbins)
+                counts, bin_edges = np.histogram(np.log10(self.rfac_nonan), bins=Nbins)
 
-                new_edges, new_count = merge_bins(bin_edges, counts, threshold=self.mincount)
+                new_edges, _ = merge_bins(bin_edges, counts, self.mincount)
                 log_knots = np.sum(new_edges, axis=1)/2
 
                 # discarding knots at counts less than 10 (always discarding the last knot with low count)
-                # log_knots = log_knots[:-1][counts >= self.mincount]
                 self.knots = np.power(10, log_knots)
 
                 # arranging the knots in an increasing order
                 self.knots = np.sort(self.knots)
 
-                # # also making the perp grid for future plotting purposes
+                # also making the perp grid for future plotting purposes
                 self.vperp_nonan = self.r_fa[self.nanmask[tidx]] * np.sin(np.radians(self.theta_fa[self.nanmask[tidx]]))
-
-            def get_Bsplines():
-                self.B_i_n = None
-                # loading the bsplines at the r location grid
-                bsp = bsplines.bsplines(self.knots, self.p)
-                self.B_i_n = bsp.eval_bsp_basis(self.vpara_nonan)
 
             def get_Bsplines_scipy():
                 t = np.array([self.knots[0] for i in range(self.p)])
@@ -194,24 +188,8 @@ class gyrovdf:
                 t = np.append(t, np.array([self.knots[-1] for i in range(self.p)]))
                 bsp_basis_coefs = np.identity(len(self.knots) + (self.p-1))
                 spl = BSpline(t, bsp_basis_coefs, self.p, extrapolate=True)
-                self.B_i_n = spl(self.rfac).T
-                self.B_i_n = np.nan_to_num(spl(self.rfac).T)
-                
-                # excluding the first and last Bsplines to prevent function from blowing up
-                # self.B_i_n = self.B_i_n[0:-1]
-
-            def get_Slepians():
-                self.S_alpha_n = None
-
-                self.theta_nonan = self.theta_fa[self.nanmask[tidx]]
-                self.Slep.gen_Slep_basis(self.theta_nonan * np.pi / 180)
-                S_n_alpha = self.Slep.G * 1.0
-                # swapping the axes
-                self.S_alpha_n = np.moveaxis(S_n_alpha, 0, 1)
-
-                # truncating beyond Shannon number
-                N2D = int(np.sum(self.Slep.V))
-                self.S_alpha_n = self.S_alpha_n[:N2D,:]
+                self.B_i_n = spl(self.rfac_nonan).T
+                self.B_i_n = np.nan_to_num(spl(self.rfac_nonan).T)
 
             def get_Slepians_scipy():
                 self.S_alpha_n = None
@@ -220,6 +198,7 @@ class gyrovdf:
 
                 L = np.arange(0,self.Lmax+1)
                 P_scipy = np.asarray([eval_legendre(ell, np.cos(self.theta_nonan * np.pi / 180)) for ell in L])
+
                 # adding the normalization sqrt((2l+1) / 4pi)
                 P_scipy = P_scipy * (np.sqrt((2*L + 1) / (4 * np.pi)))[:,NAX]
                 S_n_alpha = P_scipy.T @ np.asarray(self.Slep.C)
@@ -227,9 +206,7 @@ class gyrovdf:
                 # swapping the axes
                 self.S_alpha_n = np.moveaxis(S_n_alpha, 0, 1)
 
-                # truncating beyond Shannon number
-                N2D = 3  #int(np.sum(self.Slep.V))
-                self.S_alpha_n = self.S_alpha_n[:N2D,:]            
+                self.S_alpha_n = self.S_alpha_n[:self.N2D,:]
 
             def get_G_matrix():
                 self.G_k_n = None
@@ -242,7 +219,7 @@ class gyrovdf:
                 self.G_k_n = np.reshape(self.G_i_alpha_n, (-1, npoints))
 
 
-            def inversion(tidx, vdfdata):
+            def inversion(vdfdata):
                 # obtaining the coefficients
                 G_g = self.G_k_n @ self.G_k_n.T
                 I = np.identity(len(G_g))
@@ -256,27 +233,8 @@ class gyrovdf:
 
                 return vdf_rec, zeromask, coeffs
             
-            def iterative_inversion_old(tidx, vdfdata):
-                residual = vdfdata.copy()       # We want to fit the residuals
-                coeffs   = np.zeros_like(self.G_i_alpha_n[:,:,0]) # Coefficients for each Slepian function
-
-                vdf_rec = np.zeros_like(vdfdata)
-                for i in range(5): #self.G_i_alpha_n.shape[1]):     # iterate over number of Slepians
-                    G_i_n = self.G_i_alpha_n[:, i, :]                      # This is now a matrix
-                    GGT = G_i_n @ G_i_n.T
-                    I   = np.identity(len(GGT))
-                    c   = np.linalg.inv(GGT + 1e-3 * I) @ G_i_n @ residual # Same as (GG^T + mu)^{-1} @ G @ f
-                    coeffs[:,i] = c
-                    residual = residual - c @ G_i_n
-
-                    vdf_rec += np.dot(c, G_i_n)
-                
-                # vdf_rec = coeffs @ self.G_k_n
-                zeromask = vdf_rec == 0
-
-                return vdf_rec, zeromask, coeffs
-            
-            def iterative_inversion(tidx, vdfdata):
+            # NOTE: Likely to remove...
+            def iterative_inversion(vdfdata):
                 residual = vdfdata.copy()       # We want to fit the residuals
                 coeffs   = np.zeros_like(self.G_i_alpha_n[:,:,0]) # Coefficients for each Slepian function
 
@@ -307,7 +265,7 @@ class gyrovdf:
             
             def define_grids(NPTS):
                 self.npts = NPTS
-                # v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])
+
                 self.v_para_all = np.concatenate([self.vpara_nonan, self.vpara_nonan])
                 self.v_perp_all = np.concatenate([-self.vperp_nonan, self.vperp_nonan])
 
@@ -326,7 +284,6 @@ class gyrovdf:
                 inside = tri.find_simplex(self.grid_points) >= 0    # a Mask for the points inside the domain!
                 self.hull_mask = inside
 
-                self.super_vpara = self.grid_points[:,0]
                 self.super_rfac  = np.sqrt(self.grid_points[:,0]**2 + self.grid_points[:,1]**2) 
                 self.super_theta = np.degrees(np.arctan2(self.grid_points[:,1], self.grid_points[:,0])) # stick to convention
 
@@ -342,9 +299,7 @@ class gyrovdf:
                 # swapping the axes
                 self.super_S_alpha_n = np.moveaxis(S_n_alpha, 0, 1)
 
-                # truncating beyond Shannon number
-                N2D = 3 #int(np.sum(self.Slep.V))
-                self.super_S_alpha_n = self.super_S_alpha_n[:N2D,:]
+                self.super_S_alpha_n = self.super_S_alpha_n[:self.N2D,:]
 
             def super_Bsplines_scipy():
                 self.super_B_i_n = None
@@ -357,9 +312,6 @@ class gyrovdf:
                 self.super_B_i_n = spl(self.super_rfac).T
 
                 self.super_B_i_n = np.nan_to_num(spl(self.super_rfac).T)
-                
-                # excluding the first and last Bsplines to prevent function from blowing up
-                # self.super_B_i_n = self.super_B_i_n[0:-1]
 
             def super_G_matrix_scipy():
                 self.super_G_k_n = None
@@ -368,96 +320,10 @@ class gyrovdf:
                 self.super_G_i_alpha_n = self.super_B_i_n[:,NAX,:] * self.super_S_alpha_n[NAX,:,:]
 
                 # flattening the k=(i, alpha) dimension to make the shape (k x n)
-                npoints = len(self.super_vpara)
+                npoints = len(self.super_rfac)
                 self.super_G_k_n = np.reshape(self.super_G_i_alpha_n, (-1, npoints))
-
-
-            def super_iterative_inversion_old(tidx, vdfdata):
-                residual = vdfdata.copy()       # We want to fit the residuals
-                coeffs   = np.zeros_like(self.G_i_alpha_n[:,:,0]) # Coefficients for each Slepian function
-
-                vdf_super = np.zeros(self.super_G_i_alpha_n.shape[2])
-                vdf_rec = np.zeros_like(vdfdata)
-                for i in range(5): # self.G_i_alpha_n.shape[1]):     # iterate over number of Slepians
-                    G_i_n = self.G_i_alpha_n[:, i, :]               # This is now a single vector
-                    super_G_i_n = self.super_G_i_alpha_n[:, i, :]
-
-                    GGT = G_i_n @ G_i_n.T
-                    I   = np.identity(len(GGT))
-                    c   =   np.linalg.inv(GGT + 1e-3 * I) @ G_i_n @ residual # Same as (GG^T + mu)^{-1} @ G @ f
-                    coeffs[:,i] = c
-                    residual = residual - c @ G_i_n
-
-                    vdf_rec   += np.dot(c, G_i_n)
-                    vdf_super += np.dot(c, super_G_i_n)
-
-
-                # vdf_rec = coeffs @ self.G_k_n
-                zeromask = vdf_rec == 0
-
-                return vdf_rec, zeromask, coeffs, vdf_super
-            
-            def super_iterative_inversion(tidx, vdfdata):
-                residual = vdfdata.copy()       # We want to fit the residuals
-                coeffs   = np.zeros_like(self.G_i_alpha_n[:,:,0]) # Coefficients for each Slepian function
-
-                vdf_rec = np.zeros_like(vdfdata)
-                vdf_super = np.zeros(self.super_G_i_alpha_n.shape[2])
-                
-                G_0_n = self.G_i_alpha_n[:, 0, :]                      # This is now a matrix
-                GGT = G_0_n @ G_0_n.T
-                I   = np.identity(len(GGT))
-                c   = np.linalg.inv(GGT + 1e-3 * I) @ G_0_n @ residual # Same as (GG^T + mu)^{-1} @ G @ f
-                coeffs[:,0] = c
-                
-                residual = residual - c @ G_0_n
-
-                G_i_n = self.G_i_alpha_n[:, 1:, :]
-                G_k_n = G_i_n.reshape(-1, self.G_k_n.shape[1])
-                GGT = G_k_n @ G_k_n.T
-                I   = np.identity(len(GGT))
-                c   = np.linalg.inv(GGT + 1e-3 * I) @ G_k_n @ residual 
-                c   = c.reshape(coeffs[:,1:].shape)
-                
-                coeffs[:,1:] = c
-                
-                vdf_rec = coeffs.flatten() @ self.G_k_n
-                vdf_super = coeffs.flatten() @ self.super_G_k_n
-                zeromask = vdf_rec == 0
-
-                return vdf_rec, zeromask, coeffs, vdf_super
-            
-            def super_iterative_inversion_2(tidx, vdfdata):
-                print('We are using the correct function!')
-                residual = vdfdata.copy()       # We want to fit the residuals
-                coeffs   = np.zeros_like(self.G_i_alpha_n[:,:,0]) # Coefficients for each Slepian function
-
-                vdf_rec = np.zeros_like(vdfdata)
-                vdf_super = np.zeros(self.super_G_i_alpha_n.shape[2])
-                
-                G_0_n = self.G_i_alpha_n[:, 0, :]                      # This is now a matrix
-                GGT = G_0_n @ G_0_n.T
-                I   = np.identity(len(GGT))
-                c0   = np.linalg.inv(GGT + 1e-3 * I) @ G_0_n @ residual # Same as (GG^T + mu)^{-1} @ G @ f
-                
-                residual = residual - c0 @ G_0_n
-
-                G_i_n = self.G_i_alpha_n[:, :, :]
-                G_k_n = G_i_n.reshape(-1, self.G_k_n.shape[1])
-                GGT = G_k_n @ G_k_n.T
-                I   = np.identity(len(GGT))
-                c   = np.linalg.inv(GGT + 1e-3 * I) @ G_k_n @ residual 
-                c   = c.reshape(coeffs[:,:].shape)
-                
-                coeffs[:,:] = c
-                
-                vdf_rec = c0 @ G_0_n + coeffs.flatten() @ self.G_k_n
-                vdf_super = c0 @ self.super_G_i_alpha_n[:, 0, :] + coeffs.flatten() @ self.super_G_k_n
-                zeromask = vdf_rec == 0
-
-                return vdf_rec, zeromask, coeffs, vdf_super
-            
-            def super_inversion(tidx, vdfdata):
+ 
+            def super_inversion(vdfdata):
                 # obtaining the coefficients
                 G_g = self.G_k_n @ self.G_k_n.T
                 I = np.identity(len(G_g))
@@ -513,7 +379,6 @@ class gyrovdf:
 
             make_knots(tidx)
             get_Bsplines_scipy()
-            # get_Bsplines()
             get_Slepians_scipy()
             get_G_matrix()
 
@@ -522,12 +387,12 @@ class gyrovdf:
                 super_Bsplines_scipy()
                 super_Slepians_scipy()
                 super_G_matrix_scipy()
-                return super_inversion_revised(tidx, vdfdata)
+                return super_inversion(vdfdata)
             
             if self.ITERATE:
-                return iterative_inversion(tidx, vdfdata)
+                return iterative_inversion(vdfdata)
             
-            return inversion(tidx, vdfdata)
+            return inversion(vdfdata)
 
 
 @profile
@@ -556,7 +421,7 @@ def log_likelihood(model_params, VX, vdfdata, tidx):
     cost = np.sum((vdfdata[~zeromask] - vdf_inv[~zeromask])**2)
     return -0.5 * cost
 
-def vdf_moments(gvdf, vdf_super, tidx, U_BULK=None):
+def vdf_moments(gvdf, vdf_super, tidx):
     minval = gvdf.minval[tidx]
     maxval = gvdf.maxval[tidx]
     grids = gvdf.grid_points
@@ -686,6 +551,7 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
     ax.set_ylabel(r'$v_{\parallel}$', fontsize=19)
     ax.set_title(f'Super Resolution | {str(gvdf.l2_time[tidx])[:19]}', fontsize=19)
     ax.tick_params(axis='both', which='major', labelsize=18)
+    # ax.set_xlim([-400,400])
     ax.set_aspect('equal')
 
     if SAVE:
@@ -693,30 +559,74 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
         plt.close(fig)
     else: plt.show()
 
+def plot_gyrospan(gvdf, tidx, vdfdata, SAVE=False, VDFUNITS=False, VSHIFT=None, DENSITY=None):
+    v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])
+    v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])
+
+    vdf_data_all = np.concatenate([vdfdata, vdfdata])    
+
+    fig, ax = plt.subplots(figsize=(8,6), layout='constrained')
+
+
+    if VDFUNITS:
+        f_super = np.power(10, vdf_data_all) * gvdf.minval[tidx]
+        lvls = np.linspace(int(np.log10(gvdf.minval[tidx]) - 1), int(np.log10(gvdf.maxval[tidx])+1), 10)
+        if VSHIFT:
+            ax1 = ax.tricontourf(v_perp_all, v_para_all - VSHIFT, np.log10(f_super), levels=lvls, cmap='plasma')
+            if DENSITY:
+                Bmag = np.linalg.norm(gvdf.b_span[tidx])
+                VA = form.speeds.Alfven_speed(Bmag * u.nT, DENSITY * u.cm**(-3), ion='p+').to(u.km/u.s)
+
+                ax.arrow(0, 0, 0, VA.value, fc='k', ec='k')
+
+
+        else:
+            ax1 = ax.tricontourf(v_perp_all, v_para_all - VSHIFT, np.log10(f_super), levels=lvls, cmap='plasma')
+    else:
+        ax1 = ax.tricontourf(v_perp_all, v_para_all - VSHIFT, vdf_data_all, levels=np.linspace(0,4.0,10), cmap='plasma')
+        
+    ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf_tstamp.vshift[tidx], color='k', marker='.', s=3)
+    cbar = plt.colorbar(ax1)
+    cbar.ax.tick_params(labelsize=18) 
+    ax.set_xlabel(r'$v_{\perp}$', fontsize=19)
+    ax.set_ylabel(r'$v_{\parallel}$', fontsize=19)
+    ax.set_title(f'Super Resolution | {str(gvdf.l2_time[tidx])[:19]}', fontsize=19)
+    ax.tick_params(axis='both', which='major', labelsize=18)
+    ax.set_xlim([-400,400])
+    ax.set_aspect('equal')
+
 def write_pickle(x, fname):
     with open(f'{fname}.pkl', 'wb') as handle:
         pickle.dump(x, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-
-
-
-
 if __name__=='__main__':
+    # Initial Parameters
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    # trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
-    trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
+    # trange = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
+    # trange = ['2024-12-25T09:00:00', '2024-12-25T12:00:00']
+    # trange = ['2024-12-24T09:59:59', '2024-12-24T18:00:00']
     # trange = ['2025-03-21T13:00:00', '2025-03-21T15:00:00']
-    # trange = ['2025-03-22T01:00:00', '2025-03-22T03:00:00']
+    trange = ['2025-03-22T01:00:00', '2025-03-22T03:00:00']
     credentials = fn.load_config('./config.json')
     creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
     # creds = None
-    psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=True)
     
-    # tidx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    tidx = 0 # np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2025-03-22T02:19:00')))
-    # tidx = 649
+    # NOTE: Add to separate initialization script in future. 
+    TH         = 60
+    LMAX       = 12
+    N2D        = 3
+    P          = 3
+    MINCOUNT   = 2
+    COUNT_MASK = 5
+    ITERATE    = False
+    CLIP       = True
 
-    idx = tidx 
+    # Load in the VDFs for given timerange
+    psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=CLIP)
+    
+    # idx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    idx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2025-03-22T02:19:00')))
+    # idx = 649
 
     v_yz_corr  = {}
     v_yz_lower = {}
@@ -725,26 +635,34 @@ if __name__=='__main__':
     dens = {}
     vels = {}
     v_rec = {}
+    # This is the important one
     vdf_rec_bundle = {}
     for tidx in tqdm(range(idx, idx+1)): #range(len(psp_vdf.time.data))):
         # initializing the inversion class
-        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=12, TH=60, N2D_restrict=False, count_mask=2, mincount=7, ITERATE=False, CREDENTIALS=creds, CLIP=True)
+        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=LMAX, TH=TH, N2D=N2D, count_mask=COUNT_MASK, mincount=MINCOUNT, ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
+
+        # Check the l2 and l3 times.
+        if gvdf_tstamp.l2_time[tidx] != gvdf_tstamp.l3_time[tidx]:
+            print('Index mismatch. Skipping time.')
+            continue
 
         # initializing the vdf data to optimize
         vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/np.nanmin(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]))
 
-        # initializing the VR
-        VX = gvdf_tstamp.v_span[tidx, 0]
-        VY_init= gvdf_tstamp.v_span[tidx, 1]
-        VZ_init= gvdf_tstamp.v_span[tidx, 2]
+        # initializing the Instrument velocity 
+        VX      = gvdf_tstamp.v_span[tidx, 0]
+        VY_init = gvdf_tstamp.v_span[tidx, 1]
+        VZ_init = gvdf_tstamp.v_span[tidx, 2]
 
         u_bulk = np.asarray([VX, VY_init, VZ_init])
-        # gvdf_tstamp.get_coors(u_bulk, tidx)
-        # vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True)
-        # mask, grids, vdf_super = super_resolve(gvdf_tstamp, coeffs, vdf_inv)
 
+        # gvdf_tstamp.get_coors(u_bulk, tidx)
+        # vdf_inv, zeromask, coeffs = gvdf_tstamp.inversion(tidx, vdfdata)
+
+        # plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=False)
         # sys.exit()
-        # performing the mcmc of dtw 
+
+        # performing the mcmc of centroid finder
         nwalkers = 8
         VY_pos = np.random.rand(nwalkers) + VY_init
         VZ_pos = np.random.rand(nwalkers) + VZ_init
@@ -756,11 +674,8 @@ if __name__=='__main__':
         labels = ["VY", "VZ"]
         flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
         fig = corner.corner(flat_samples, labels=labels, show_titles=True)
-        plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
-        plt.close(fig)
-
-        # vdf_inv, zeromask, coeffs = gvdf_tstamp.inversion(tidx, vdfdata)
-        # plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True)
+        # plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
+        # plt.close(fig)
 
         # printing the 0.5 quantile values
         v_yz_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
@@ -770,11 +685,11 @@ if __name__=='__main__':
         u_corr = np.hstack([VX, v_yz_corr[tidx]])  
 
         gvdf_tstamp.get_coors(u_corr, tidx)
-        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=501)
+        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=101)
         den, vel = vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
-        plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=True)
-        plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel, SAVE=True)
+        plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=False)
+        plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel, SAVE=False)
 
         dens[tidx] = den
         vels[tidx] = vel
@@ -806,4 +721,5 @@ if __name__=='__main__':
 
         vdf_rec_bundle[tidx] = bundle
 
-    write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{idx}_to_{tidx}')
+    dt = str(gvdf_tstamp.l2_time[tidx])[:10]
+    write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{dt}_to_{tidx}')

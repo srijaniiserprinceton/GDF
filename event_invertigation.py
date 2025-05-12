@@ -7,7 +7,13 @@ import functions as fn
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import pickle
 plt.ion()
+
+def read_pickle(fname):
+    with open(f'{fname}.pkl', 'rb') as handle:
+        x = pickle.load(handle)
+    return x
 
 def plot_moments_data(mom, CLIP=None):
     # get the velocity and magnetic field data.
@@ -120,7 +126,7 @@ def plot_eflux_panels(mom):
     eflux_phi = np.stack(mom.EFLUX_VS_PHI.data)
 
     # --- Set up figure and axes ---
-    fig, axs = plt.subplots(4, 1, figsize=(12, 16), gridspec_kw={'width_ratios': [1]}, sharex=True    )
+    fig, axs = plt.subplots(4, 1, figsize=(12, 16), gridspec_kw={'width_ratios': [1]}, sharex=True)
 
     # ENERGY
     div0 = make_axes_locatable(axs[0])
@@ -164,17 +170,133 @@ def plot_eflux_panels(mom):
     plt.show()
 
 
+def plot_sbr_span_bimax(moms, sbr, biMax=None, lfr_den=None):
+    fig, axs = plt.subplots(4, 1, figsize=(12, 16), gridspec_kw={'width_ratios': [1]}, sharex=True)
+
+    axs[0].plot(moms.Epoch.data, moms.DENS.data, color='k', alpha=0.6, lw=4, label='Moment')
+    [axs[i+1].plot(moms.Epoch.data, moms.VEL_INST[:,i].data, color='k', alpha=0.6, lw=4) for i in range(3)]
+
+
+    if biMax:
+        mask = (biMax.n_tot.data > 2*moms.DENS.data)
+        bm_den = biMax.n_tot.data
+        bm_den[mask] = np.nan
+
+        bm_vel = biMax.vcm.data
+        bm_vel[mask] = np.nan
+        axs[0].plot(biMax.Epoch.data, bm_den, color='tab:blue', alpha=0.8, lw=2, label='biMax')
+        [axs[i+1].plot(moms.Epoch.data, bm_vel[:,i], color='tab:blue', alpha=0.8, lw=2) for i in range(3)]
+
+    # Load in sbr density and velocity
+    sbr_time = np.array([sbr[i]['time'] for i in sbr.keys()]) 
+    sbr_den = np.array([sbr[i]['den'] for i in sbr.keys()])
+    sbr_vel = np.array([sbr[i]['u_final'] for i in sbr.keys()])
+
+    sbr_mask = sbr_den > 4000
+    sbr_den[sbr_mask] = np.nan
+    sbr_vel[sbr_mask] = np.nan
+
+    nanmask = np.isnan(sbr_den)
+
+    sbr_time = sbr_time[~nanmask]
+    sbr_den = sbr_den[~nanmask]
+    sbr_vel = sbr_vel[~nanmask]
+
+    axs[0].plot(sbr_time, sbr_den, color='tab:red', alpha=1.0, lw=2, label='SBR')
+    [axs[i+1].plot(sbr_time, sbr_vel[:,i], color='tab:red', alpha=1.0, lw=2) for i in range(3)]
+
+    axs[0].set_ylabel(r'Density [$cm^{-3}$]', fontsize=22)
+    axs[1].set_ylabel(r'$V_x$ [km/s]', fontsize=22)
+    axs[2].set_ylabel(r'$V_y$ [km/s]', fontsize=22)
+    axs[3].set_ylabel(r'$V_z$ [km/s]', fontsize=22)
+    axs[3].set_xlabel('Time [UTC]', fontsize=22)
+
+    axs[3].set_xlim([sbr_time[0], sbr_time[-1]])
+    
+
+    if lfr_den: 
+        qtn_mask = lfr_den.electron_density.data < 0
+        lfrden = lfr_den.electron_density.data
+        lfrden[qtn_mask] = np.nan
+        axs[0].plot(lfr_den.Epoch.data, lfr_den.electron_density.data, color='tab:orange', label = 'LFR QTN')
+
+    axs[0].legend(ncols=4, fontsize=18, frameon=False)
+    axs[0].set_ylim([0,1000])
+
+
+    plt.subplots_adjust(left=0.1, right=0.95, top=0.98, bottom=0.05)
+
+    plt.show()
+
+
+def plot_sbr_span_bimax_density(moms, biMax, sbr, lfr_den=None):
+    fig, axs = plt.subplots(figsize=(12, 8))
+
+    axs.plot(moms.Epoch.data, moms.DENS.data, color='k', alpha=0.6, lw=4, label='Moment')
+
+    mask = (biMax.n_tot.data > 2*moms.DENS.data)
+    bm_den = biMax.n_tot.data
+    bm_den[mask] = np.nan
+
+    axs.plot(biMax.Epoch.data, bm_den, color='tab:blue', alpha=0.8, lw=2, label='biMax')
+
+    # Load in sbr density and velocity
+    sbr_time = np.array([sbr[i]['time'] for i in sbr.keys()]) 
+    sbr_den = np.array([sbr[i]['den'] for i in sbr.keys()])
+
+    sbr_mask = sbr_den > 4000
+    sbr_den[sbr_mask] = np.nan
+
+    nanmask = np.isnan(sbr_den)
+
+    sbr_time = sbr_time[~nanmask]
+    sbr_den = sbr_den[~nanmask]
+
+    axs.plot(sbr_time, sbr_den, color='tab:red', alpha=1.0, lw=2, label='SBR')
+    axs.set_ylabel(r'Density [$cm^{-3}$]', fontsize=22)
+    axs.set_xlabel(r'Time [UTC]', fontsize=22)
+
+    if lfr_den: 
+        qtn_mask = lfr_den.electron_density.data < 0
+        lfrden = lfr_den.electron_density.data
+        lfrden[qtn_mask] = np.nan
+        axs.plot(lfr_den.Epoch.data, lfr_den.electron_density.data, color='tab:orange', label = 'LFR QTN')
+
+    axs.legend(ncols=4, fontsize=18, frameon=False)
+    axs.set_ylim([0,4000])
+    axs.set_xlim([sbr_time[0], sbr_time[-1]])
+    
+
+
+    plt.subplots_adjust(left=0.1, right=0.95, top=0.98, bottom=0.1)
+
+    plt.show()
+
+
 if __name__ == "__main__":
-    trange = ['2024-12-25T00:00:00', '2024-12-25T23:59:59']
+    # trange = ['2024-12-24T09:59:59', '2024-12-24T10:15:00']
+    trange = ['2020-01-26T07:00:00', '2020-01-26T07:30:00']
     credentials = fn.load_config('./config.json')
     creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
+    creds = None
 
     # get the moments.
     mom_data = fn.init_psp_moms(trange, CREDENTIALS=creds, CLIP=True)
     
     # get the biMax fits
     cdfdata = cdflib.cdf_to_xarray('/home/michael/Research/GDF/biMax_Fits/spp_swp_spi_sf00_fits_2024-12-24_v00.cdf', to_datetime=True)
+    fit_sel = cdfdata.sel(Epoch=slice(mom_data.Epoch.data[0] - np.timedelta64(1,'s'), mom_data.Epoch.data[-1]))
 
+    # Load the pklfile for SBR.
+    # sbr1 = read_pickle('/home/michael/Downloads/vdf_rec_data_2024-12-24_to_100')
+    # sbr2 = read_pickle('/home/michael/Downloads/vdf_rec_data_2024-12-24_to_300')
+    sbr = read_pickle('/home/michael/Downloads/vdf_rec_data_2020-01-26_to_257')
 
+    # sbr = {**sbr1, **sbr2}
 
+    # Get the LFR
+    # sqtn = cdflib.cdf_to_xarray('/home/michael/Downloads/psp_fld_l3_sqtn_rfs_V1V2_20241224_v2.0.cdf', to_datetime=True)
+    sqtn = cdflib.cdf_to_xarray('/home/michael/Downloads/psp_fld_l3_sqtn_rfs_V1V2_20200126_v1.0.cdf', to_datetime=True)
+
+    sqtn_sel = sqtn.sel(Epoch=slice(mom_data.Epoch.data[0] - np.timedelta64(1,'s'), mom_data.Epoch.data[-1]))
     
