@@ -14,6 +14,7 @@ import bsplines
 import eval_Slepians
 import functions as fn
 import coordinate_frame_functions as coor_fn
+import misc_plotter
 
 from scipy.spatial import Delaunay
 from tqdm import tqdm
@@ -543,7 +544,7 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
     else:
         ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], vdf_super[mask], levels=np.linspace(0,4.0,10), cmap='plasma')
-        
+
     ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf_tstamp.vshift[tidx], color='k', marker='.', s=3)
     cbar = plt.colorbar(ax1)
     cbar.ax.tick_params(labelsize=18) 
