@@ -23,6 +23,7 @@ import pickle
 import plasmapy.formulary as form
 import numpy as np
 
+mu = 1e-3
 
 def merge_bins(bin_edges, counts, threshold):
     merged_edges = []
@@ -60,13 +61,13 @@ def merge_bins(bin_edges, counts, threshold):
 
 
 class gyrovdf:
-    def __init__(self, vdf_dict, trange, TH=60, Lmax=12, N2D=None, p=3, mincount=2, count_mask=5, ITERATE=False, CREDENTIALS=None, CLIP=False):
+    def __init__(self, vdf_dict, trange, TH=60, Lmax=12, N2D=None, p=3, spline_mincount=2, count_mask=5, ITERATE=False, CREDENTIALS=None, CLIP=False):
         self.TH = TH  
         self.Lmax = Lmax
         self.N2D = N2D
         self.p = p
         self.count_mask = count_mask 
-        self.mincount = mincount
+        self.spline_mincount = spline_mincount
         self.ITERATE = ITERATE
 
         # loading the Slepians tapers once
@@ -171,7 +172,7 @@ class gyrovdf:
 
                 counts, bin_edges = np.histogram(np.log10(self.rfac_nonan), bins=Nbins)
 
-                new_edges, _ = merge_bins(bin_edges, counts, self.mincount)
+                new_edges, _ = merge_bins(bin_edges, counts, self.spline_mincount)
                 log_knots = np.sum(new_edges, axis=1)/2
 
                 # discarding knots at counts less than 10 (always discarding the last knot with low count)
@@ -224,7 +225,7 @@ class gyrovdf:
                 # obtaining the coefficients
                 G_g = self.G_k_n @ self.G_k_n.T
                 I = np.identity(len(G_g))
-                coeffs = np.linalg.inv(G_g + 1e-3 * I) @ self.G_k_n @ vdfdata
+                coeffs = np.linalg.inv(G_g + mu * I) @ self.G_k_n @ vdfdata
 
                 # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                 vdf_rec = coeffs @ self.G_k_n
@@ -244,7 +245,7 @@ class gyrovdf:
                 G_0_n = self.G_i_alpha_n[:, 0, :]                      # This is now a matrix
                 GGT = G_0_n @ G_0_n.T
                 I   = np.identity(len(GGT))
-                c   = np.linalg.inv(GGT + 1e-3 * I) @ G_0_n @ residual # Same as (GG^T + mu)^{-1} @ G @ f
+                c   = np.linalg.inv(GGT + mu * I) @ G_0_n @ residual # Same as (GG^T + mu)^{-1} @ G @ f
                 coeffs[:,0] = c
                 
                 residual = residual - c @ G_0_n
@@ -253,7 +254,7 @@ class gyrovdf:
                 G_k_n = G_i_n.reshape(-1, self.G_k_n.shape[1])
                 GGT = G_k_n @ G_k_n.T
                 I   = np.identity(len(GGT))
-                c   = np.linalg.inv(GGT + 1e-3 * I) @ G_k_n @ residual 
+                c   = np.linalg.inv(GGT + mu * I) @ G_k_n @ residual 
                 c   = c.reshape(coeffs[:,1:].shape)
                 
                 coeffs[:,1:] = c
@@ -328,7 +329,7 @@ class gyrovdf:
                 # obtaining the coefficients
                 G_g = self.G_k_n @ self.G_k_n.T
                 I = np.identity(len(G_g))
-                coeffs = np.linalg.inv(G_g + 1e-3 * I) @ self.G_k_n @ vdfdata
+                coeffs = np.linalg.inv(G_g + mu * I) @ self.G_k_n @ vdfdata
 
                 # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                 vdf_rec = coeffs @ self.G_k_n
@@ -532,6 +533,7 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
         if VSHIFT:
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
+            ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf_tstamp.vshift[tidx], color='k', marker='.', s=3)
             if DENSITY:
                 Bmag = np.linalg.norm(gvdf.b_span[tidx])
                 VA = form.speeds.Alfven_speed(Bmag * u.nT, DENSITY * u.cm**(-3), ion='p+').to(u.km/u.s)
@@ -542,10 +544,11 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
         else:
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
+            ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=3)
     else:
         ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], vdf_super[mask], levels=np.linspace(0,4.0,10), cmap='plasma')
 
-    ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf_tstamp.vshift[tidx], color='k', marker='.', s=3)
+        ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=3)
     cbar = plt.colorbar(ax1)
     cbar.ax.tick_params(labelsize=18) 
     ax.set_xlabel(r'$v_{\perp}$', fontsize=19)
@@ -603,11 +606,11 @@ def write_pickle(x, fname):
 if __name__=='__main__':
     # Initial Parameters
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    # trange = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
+    trange = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
     # trange = ['2024-12-25T09:00:00', '2024-12-25T12:00:00']
     # trange = ['2024-12-24T09:59:59', '2024-12-24T18:00:00']
     # trange = ['2025-03-21T13:00:00', '2025-03-21T15:00:00']
-    trange = ['2025-03-22T01:00:00', '2025-03-22T03:00:00']
+    # trange = ['2025-03-22T01:00:00', '2025-03-22T03:00:00']
     credentials = fn.load_config('./config.json')
     creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
     # creds = None
@@ -617,8 +620,8 @@ if __name__=='__main__':
     LMAX       = 12
     N2D        = 3
     P          = 3
-    MINCOUNT   = 2
-    COUNT_MASK = 5
+    SPLINE_MINCOUNT   = 7
+    COUNT_MASK = 1
     ITERATE    = False
     CLIP       = True
 
@@ -626,8 +629,8 @@ if __name__=='__main__':
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=CLIP)
     
     # idx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    idx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2025-03-22T02:19:00')))
-    # idx = 649
+    # idx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2025-03-22T02:19:00')))
+    idx = 0
 
     v_yz_corr  = {}
     v_yz_lower = {}
@@ -640,7 +643,7 @@ if __name__=='__main__':
     vdf_rec_bundle = {}
     for tidx in tqdm(range(idx, idx+1)): #range(len(psp_vdf.time.data))):
         # initializing the inversion class
-        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=LMAX, TH=TH, N2D=N2D, count_mask=COUNT_MASK, mincount=MINCOUNT, ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
+        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=LMAX, TH=TH, N2D=N2D, count_mask=COUNT_MASK, spline_mincount=SPLINE_MINCOUNT, ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
 
         # Check the l2 and l3 times.
         if gvdf_tstamp.l2_time[tidx] != gvdf_tstamp.l3_time[tidx]:
@@ -686,7 +689,7 @@ if __name__=='__main__':
         u_corr = np.hstack([VX, v_yz_corr[tidx]])  
 
         gvdf_tstamp.get_coors(u_corr, tidx)
-        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=101)
+        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=1001)
         den, vel = vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
         plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=False)
