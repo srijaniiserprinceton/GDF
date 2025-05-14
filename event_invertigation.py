@@ -275,7 +275,7 @@ def plot_sbr_span_bimax_density(moms, biMax, sbr, lfr_den=None):
 
 if __name__ == "__main__":
     # trange = ['2024-12-24T09:59:59', '2024-12-24T10:15:00']
-    trange = ['2020-01-26T07:00:00', '2020-01-26T07:30:00']
+    trange = ['2020-01-23T00:00:00', '2020-01-23T07:30:00']
     credentials = fn.load_config('./config.json')
     creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
     creds = None
