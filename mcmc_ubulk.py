@@ -603,55 +603,29 @@ def write_pickle(x, fname):
     with open(f'{fname}.pkl', 'wb') as handle:
         pickle.dump(x, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-if __name__=='__main__':
-    # Initial Parameters
-    # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    trange = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
-    # trange = ['2024-12-25T09:00:00', '2024-12-25T12:00:00']
-    # trange = ['2024-12-24T09:59:59', '2024-12-24T18:00:00']
-    # trange = ['2025-03-21T13:00:00', '2025-03-21T15:00:00']
-    # trange = ['2025-03-22T01:00:00', '2025-03-22T03:00:00']
-    credentials = fn.load_config('./config.json')
-    creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
-    # creds = None
-    
-    # NOTE: Add to separate initialization script in future. 
-    TH         = 60
-    LMAX       = 12
-    N2D        = 3
-    P          = 3
-    SPLINE_MINCOUNT   = 7
-    COUNT_MASK = 1
-    ITERATE    = False
-    CLIP       = True
-
-    # Load in the VDFs for given timerange
-    psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=CLIP)
-    
-    # idx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
-    # idx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2025-03-22T02:19:00')))
-    idx = 0
-
+@profile
+def main(start_idx = 0, Nsteps = None):
+    # the dictionary elements
     v_yz_corr  = {}
     v_yz_lower = {}
     v_yz_upper = {}
-
     dens = {}
     vels = {}
     v_rec = {}
-    # This is the important one
-    vdf_rec_bundle = {}
-    for tidx in tqdm(range(idx, idx+1)): #range(len(psp_vdf.time.data))):
-        # initializing the inversion class
-        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=LMAX, TH=TH, N2D=N2D, count_mask=COUNT_MASK, spline_mincount=SPLINE_MINCOUNT, ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
 
-        # Check the l2 and l3 times.
+    # the dictionary that is finally saved as a .pkl file
+    vdf_rec_bundle = {}
+
+    if(Nsteps is None): Nsteps = len(psp_vdf.time.data)
+
+    for tidx in tqdm(range(start_idx, start_idx + Nsteps)):
+        # Check the l2 and l3 times match (to ensure selection of correct magnetic field)
         if gvdf_tstamp.l2_time[tidx] != gvdf_tstamp.l3_time[tidx]:
             print('Index mismatch. Skipping time.')
             continue
 
-        # initializing the vdf data to optimize
-        vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/np.nanmin(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]))
+        # initializing the vdf data to optimize (this is the normalized and logarithmic value)
+        vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
 
         # initializing the Instrument velocity 
         VX      = gvdf_tstamp.v_span[tidx, 0]
@@ -659,18 +633,13 @@ if __name__=='__main__':
         VZ_init = gvdf_tstamp.v_span[tidx, 2]
 
         u_bulk = np.asarray([VX, VY_init, VZ_init])
-
-        # gvdf_tstamp.get_coors(u_bulk, tidx)
-        # vdf_inv, zeromask, coeffs = gvdf_tstamp.inversion(tidx, vdfdata)
-
-        # plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=False)
-        # sys.exit()
-
+        
         # performing the mcmc of centroid finder
         nwalkers = 8
         VY_pos = np.random.rand(nwalkers) + VY_init
         VZ_pos = np.random.rand(nwalkers) + VZ_init
         pos = np.array([VY_pos, VZ_pos]).T
+
         sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
         sampler.run_mcmc(pos, 700, progress=False)
         
@@ -727,3 +696,36 @@ if __name__=='__main__':
 
     dt = str(gvdf_tstamp.l2_time[tidx])[:10]
     write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{dt}_to_{tidx}')
+
+if __name__=='__main__':
+    # Initial Parameters
+    # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
+    trange = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
+    # trange = ['2024-12-25T09:00:00', '2024-12-25T12:00:00']
+    # trange = ['2024-12-24T09:59:59', '2024-12-24T18:00:00']
+    # trange = ['2025-03-21T13:00:00', '2025-03-21T15:00:00']
+    # trange = ['2025-03-22T01:00:00', '2025-03-22T03:00:00']
+    credentials = fn.load_config('./config.json')
+    creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
+    # creds = None
+    
+    # NOTE: Add to separate initialization script in future. 
+    TH         = 60
+    LMAX       = 12
+    N2D        = 3
+    P          = 3
+    SPLINE_MINCOUNT   = 7
+    COUNT_MASK = 1
+    ITERATE    = False
+    CLIP       = True
+
+    # Load in the VDFs for given timerange
+    psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=CLIP)
+
+    # initializing the inversion class
+    gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=LMAX, TH=TH, N2D=N2D, 
+                          count_mask=COUNT_MASK, spline_mincount=SPLINE_MINCOUNT,
+                          ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
+
+    # executing the main scripts here
+    main(0, 1)
