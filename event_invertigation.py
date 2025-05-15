@@ -159,6 +159,7 @@ def plot_eflux_panels(mom):
     axs[3].legend(ncols=3, fontsize=20, frameon=False)
     cax3.set_xticks([])
     cax3.set_yticks([])
+    axs[3].set_ylim([-1000,1000])
 
     # Format time axis
     for ax in axs:
@@ -275,7 +276,8 @@ def plot_sbr_span_bimax_density(moms, biMax, sbr, lfr_den=None):
 
 if __name__ == "__main__":
     # trange = ['2024-12-24T09:59:59', '2024-12-24T10:15:00']
-    trange = ['2020-01-23T00:00:00', '2020-01-23T07:30:00']
+    # trange = ['2020-01-26T07:00:00', '2020-01-26T07:30:00']
+    trange = ['2022-02-25T15:00:00', '2022-02-25T19:00:00']
     credentials = fn.load_config('./config.json')
     creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
     creds = None
