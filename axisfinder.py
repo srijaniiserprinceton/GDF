@@ -279,8 +279,8 @@ class gyrovdf:
 
 if __name__=='__main__':
     # Initial Parameters
-    trange = ['2020-01-26T07:00:00', '2020-01-26T07:30:00']
-    # trange = ['2020-01-25T00:00:00', '2020-01-25T23:59:59']
+    # trange = ['2020-01-26T07:00:00', '2020-01-26T07:30:00']
+    trange = ['2022-02-25T00:00:00', '2022-02-25T01:00:00']
     credentials = fn.load_config('./config.json')
     creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
     
