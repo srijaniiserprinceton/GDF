@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt; plt.ion()
 from line_profiler import profile
 from scipy.interpolate import BSpline
 from scipy.special import eval_legendre
+from scipy.optimize import minimize
 NAX = np.newaxis
 
 import bsplines
@@ -124,8 +125,7 @@ class gyrovdf:
 
     def get_coors(self, u_bulk, tidx):
         self.vpara, self.vperp1, self.vperp2, self.vperp = None, None, None, None
-        self.ubulk = u_bulk         # Just to store the data.
-
+        
         # Shift into the plasma frame
         self.ux = self.vx[tidx] - u_bulk[0, NAX, NAX, NAX]
         self.uy = self.vy[tidx] - u_bulk[1, NAX, NAX, NAX]
@@ -133,7 +133,7 @@ class gyrovdf:
 
         # Rotate the plasma frame data into the magnetic field aligned frame.
         vpara, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(self.ux, self.uy, self.uz,
-                                                                         *fn.field_aligned_coordinates(self.b_span[tidx])))
+                                                                        *fn.field_aligned_coordinates(self.b_span[tidx])))
         
         self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
@@ -156,7 +156,7 @@ class gyrovdf:
         self.r_fa = r.value
         self.theta_fa = np.degrees(theta.value) + 90
 
-    def inversion(self, tidx, vdfdata, SUPER=False, NPTS=100):
+    def inversion(self, u_bulk, vdfdata, tidx, SUPER=False, NPTS=100):
             def make_knots(tidx):
                 self.knots, self.vpara_nonan = None, None
 
@@ -380,6 +380,7 @@ class gyrovdf:
 
                 return vdf_rec, zeromask, coeffs, vdf_super
 
+            self.get_coors(u_bulk, tidx)
             make_knots(tidx)
             get_Bsplines_scipy()
             get_Slepians_scipy()
@@ -397,32 +398,24 @@ class gyrovdf:
             
             return inversion(vdfdata)
 
+def loss_fn_Slepians(p0_2d, points, values, n, origin, u, v, tidx):
+    p0 = origin + p0_2d[0]*u + p0_2d[1]*v
+    pred, __, __ = gvdf_tstamp.inversion(p0, values, tidx)
+    return np.mean((values - pred)**2)
 
-@profile
-def log_prior(model_params):
-    VY, VZ = model_params
-    if -1000 < VY < 1000 and -1000 < VZ < 1000:
-        return 0.0
-    return -np.inf
+def find_symmetry_point(points, values, n, loss_fn, tidx, origin=None):
+    # Get basis u, v orthogonal to n
+    arbitrary = np.array([1.0, 0.0, 0.0])
+    if np.allclose(arbitrary, n):
+        arbitrary = np.array([0.0, 1.0, 0.0])
+    u = np.cross(n, arbitrary)
+    u /= np.linalg.norm(u)
+    v = np.cross(n, u)
 
-@profile
-def log_probability(model_params, VX, vdfdata, tidx):
-    lp = log_prior(model_params)
-    if not np.isfinite(lp):
-        return -np.inf
-    return lp + log_likelihood(model_params, VX, vdfdata, tidx)
-
-@profile
-def log_likelihood(model_params, VX, vdfdata, tidx):
-    VY, VZ = model_params
-    u_bulk = np.asarray([VX, VY, VZ])
-    # get new grids and initialize new inversion
-    gvdf_tstamp.get_coors(u_bulk, tidx)
-    # perform new inversion using the v_span
-    vdf_inv, zeromask, _ = gvdf_tstamp.inversion(tidx, vdfdata)
-
-    cost = np.sum((vdfdata[~zeromask] - vdf_inv[~zeromask])**2)
-    return -0.5 * cost
+    if(origin is None): origin = np.mean(points, axis=0)  # reasonable guess
+    res = minimize(loss_fn, x0=[0.0, 0.0], args=(points, values, n, origin, u, v, tidx), method='Powell')
+    best_p0 = origin + res.x[0] * u + res.x[1] * v
+    return best_p0, res.fun
 
 def vdf_moments(gvdf, vdf_super, tidx):
     minval = gvdf.minval[tidx]
@@ -632,34 +625,18 @@ def main(start_idx = 0, Nsteps = None):
         VX      = gvdf_tstamp.v_span[tidx, 0]
         VY_init = gvdf_tstamp.v_span[tidx, 1]
         VZ_init = gvdf_tstamp.v_span[tidx, 2]
+        u_origin = np.asarray([VX, VY_init, VZ_init])
 
-        u_bulk = np.asarray([VX, VY_init, VZ_init])
-        
-        # performing the mcmc of centroid finder
-        nwalkers = 8
-        VY_pos = np.random.rand(nwalkers) + VY_init
-        VZ_pos = np.random.rand(nwalkers) + VZ_init
-        pos = np.array([VY_pos, VZ_pos]).T
+        threeD_points = np.vstack([gvdf_tstamp.vx[tidx][gvdf_tstamp.nanmask[tidx]],
+                                   gvdf_tstamp.vy[tidx][gvdf_tstamp.nanmask[tidx]],
+                                   gvdf_tstamp.vz[tidx][gvdf_tstamp.nanmask[tidx]]]).T
 
-        sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
-        sampler.run_mcmc(pos, 700, progress=False)
-        
-        # plotting the results of the emcee
-        labels = ["VY", "VZ"]
-        flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
-        fig = corner.corner(flat_samples, labels=labels, show_titles=True)
-        # plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
-        # plt.close(fig)
+        bvec = gvdf_tstamp.b_span[tidx] / np.linalg.norm(gvdf_tstamp.b_span[tidx])
+        u_corr, __ = find_symmetry_point(threeD_points, vdfdata, bvec, loss_fn_Slepians, tidx, origin=u_origin)
 
-        # printing the 0.5 quantile values
-        v_yz_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
-        v_yz_lower[tidx] = np.quantile(flat_samples,q=[0.14],axis=0).squeeze()
-        v_yz_upper[tidx] = np.quantile(flat_samples,q=[0.86],axis=0).squeeze()
-
-        u_corr = np.hstack([VX, v_yz_corr[tidx]])
-
-        gvdf_tstamp.get_coors(u_corr, tidx)
-        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=1001)
+        # gvdf_tstamp.get_coors(u_corr, tidx)
+        print(u_corr.shape)
+        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=1001)
         den, vel = vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
         plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=False)
@@ -696,7 +673,7 @@ def main(start_idx = 0, Nsteps = None):
         vdf_rec_bundle[tidx] = bundle
 
     dt = str(gvdf_tstamp.l2_time[tidx])[:10]
-    write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{dt}_to_{tidx}')
+    write_pickle(vdf_rec_bundle, f'./Outputs_scipy/vdf_rec_data_{dt}_to_{tidx}')
 
 if __name__=='__main__':
     # Initial Parameters
