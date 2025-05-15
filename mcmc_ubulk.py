@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt; plt.ion()
 from line_profiler import profile
 from scipy.interpolate import BSpline
 from scipy.special import eval_legendre
+from datetime import datetime
 NAX = np.newaxis
 
 import bsplines
@@ -24,7 +25,7 @@ import pickle
 import plasmapy.formulary as form
 import numpy as np
 
-mu = 1e-3
+mu = 1e-1
 
 def merge_bins(bin_edges, counts, threshold):
     merged_edges = []
@@ -445,11 +446,11 @@ def vdf_moments(gvdf, vdf_super, tidx):
 
     vpara = (velocity/density)
 
-    m_p = 1.6726e-27
-    k_b = 1.380649e-23
+    m_p = 1.6726e-24        # g        
+    k_b = 1.380649e-16      # erg/K
 
-    T_para = 1e6*(m_p/k_b)*(2*np.pi*np.sum((grids[mask,0][mask2] * 1e5 - vpara)**2 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)/density)
-    T_perp = 1e6*(m_p/k_b)*(2*np.pi*np.sum((grids[mask,1][mask2] * 1e5)**2 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)/density)
+    T_para = (m_p/k_b)*(2*np.pi*np.sum((grids[mask,0][mask2] * 1e5 - vpara)**2 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)/density)
+    T_perp = (m_p/(2*k_b))*(2*np.pi*np.sum((grids[mask,1][mask2] * 1e5)**2 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)/density)
 
     T_comp = T_para, T_perp
     T_trace = (T_para + 2*T_perp)/3
@@ -630,6 +631,7 @@ def main(start_idx = 0, Nsteps = None):
 
     # the dictionary that is finally saved as a .pkl file
     vdf_rec_bundle = {}
+    gyro_bundle = {}
 
     if(Nsteps is None): Nsteps = len(psp_vdf.time.data)
 
@@ -695,13 +697,18 @@ def main(start_idx = 0, Nsteps = None):
         u_adj = np.array([u_xnew, u_ynew, u_znew])
         v_rec[tidx] = u_adj
 
+        quick_bundle = {}
+        quick_bundle['u_corr'] = u_corr
+        quick_bundle['vdf_rec'] = vdf_inv
+        quick_bundle['nanmask'] = gvdf_tstamp.nanmask[tidx]
+
+        gyro_bundle[tidx] = quick_bundle
 
         bundle = {}
         bundle['den'] = den
-        # bundle['vel_mom_noshift'] = vel
         bundle['time'] = gvdf_tstamp.l2_time[tidx]
-        # bundle['vshift'] = gvdf_tstamp.vshift[tidx]
-        # bundle['u_corr'] = u_corr
+        bundle['component_temp'] = Tcomps
+        bundle['scalar_temp'] = Trace
         bundle['u_final'] = u_adj
         bundle['v_yz_corr'] = v_yz_corr
         bundle['v_yz_lower'] = v_yz_lower
@@ -709,15 +716,20 @@ def main(start_idx = 0, Nsteps = None):
 
         vdf_rec_bundle[tidx] = bundle
 
-    dt = str(gvdf_tstamp.l2_time[tidx])[:10]
-    write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{dt}_to_{tidx}')
+    ts0 = datetime.strptime(str(gvdf_tstamp.l2_time[start_idx])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
+    ts1 = datetime.strptime(str(gvdf_tstamp.l2_time[start_idx + Nsteps])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
+    ymd = ts0.strftime('%Y%m%d')
+    a_label = ts0.strftime('%H%M%S')
+    b_label = ts1.strftime('%H%M%S')
+    write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{ymd}_{a_label}_{b_label}')
+    write_pickle(gyro_bundle, f'./Outputs/gyrobundle_{ymd}_{a_label}_{b_label}')
 
-    return(Tcomps, Trace)
+    return(Tcomps, Trace, gvdf_tstamp)
 if __name__=='__main__':
     # Initial Parameters
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    # trange = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
-    trange = ['2022-02-25T15:00:00', '2022-02-25T19:00:00']
+    trange = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
+    # trange = ['2022-02-25T15:00:00', '2022-02-25T19:00:00']
     # trange = ['2024-12-25T09:00:00', '2024-12-25T12:00:00']
     # trange = ['2024-12-24T09:59:59', '2024-12-24T18:00:00']
     # trange = ['2025-03-21T13:00:00', '2025-03-21T15:00:00']
@@ -745,4 +757,4 @@ if __name__=='__main__':
                           ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
 
     # executing the main scripts here
-    a,b = main(0, 1)
+    a,b,gvdf = main(0, 10)

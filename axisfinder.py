@@ -327,7 +327,7 @@ if __name__=='__main__':
         best_p0_Poly, res_fun = find_symmetry_point(threeD_points, threeD_values, bvec, loss_fn, origin=origin)    
         p0_Poly.append(best_p0_Poly)
 
-        p0_Slep_on_Polyx.append(point_on_axis_with_x(best_p0_Slep, bvec, best_p0_Poly[0]))
+        p0_Slep_on_Polyx.append(point_on_axis_with_x(best_p0_Slep, bvec, gvdf_tstamp.v_span[tidx,0]))
 
     p0_Slep = np.asarray(p0_Slep)
     p0_Poly = np.asarray(p0_Poly)
