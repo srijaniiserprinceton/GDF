@@ -15,7 +15,6 @@ import eval_Slepians
 import functions as fn
 import coordinate_frame_functions as coor_fn
 import misc_plotter
-import axisfinder
 
 from scipy.spatial import Delaunay
 from tqdm import tqdm
@@ -24,7 +23,6 @@ import pickle
 import plasmapy.formulary as form
 import numpy as np
 
-mu = 1e-3
 
 def merge_bins(bin_edges, counts, threshold):
     merged_edges = []
@@ -62,13 +60,13 @@ def merge_bins(bin_edges, counts, threshold):
 
 
 class gyrovdf:
-    def __init__(self, vdf_dict, trange, TH=60, Lmax=12, N2D=None, p=3, spline_mincount=2, count_mask=5, ITERATE=False, CREDENTIALS=None, CLIP=False):
+    def __init__(self, vdf_dict, trange, TH=60, Lmax=12, N2D=None, p=3, mincount=2, count_mask=5, ITERATE=False, CREDENTIALS=None, CLIP=False):
         self.TH = TH  
         self.Lmax = Lmax
         self.N2D = N2D
         self.p = p
         self.count_mask = count_mask 
-        self.spline_mincount = spline_mincount
+        self.mincount = mincount
         self.ITERATE = ITERATE
 
         # loading the Slepians tapers once
@@ -93,6 +91,7 @@ class gyrovdf:
         # masking the zero count bins where we have no constraints
         vdf[count <= self.count_mask] = np.nan
         vdf[vdf == 0] = np.nan
+        vdf[(phi > 174) * (np.abs(theta) < 8)] = np.nan
         self.nanmask = np.isfinite(vdf)
 
         # get and store the min and maxvalues
@@ -173,7 +172,7 @@ class gyrovdf:
 
                 counts, bin_edges = np.histogram(np.log10(self.rfac_nonan), bins=Nbins)
 
-                new_edges, _ = merge_bins(bin_edges, counts, self.spline_mincount)
+                new_edges, _ = merge_bins(bin_edges, counts, self.mincount)
                 log_knots = np.sum(new_edges, axis=1)/2
 
                 # discarding knots at counts less than 10 (always discarding the last knot with low count)
@@ -226,7 +225,7 @@ class gyrovdf:
                 # obtaining the coefficients
                 G_g = self.G_k_n @ self.G_k_n.T
                 I = np.identity(len(G_g))
-                coeffs = np.linalg.inv(G_g + mu * I) @ self.G_k_n @ vdfdata
+                coeffs = np.linalg.inv(G_g + 1e-3 * I) @ self.G_k_n @ vdfdata
 
                 # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                 vdf_rec = coeffs @ self.G_k_n
@@ -246,7 +245,7 @@ class gyrovdf:
                 G_0_n = self.G_i_alpha_n[:, 0, :]                      # This is now a matrix
                 GGT = G_0_n @ G_0_n.T
                 I   = np.identity(len(GGT))
-                c   = np.linalg.inv(GGT + mu * I) @ G_0_n @ residual # Same as (GG^T + mu)^{-1} @ G @ f
+                c   = np.linalg.inv(GGT + 1e-3 * I) @ G_0_n @ residual # Same as (GG^T + mu)^{-1} @ G @ f
                 coeffs[:,0] = c
                 
                 residual = residual - c @ G_0_n
@@ -255,7 +254,7 @@ class gyrovdf:
                 G_k_n = G_i_n.reshape(-1, self.G_k_n.shape[1])
                 GGT = G_k_n @ G_k_n.T
                 I   = np.identity(len(GGT))
-                c   = np.linalg.inv(GGT + mu * I) @ G_k_n @ residual 
+                c   = np.linalg.inv(GGT + 1e-3 * I) @ G_k_n @ residual 
                 c   = c.reshape(coeffs[:,1:].shape)
                 
                 coeffs[:,1:] = c
@@ -325,12 +324,25 @@ class gyrovdf:
                 # flattening the k=(i, alpha) dimension to make the shape (k x n)
                 npoints = len(self.super_rfac)
                 self.super_G_k_n = np.reshape(self.super_G_i_alpha_n, (-1, npoints))
+
+            def include_zeros():
+                # adding the minval to the vdf data
+                vdfdata_with_minval = psp_vdf.vdf.data[tidx] * 1.0
+                vdfdata_with_minval[~self.nanmask[tidx]] = self.minval[tidx]
+
+                # first creating a backup copy of nanmask
+                nanmask_tidx_original = self.nanmask[tidx] * 1.0
+                # then create a new nanmask with all True (no Nan values)
+                self.nanmask[tidx] = np.ones_like(self.nanmask[tidx], dtype='bool')
+                vdfdata = np.log10(vdfdata_with_minval/self.minval[tidx])[self.nanmask[tidx]]
+
+                return vdfdata, nanmask_tidx_original
  
             def super_inversion(vdfdata):
                 # obtaining the coefficients
                 G_g = self.G_k_n @ self.G_k_n.T
                 I = np.identity(len(G_g))
-                coeffs = np.linalg.inv(G_g + mu * I) @ self.G_k_n @ vdfdata
+                coeffs = np.linalg.inv(G_g + 1e-1 * I) @ self.G_k_n @ vdfdata
 
                 # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                 vdf_rec = coeffs @ self.G_k_n
@@ -387,10 +399,23 @@ class gyrovdf:
 
             if SUPER:
                 define_grids(NPTS)
+
+                #-------changing the nanmask and the vdfdata---------#
+                vdfdata, nanmask_tidx_original = include_zeros()
+
+                make_knots(tidx)
+                get_Bsplines_scipy()
+                get_Slepians_scipy()
+                get_G_matrix()
                 super_Bsplines_scipy()
                 super_Slepians_scipy()
                 super_G_matrix_scipy()
-                return super_inversion(vdfdata)
+                vdf_rec, zeromask, coeffs, vdf_super = super_inversion(vdfdata)
+
+                # changing back the nanmask
+                self.nanmask = nanmask_tidx_original * 1.0
+
+                return vdf_rec, zeromask, coeffs, vdf_super, vdfdata
             
             if self.ITERATE:
                 return iterative_inversion(vdfdata)
@@ -443,22 +468,8 @@ def vdf_moments(gvdf, vdf_super, tidx):
     density = 2*np.pi*np.sum(grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)
     velocity = (2*np.pi*np.sum(grids[mask,0][mask2] * 1e5 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5))
 
-    vpara = (velocity/density)
-
-    m_p = 1.6726e-27
-    k_b = 1.380649e-23
-
-    T_para = 1e6*(m_p/k_b)*(2*np.pi*np.sum((grids[mask,0][mask2] * 1e5 - vpara)**2 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)/density)
-    T_perp = 1e6*(m_p/k_b)*(2*np.pi*np.sum((grids[mask,1][mask2] * 1e5)**2 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)/density)
-
-    T_comp = T_para, T_perp
-    T_trace = (T_para + 2*T_perp)/3
-
-    return(density, vpara/1e5, T_comp, T_trace)
-
+    return(density, (velocity/density)/1e5)
     
-
-
 def plot_span_vs_rec_scatter(tidx, gvdf, vdf_data, vdf_rec):
     # These are for plotting with the tricontourf routine.
     # getting the plasma frame coordinates
@@ -559,11 +570,10 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
         else:
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
-            ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=3)
     else:
-        ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], vdf_super[mask], levels=np.linspace(0,4.0,10), cmap='plasma')
-
+        ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], vdf_super[mask], levels=np.linspace(0,14.0,10), cmap='plasma')
         ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=3)
+
     cbar = plt.colorbar(ax1)
     cbar.ax.tick_params(labelsize=18) 
     ax.set_xlabel(r'$v_{\perp}$', fontsize=19)
@@ -618,108 +628,9 @@ def write_pickle(x, fname):
     with open(f'{fname}.pkl', 'wb') as handle:
         pickle.dump(x, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-@profile
-def main(start_idx = 0, Nsteps = None):
-    # the dictionary elements
-    v_yz_corr  = {}
-    v_yz_lower = {}
-    v_yz_upper = {}
-    dens = {}
-    vels = {}
-    v_rec = {}
-
-    # the dictionary that is finally saved as a .pkl file
-    vdf_rec_bundle = {}
-
-    if(Nsteps is None): Nsteps = len(psp_vdf.time.data)
-
-    for tidx in tqdm(range(start_idx, start_idx + Nsteps)):
-        try:
-            # Check the l2 and l3 times match (to ensure selection of correct magnetic field)
-            if gvdf_tstamp.l2_time[tidx] != gvdf_tstamp.l3_time[tidx]:
-                print('Index mismatch. Skipping time.')
-                continue
-
-            # initializing the vdf data to optimize (this is the normalized and logarithmic value)
-            vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
-
-            # initializing the Instrument velocity 
-            VX      = gvdf_tstamp.v_span[tidx, 0]
-            VY_init = gvdf_tstamp.v_span[tidx, 1]
-            VZ_init = gvdf_tstamp.v_span[tidx, 2]
-
-            u_bulk = np.asarray([VX, VY_init, VZ_init])
-            
-            # performing the mcmc of centroid finder
-            nwalkers = 8
-            VY_pos = np.random.rand(nwalkers) + VY_init
-            VZ_pos = np.random.rand(nwalkers) + VZ_init
-            pos = np.array([VY_pos, VZ_pos]).T
-
-            sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
-            sampler.run_mcmc(pos, 2000, progress=False)
-            
-            # plotting the results of the emcee
-            labels = ["VY", "VZ"]
-            flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
-            fig = corner.corner(flat_samples, labels=labels, show_titles=True)
-            plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
-            plt.close(fig)
-
-            # printing the 0.5 quantile values
-            v_yz_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
-            v_yz_lower[tidx] = np.quantile(flat_samples,q=[0.14],axis=0).squeeze()
-            v_yz_upper[tidx] = np.quantile(flat_samples,q=[0.86],axis=0).squeeze()
-
-            u_corr = np.hstack([VX, v_yz_corr[tidx]])
-
-            gvdf_tstamp.get_coors(u_corr, tidx)
-            vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=1001)
-            den, vel, Tcomps, Trace = vdf_moments(gvdf_tstamp, vdf_super, tidx)
-
-            plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=True)
-            plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel, SAVE=True)
-
-            dens[tidx] = den
-            vels[tidx] = vel
-            
-            v_span = gvdf_tstamp.v_span[tidx]
-            v_mag  = np.linalg.norm(v_span)
-            
-            # This tells us how far off our v_parallel is from the defined assumed v_parallel
-            delta_v = vel - gvdf_tstamp.vshift[tidx]
-
-            # get the assume u_parallel, u_perp1, and u_perp2. from the set 
-            u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-            u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-
-            u_adj = np.array([u_xnew, u_ynew, u_znew])
-            v_rec[tidx] = u_adj
-
-
-            bundle = {}
-            bundle['den'] = den
-            # bundle['vel_mom_noshift'] = vel
-            bundle['time'] = gvdf_tstamp.l2_time[tidx]
-            # bundle['vshift'] = gvdf_tstamp.vshift[tidx]
-            # bundle['u_corr'] = u_corr
-            bundle['u_final'] = u_adj
-            bundle['v_yz_corr'] = v_yz_corr
-            bundle['v_yz_lower'] = v_yz_lower
-            bundle['v_yz_upper'] = v_yz_upper
-
-            vdf_rec_bundle[tidx] = bundle
-        
-        except: continue
-
-    dt = str(gvdf_tstamp.l2_time[tidx])[:10]
-    write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{dt}_to_{tidx}')
-
-    return(Tcomps, Trace)
 if __name__=='__main__':
     # Initial Parameters
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    # trange = ['2022-02-25T15:00:00', '2022-02-25T16:00:00']
     trange = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
     # trange = ['2024-12-25T09:00:00', '2024-12-25T12:00:00']
     # trange = ['2024-12-24T09:59:59', '2024-12-24T18:00:00']
@@ -727,26 +638,117 @@ if __name__=='__main__':
     # trange = ['2025-03-22T01:00:00', '2025-03-22T03:00:00']
     credentials = fn.load_config('./config.json')
     creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
-    creds = None
+    # creds = None
     
     # NOTE: Add to separate initialization script in future. 
     TH         = 60
     LMAX       = 12
     N2D        = 3
     P          = 3
-    SPLINE_MINCOUNT   = 7
-    COUNT_MASK = 2
+    MINCOUNT   = 5
     COUNT_MASK = 2
     ITERATE    = False
     CLIP       = True
 
     # Load in the VDFs for given timerange
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=CLIP)
+    
+    # idx = np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2020-01-26T14:10:42')))
+    idx = 0 #np.argmin(np.abs(psp_vdf.time.data - np.datetime64('2025-03-22T02:19:00')))
+    # idx = 649
 
-    # initializing the inversion class
-    gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=LMAX, TH=TH, N2D=N2D, 
-                          count_mask=COUNT_MASK, spline_mincount=SPLINE_MINCOUNT,
-                          ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
+    v_yz_corr  = {}
+    v_yz_lower = {}
+    v_yz_upper = {}
 
-    # executing the main scripts here
-    main()
+    dens = {}
+    vels = {}
+    v_rec = {}
+    # This is the important one
+    vdf_rec_bundle = {}
+    for tidx in tqdm(range(idx, idx+1)): #range(len(psp_vdf.time.data))):
+        # initializing the inversion class
+        gvdf_tstamp = gyrovdf(psp_vdf, trange, Lmax=LMAX, TH=TH, N2D=N2D, count_mask=COUNT_MASK, mincount=MINCOUNT, ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
+
+        # Check the l2 and l3 times.
+        if gvdf_tstamp.l2_time[tidx] != gvdf_tstamp.l3_time[tidx]:
+            print('Index mismatch. Skipping time.')
+            continue
+
+        # initializing the vdf data to optimize
+        vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/np.nanmin(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]))
+
+        # initializing the Instrument velocity 
+        VX      = gvdf_tstamp.v_span[tidx, 0]
+        VY_init = gvdf_tstamp.v_span[tidx, 1]
+        VZ_init = gvdf_tstamp.v_span[tidx, 2]
+
+        u_bulk = np.asarray([VX, VY_init, VZ_init])
+
+        # gvdf_tstamp.get_coors(u_bulk, tidx)
+        # vdf_inv, zeromask, coeffs = gvdf_tstamp.inversion(tidx, vdfdata)
+
+        # plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=False)
+        # sys.exit()
+
+        # performing the mcmc of centroid finder
+        nwalkers = 8
+        VY_pos = np.random.rand(nwalkers) + VY_init
+        VZ_pos = np.random.rand(nwalkers) + VZ_init
+        pos = np.array([VY_pos, VZ_pos]).T
+        sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
+        sampler.run_mcmc(pos, 5000, progress=False)
+        
+        # plotting the results of the emcee
+        labels = ["VY", "VZ"]
+        flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
+        fig = corner.corner(flat_samples, labels=labels, show_titles=True)
+        # plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
+        # plt.close(fig)
+
+        # printing the 0.5 quantile values
+        v_yz_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
+        v_yz_lower[tidx] = np.quantile(flat_samples,q=[0.14],axis=0).squeeze()
+        v_yz_upper[tidx] = np.quantile(flat_samples,q=[0.86],axis=0).squeeze()
+
+        u_corr = np.hstack([VX, v_yz_corr[tidx]])  
+
+        gvdf_tstamp.get_coors(u_corr, tidx)
+        vdf_inv, zeromask, coeffs, vdf_super, vdfdata = gvdf_tstamp.inversion(tidx, vdfdata * 1.0, SUPER=True, NPTS=101)
+        den, vel = vdf_moments(gvdf_tstamp, vdf_super, tidx)
+
+        plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=False)
+        plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel, SAVE=False)
+
+        dens[tidx] = den
+        vels[tidx] = vel
+        
+        v_span = gvdf_tstamp.v_span[tidx]
+        v_mag  = np.linalg.norm(v_span)
+        
+        # This tells us how far off our v_parallel is from the defined assumed v_parallel
+        delta_v = vel - gvdf_tstamp.vshift[tidx]
+
+        # get the assume u_parallel, u_perp1, and u_perp2. from the set 
+        u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
+        u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
+
+        u_adj = np.array([u_xnew, u_ynew, u_znew])
+        v_rec[tidx] = u_adj
+
+
+        bundle = {}
+        bundle['den'] = den
+        # bundle['vel_mom_noshift'] = vel
+        bundle['time'] = gvdf_tstamp.l2_time[tidx]
+        # bundle['vshift'] = gvdf_tstamp.vshift[tidx]
+        # bundle['u_corr'] = u_corr
+        bundle['u_final'] = u_adj
+        bundle['v_yz_corr'] = v_yz_corr
+        bundle['v_yz_lower'] = v_yz_lower
+        bundle['v_yz_upper'] = v_yz_upper
+
+        vdf_rec_bundle[tidx] = bundle
+
+    dt = str(gvdf_tstamp.l2_time[tidx])[:10]
+    write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{dt}_to_{tidx}')
