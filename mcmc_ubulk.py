@@ -11,6 +11,8 @@ from scipy.special import eval_legendre
 from datetime import datetime
 NAX = np.newaxis
 
+import multiprocessing as mp
+
 import bsplines
 import eval_Slepians
 import functions as fn
@@ -659,6 +661,9 @@ def main(start_idx = 0, Nsteps = None):
 
         sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
         sampler.run_mcmc(pos, 700, progress=False)
+        # with mp.Pool() as pool:
+        #     sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx), pool=pool)
+        #     sampler.run_mcmc(pos, 700, progress=False)
         
         # plotting the results of the emcee
         labels = ["VY", "VZ"]
@@ -744,8 +749,7 @@ if __name__=='__main__':
     N2D        = 3
     P          = 3
     SPLINE_MINCOUNT   = 7
-    COUNT_MASK = 2
-    COUNT_MASK = 2
+    COUNT_MASK = 1
     ITERATE    = False
     CLIP       = True
 
