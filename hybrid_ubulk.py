@@ -12,18 +12,14 @@ from scipy.optimize import minimize
 from datetime import datetime
 NAX = np.newaxis
 
-import bsplines
 import eval_Slepians
-import functions as fn
-import coordinate_frame_functions as coor_fn
-import misc_plotter
-import axisfinder
+from src import functions as fn
+from src import plotter
 
 from scipy.spatial import Delaunay
 from tqdm import tqdm
 
 import pickle
-import plasmapy.formulary as form
 import numpy as np
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
@@ -432,7 +428,7 @@ def loss_fn_Slepians(p0_2d, points, values, n, origin, u, v, tidx):
     pred, __, __ = gvdf_tstamp.inversion(p0, values, tidx)
     return np.mean((values - pred)**2)
 
-def find_symmetry_point(points, values, n, loss_fn, tidx, origin=None):
+def find_symmetry_point(points, values, n, loss_fn, tidx, origin=None, MIN_METHOD='L-BFGS-B'):
     # Get basis u, v orthogonal to n
     arbitrary = np.array([1.0, 0.0, 0.0])
     if np.allclose(arbitrary, n):
@@ -442,7 +438,7 @@ def find_symmetry_point(points, values, n, loss_fn, tidx, origin=None):
     v = np.cross(n, u)
 
     if(origin is None): origin = np.mean(points, axis=0)  # reasonable guess
-    res = minimize(loss_fn, x0=[0.0, 0.0], args=(points, values, n, origin, u, v, tidx), method='Powell')
+    res = minimize(loss_fn, x0=[0.0, 0.0], args=(points, values, n, origin, u, v, tidx), method=MIN_METHOD)
     best_p0 = origin + res.x[0] * u + res.x[1] * v
     return best_p0, res.fun
 
@@ -478,167 +474,13 @@ def vdf_moments(gvdf, vdf_super, tidx):
 
     return(density, vpara/1e5, T_comp, T_trace)
     
-def plot_span_vs_rec_scatter(tidx, gvdf, vdf_data, vdf_rec):
-    # These are for plotting with the tricontourf routine.
-    # getting the plasma frame coordinates
-    vpara_pf = gvdf.vpara
-    vperp_pf = gvdf.vperp
-    vpara_nonan = vpara_pf[tidx, gvdf.nanmask[tidx]]
-    vperp_nonan = vperp_pf[tidx, gvdf.nanmask[tidx]]
-
-    vdf_nonan = vdf_data
-    vdf_rec_nonan = vdf_rec 
-    
-    fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
-    ax0 = ax[0].scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=(vdf_nonan), vmin=0, vmax=4)
-    ax[0].scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=(vdf_nonan), vmin=0, vmax=4)
-    ax[0].set_title('SPAN VDF')
-    ax[0].set_ylabel(r'$v_{\parallel}$')
-    ax[0].set_xlabel(r'$v_{\perp}$')
-    ax[0].set_aspect('equal')
-    # making the scatter plot of the gyrotropic VDF
-    ax1 = ax[1].scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=vdf_rec_nonan, vmin=0, vmax=4)
-    ax[1].scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=vdf_rec_nonan, vmin=0, vmax=4)
-    ax[1].set_title('Reconstructed VDF')
-    ax[1].set_xlabel(r'$v_{\perp}$')
-    ax[1].set_aspect('equal')
-    plt.colorbar(ax1)
-
-
-    plt.show()
-
-def plot_span_vs_rec_contour(gvdf, vdf_data, vdf_rec, tidx=None, GRID=False, VA=None, SAVE=False):
-    if VA:
-        v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])/VA
-        v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])/VA
-        xlabel = r'$v_{\perp}/v_{A}$'
-        ylabel = r'$v_{\parallel}/v_{A}$'
-    else:
-        v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])
-        v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])
-        xlabel = r'$v_{\perp}$'
-        ylabel = r'$v_{\parallel}$'
-
-    # v_para_all -= gvdf.fac.vshift[tidx]
-
-    vdf_nonan = vdf_data
-    
-    vdf_data_all = np.concatenate([vdf_nonan, vdf_nonan])
-    vdf_rec_all  = np.concatenate([vdf_rec, vdf_rec])
-    
-    lvls = np.linspace(0, int(np.log10(gvdf.maxval[tidx])+1) - int(np.log10(gvdf.minval[tidx]) - 1), 10)
-
-    zeromask = vdf_rec_all == 0
-    fig, ax = plt.subplots(1, 2, figsize=(8,4), sharey=True, layout='constrained')
-    a0 = ax[0].tricontourf(v_perp_all, v_para_all, vdf_data_all, 
-                           cmap='plasma', levels=lvls)#, levels=np.linspace(-23, -19, 10))
-    ax[0].set_xlabel(xlabel, fontsize=12)
-    ax[0].set_ylabel(ylabel, fontsize=12)
-    ax[0].set_aspect('equal')
-    ax[0].set_title('SPAN VDF')
-
-    a1 = ax[1].tricontourf(v_perp_all[~zeromask], v_para_all[~zeromask], vdf_rec_all[~zeromask],
-                           cmap='plasma', levels=lvls)#, levels=np.linspace(-23, -19, 10))
-    ax[1].set_xlabel(xlabel, fontsize=12)
-    ax[1].set_aspect('equal')
-    ax[1].set_title('Reconstructed VDF')
-
-    plt.colorbar(a1)
-
-    if GRID:
-        [ax[i].scatter(v_perp_all[len(v_para_all)//2:,], v_para_all[len(v_para_all)//2:,], color='k', marker='.', s=3) for i in range(2)]
-
-    if SAVE:
-        plt.savefig(f'./Figures/span_rec_contour/tricontour_plot_{tidx}')
-        plt.close(fig)
-
-    else: plt.show()
-
-def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSHIFT=None, DENSITY=None):
-    grids = gvdf_tstamp.grid_points
-    mask = gvdf_tstamp.hull_mask
-
-    fig, ax = plt.subplots(figsize=(8,6), layout='constrained')
-
-
-    if VDFUNITS:
-        f_super = np.power(10, vdf_super) * gvdf.minval[tidx]
-        lvls = np.linspace(int(np.log10(gvdf.minval[tidx]) - 1), int(np.log10(gvdf.maxval[tidx])+1), 10)
-        if VSHIFT:
-            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
-            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
-            ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf_tstamp.vshift[tidx], color='k', marker='.', s=3)
-            if DENSITY:
-                Bmag = np.linalg.norm(gvdf.b_span[tidx])
-                VA = form.speeds.Alfven_speed(Bmag * u.nT, DENSITY * u.cm**(-3), ion='p+').to(u.km/u.s)
-
-                ax.arrow(0, 0, 0, VA.value, fc='k', ec='k')
-
-
-        else:
-            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
-            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
-            ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=3)
-    else:
-        ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], vdf_super[mask], levels=np.linspace(0,4.0,10), cmap='plasma')
-
-        ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=3)
-    cbar = plt.colorbar(ax1)
-    cbar.ax.tick_params(labelsize=18) 
-    ax.set_xlabel(r'$v_{\perp}$', fontsize=19)
-    ax.set_ylabel(r'$v_{\parallel}$', fontsize=19)
-    ax.set_title(f'Super Resolution | {str(gvdf.l2_time[tidx])[:19]}', fontsize=19)
-    ax.tick_params(axis='both', which='major', labelsize=18)
-    # ax.set_xlim([-400,400])
-    ax.set_aspect('equal')
-
-    if SAVE:
-        plt.savefig(f'./Figures/super_res/super_resolved_{tidx}_{gvdf.npts}.pdf')
-        plt.close(fig)
-    else: plt.show()
-
-def plot_gyrospan(gvdf, tidx, vdfdata, SAVE=False, VDFUNITS=False, VSHIFT=None, DENSITY=None):
-    v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])
-    v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])
-
-    vdf_data_all = np.concatenate([vdfdata, vdfdata])    
-
-    fig, ax = plt.subplots(figsize=(8,6), layout='constrained')
-
-
-    if VDFUNITS:
-        f_super = np.power(10, vdf_data_all) * gvdf.minval[tidx]
-        lvls = np.linspace(int(np.log10(gvdf.minval[tidx]) - 1), int(np.log10(gvdf.maxval[tidx])+1), 10)
-        if VSHIFT:
-            ax1 = ax.tricontourf(v_perp_all, v_para_all - VSHIFT, np.log10(f_super), levels=lvls, cmap='plasma')
-            if DENSITY:
-                Bmag = np.linalg.norm(gvdf.b_span[tidx])
-                VA = form.speeds.Alfven_speed(Bmag * u.nT, DENSITY * u.cm**(-3), ion='p+').to(u.km/u.s)
-
-                ax.arrow(0, 0, 0, VA.value, fc='k', ec='k')
-
-
-        else:
-            ax1 = ax.tricontourf(v_perp_all, v_para_all - VSHIFT, np.log10(f_super), levels=lvls, cmap='plasma')
-    else:
-        ax1 = ax.tricontourf(v_perp_all, v_para_all - VSHIFT, vdf_data_all, levels=np.linspace(0,4.0,10), cmap='plasma')
-        
-    ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf_tstamp.vshift[tidx], color='k', marker='.', s=3)
-    cbar = plt.colorbar(ax1)
-    cbar.ax.tick_params(labelsize=18) 
-    ax.set_xlabel(r'$v_{\perp}$', fontsize=19)
-    ax.set_ylabel(r'$v_{\parallel}$', fontsize=19)
-    ax.set_title(f'Super Resolution | {str(gvdf.l2_time[tidx])[:19]}', fontsize=19)
-    ax.tick_params(axis='both', which='major', labelsize=18)
-    ax.set_xlim([-400,400])
-    ax.set_aspect('equal')
 
 def write_pickle(x, fname):
     with open(f'{fname}.pkl', 'wb') as handle:
         pickle.dump(x, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 @profile
-def main(start_idx = 0, Nsteps = None, MCMC = False):
+def main(start_idx = 0, Nsteps = None, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=2000, MIN_METHOD='L-BFGS-B', SAVE_FIGS=False):
     # the dictionary elements
     v_yz_corr  = {}
     v_yz_lower = {}
@@ -649,7 +491,6 @@ def main(start_idx = 0, Nsteps = None, MCMC = False):
 
     # the dictionary that is finally saved as a .pkl file
     vdf_rec_bundle = {}
-    gyro_bundle = {}
 
     if(Nsteps is None): Nsteps = len(psp_vdf.time.data)
 
@@ -673,7 +514,7 @@ def main(start_idx = 0, Nsteps = None, MCMC = False):
                                    gvdf_tstamp.vz[tidx][gvdf_tstamp.nanmask[tidx]]]).T
 
         bvec = gvdf_tstamp.b_span[tidx] / np.linalg.norm(gvdf_tstamp.b_span[tidx])
-        u_corr, __ = find_symmetry_point(threeD_points, vdfdata, bvec, loss_fn_Slepians, tidx, origin=u_origin)
+        u_corr, __ = find_symmetry_point(threeD_points, vdfdata, bvec, loss_fn_Slepians, tidx, origin=u_origin, MIN_METHOD=MIN_METHOD)
 
         u_corr_scipy = u_corr * 1.0
 
@@ -687,20 +528,22 @@ def main(start_idx = 0, Nsteps = None, MCMC = False):
             u_bulk = np.asarray([VX, VY_init, VZ_init])
             
             # performing the mcmc of centroid finder
-            nwalkers = 4
+            nwalkers = MCMC_WALKERS
             VY_pos = np.random.rand(nwalkers) + VY_init
             VZ_pos = np.random.rand(nwalkers) + VZ_init
             pos = np.array([VY_pos, VZ_pos]).T
 
             sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx, u_corr_scipy))
-            sampler.run_mcmc(pos, 600, progress=False)
+            sampler.run_mcmc(pos, MCMC_STEPS, progress=False)
             
             # plotting the results of the emcee
             labels = ["VY", "VZ"]
             flat_samples = sampler.get_chain(flat=True)
-            fig = corner.corner(flat_samples, labels=labels, show_titles=True)
-            plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
-            plt.close(fig)
+            
+            if SAVE_FIGS:
+                fig = corner.corner(flat_samples, labels=labels, show_titles=True)
+                plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
+                plt.close(fig)
 
             # printing the 0.5 quantile values
             v_yz_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
@@ -717,9 +560,9 @@ def main(start_idx = 0, Nsteps = None, MCMC = False):
         # t3 = time.time()
 
         # print((t2-t1), (t3-t2))
-
-        # plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=False)
-        # plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel, SAVE=False)
+        if SAVE_FIGS:
+            plotter.plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=SAVE_FIGS)
+            plotter.plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel, SAVE=SAVE_FIGS)
 
         dens[tidx] = den
         vels[tidx] = vel
@@ -756,8 +599,7 @@ def main(start_idx = 0, Nsteps = None, MCMC = False):
     ymd = ts0.strftime('%Y%m%d')
     a_label = ts0.strftime('%H%M%S')
     b_label = ts1.strftime('%H%M%S')
-    write_pickle(vdf_rec_bundle, f'./Outputs/scipy_vdf_rec_data_{ymd}_{a_label}_{b_label}')
-    write_pickle(gyro_bundle, f'./Outputs/scipy_gyrobundle_{ymd}_{a_label}_{b_label}')
+    write_pickle(vdf_rec_bundle, f'./Outputs/scipy_vdf_rec_data_{MCMC_WALKERS}_{MCMC_STEPS}_{ymd}_{a_label}_{b_label}')
 
 if __name__=='__main__':
     # Initial Parameters
@@ -773,15 +615,19 @@ if __name__=='__main__':
     # creds = None
     
     # NOTE: Add to separate initialization script in future. 
-    TH         = 60
-    LMAX       = 12
-    N2D        = 3
-    P          = 3
+    TH                = 60
+    LMAX              = 12
+    N2D               = 3
+    P                 = 3
     SPLINE_MINCOUNT   = 7
-    COUNT_MASK = 2
-    ITERATE    = False
-    CLIP       = True
-    MCMC       = True
+    COUNT_MASK        = 2
+    ITERATE           = False
+    CLIP              = True
+    MCMC              = True
+    MCMC_WALKERS      = 4
+    MCMC_STEPS        = 200
+    MIN_METHOD        = 'L-BFGS-B'   # Limited memory Broyden–Fletcher–Goldfarb–Shanno algorithm
+    SAVE_FIGS         = False
 
     # Load in the VDFs for given timerange
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=CLIP)
@@ -793,4 +639,4 @@ if __name__=='__main__':
 
     # executing the main scripts here
     # main(0, len(psp_vdf.time.data) - 1)
-    main(0, 10, MCMC=MCMC)
+    main(0, 10, MCMC=MCMC, MCMC_WALKERS=MCMC_WALKERS, MCMC_STEPS=MCMC_STEPS, MIN_METHOD=MIN_METHOD)

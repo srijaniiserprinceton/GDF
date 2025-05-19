@@ -8,7 +8,7 @@ import astropy.units as u
 from astropy.coordinates import cartesian_to_spherical as c2s
 NAX = np.newaxis
 
-import functions as fn
+import src.functions as fn
 
 if __name__ == "__main__":
     trange = ['2020-01-29T00:00:00', '2020-01-29T00:00:00']

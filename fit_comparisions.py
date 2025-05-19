@@ -13,7 +13,7 @@ import os, sys
 import pickle
 from datetime import datetime
 
-import functions as fn
+import src.functions as fn
 
 if __name__ == "__main__":
     trange = ['2024-12-24T10:00:00', '2024-12-24T12:00:00']

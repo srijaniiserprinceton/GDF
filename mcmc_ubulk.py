@@ -11,14 +11,9 @@ from scipy.special import eval_legendre
 from datetime import datetime
 NAX = np.newaxis
 
-import multiprocessing as mp
-
-import bsplines
 import eval_Slepians
-import functions as fn
-import coordinate_frame_functions as coor_fn
-import misc_plotter
-import axisfinder
+from src import functions as fn
+from src import plotter
 
 from scipy.spatial import Delaunay
 from tqdm import tqdm
@@ -681,8 +676,8 @@ def main(start_idx = 0, Nsteps = None):
             vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=1001)
             den, vel, Tcomps, Trace = vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
-            plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=True)
-            plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel, SAVE=True)
+            plotter.plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=True)
+            plotter.plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel, SAVE=True)
 
             dens[tidx] = den
             vels[tidx] = vel

@@ -13,7 +13,7 @@ from scipy.optimize import minimize
 NAX = np.newaxis
 
 import eval_Slepians
-import functions as fn
+import src.functions as fn
 
 mu = 1e-3
 

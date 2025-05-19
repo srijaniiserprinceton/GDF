@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt; plt.ion()
 NAX = np.newaxis
 
-import functions as fn
+import src.functions as fn
 import coordinate_frame_functions as coor_fn
 
 class Slep_transverse:

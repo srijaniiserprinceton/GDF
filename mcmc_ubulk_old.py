@@ -12,7 +12,7 @@ NAX = np.newaxis
 
 import bsplines
 import eval_Slepians
-import functions as fn
+import src.functions as fn
 import coordinate_frame_functions as coor_fn
 
 from scipy.spatial import Delaunay

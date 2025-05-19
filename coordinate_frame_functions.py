@@ -5,7 +5,7 @@ import astropy.units as u
 import matplotlib.pyplot as plt; plt.ion()
 NAX = np.newaxis
 
-import functions as fn
+import src.functions as fn
 
 class fa_coordinates:
     def __init__(self):

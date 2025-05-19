@@ -3,7 +3,7 @@ import matplotlib.dates as mdates
 import numpy as np
 import cdflib 
 import xarray as xr
-import functions as fn
+import src.functions as fn
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes

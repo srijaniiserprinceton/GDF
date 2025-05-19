@@ -8,7 +8,7 @@ import astropy.units as u
 from astropy.coordinates import cartesian_to_spherical as c2s
 NAX = np.newaxis
 
-import functions as fn
+import src.functions as fn
 
 from scipy.integrate import simpson
 from tqdm import tqdm

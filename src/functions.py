@@ -14,7 +14,7 @@ Update: Fixed the init routines.
 """
 
 def read_config():
-    package_dir = os.getcwd()  # os.path.dirname(current_dir)
+    package_dir = os.getcwd()  
     with open(f"{package_dir}/.config", "r") as f:
         dirnames = f.read().splitlines()
 

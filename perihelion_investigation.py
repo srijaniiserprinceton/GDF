@@ -2,7 +2,7 @@ import json
 import numpy as np
 import scipy as sp
 
-import functions as fn
+import src.functions as fn
 import coordinate_frame_functions as coor_fn
 import inversion as inv
 

@@ -2,7 +2,7 @@ import numpy as np
 import cdflib
 import matplotlib.pyplot as plt
 
-import functions as fn
+import src.functions as fn
 import astropy.constants as c
 import astropy.units as u
 
