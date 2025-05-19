@@ -723,6 +723,7 @@ def main(start_idx = 0, Nsteps = None):
     write_pickle(gyro_bundle, f'./Outputs/gyrobundle_{ymd}_{a_label}_{b_label}')
 
     return(Tcomps, Trace, gvdf_tstamp)
+    
 if __name__=='__main__':
     # Initial Parameters
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
