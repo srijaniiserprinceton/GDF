@@ -712,74 +712,7 @@ def main(start_idx = 0, Nsteps = None):
 
             vdf_rec_bundle[tidx] = bundle
         
-<<<<<<< HEAD
         except: continue
-=======
-        # performing the mcmc of centroid finder
-        nwalkers = 8
-        VY_pos = np.random.rand(nwalkers) + VY_init
-        VZ_pos = np.random.rand(nwalkers) + VZ_init
-        pos = np.array([VY_pos, VZ_pos]).T
-
-        sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx))
-        sampler.run_mcmc(pos, 700, progress=False)
-        
-        # plotting the results of the emcee
-        labels = ["VY", "VZ"]
-        flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
-        fig = corner.corner(flat_samples, labels=labels, show_titles=True)
-        # plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
-        # plt.close(fig)
-
-        # printing the 0.5 quantile values
-        v_yz_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
-        v_yz_lower[tidx] = np.quantile(flat_samples,q=[0.14],axis=0).squeeze()
-        v_yz_upper[tidx] = np.quantile(flat_samples,q=[0.86],axis=0).squeeze()
-
-        u_corr = np.hstack([VX, v_yz_corr[tidx]])
-
-        gvdf_tstamp.get_coors(u_corr, tidx)
-        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(tidx, vdfdata, SUPER=True, NPTS=1001)
-        den, vel, Tcomps, Trace = vdf_moments(gvdf_tstamp, vdf_super, tidx)
-
-        plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=False)
-        plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel, SAVE=True)
-
-        dens[tidx] = den
-        vels[tidx] = vel
-        
-        v_span = gvdf_tstamp.v_span[tidx]
-        v_mag  = np.linalg.norm(v_span)
-        
-        # This tells us how far off our v_parallel is from the defined assumed v_parallel
-        delta_v = vel - gvdf_tstamp.vshift[tidx]
-
-        # get the assume u_parallel, u_perp1, and u_perp2. from the set 
-        u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-        u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-
-        u_adj = np.array([u_xnew, u_ynew, u_znew])
-        v_rec[tidx] = u_adj
-
-        quick_bundle = {}
-        quick_bundle['u_corr'] = u_corr
-        quick_bundle['vdf_rec'] = vdf_inv
-        quick_bundle['nanmask'] = gvdf_tstamp.nanmask[tidx]
-
-        gyro_bundle[tidx] = quick_bundle
-
-        bundle = {}
-        bundle['den'] = den
-        bundle['time'] = gvdf_tstamp.l2_time[tidx]
-        bundle['component_temp'] = Tcomps
-        bundle['scalar_temp'] = Trace
-        bundle['u_final'] = u_adj
-        bundle['v_yz_corr'] = v_yz_corr
-        bundle['v_yz_lower'] = v_yz_lower
-        bundle['v_yz_upper'] = v_yz_upper
-
-        vdf_rec_bundle[tidx] = bundle
->>>>>>> bba95daf4dd7f0dc5005e8857d69373554c7a8de
 
     ts0 = datetime.strptime(str(gvdf_tstamp.l2_time[start_idx])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
     ts1 = datetime.strptime(str(gvdf_tstamp.l2_time[start_idx + Nsteps])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
@@ -793,13 +726,8 @@ def main(start_idx = 0, Nsteps = None):
 if __name__=='__main__':
     # Initial Parameters
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-<<<<<<< HEAD
     # trange = ['2022-02-25T15:00:00', '2022-02-25T16:00:00']
     trange = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
-=======
-    trange = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
-    # trange = ['2022-02-25T15:00:00', '2022-02-25T19:00:00']
->>>>>>> bba95daf4dd7f0dc5005e8857d69373554c7a8de
     # trange = ['2024-12-25T09:00:00', '2024-12-25T12:00:00']
     # trange = ['2024-12-24T09:59:59', '2024-12-24T18:00:00']
     # trange = ['2025-03-21T13:00:00', '2025-03-21T15:00:00']
@@ -828,8 +756,4 @@ if __name__=='__main__':
                           ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
 
     # executing the main scripts here
-<<<<<<< HEAD
     main()
-=======
-    a,b,gvdf = main(0, 10)
->>>>>>> bba95daf4dd7f0dc5005e8857d69373554c7a8de
