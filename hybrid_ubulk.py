@@ -95,8 +95,8 @@ class gyrovdf:
         self.nanmask = np.isfinite(vdf)
 
         # get and store the min and maxvalues
-        self.minval = np.nanmin(psp_vdf.vdf.data, axis=(1,2,3))
-        self.maxval = np.nanmax(psp_vdf.vdf.data, axis=(1,2,3))
+        self.minval = np.nanmin(vdf_dict.vdf.data, axis=(1,2,3))
+        self.maxval = np.nanmax(vdf_dict.vdf.data, axis=(1,2,3))
 
         m_p = 0.010438870    # eV/c^2 where c = 299792 km/s
         q_p = 1
@@ -517,15 +517,25 @@ def main(start_idx = 0, Nsteps = None, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=
         u_corr, __ = find_symmetry_point(threeD_points, vdfdata, bvec, loss_fn_Slepians, tidx, origin=u_origin, MIN_METHOD=MIN_METHOD)
 
         u_corr_scipy = u_corr * 1.0
+        
+        # computing super-resolution and moments from scipy correction
+        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=1001)
+        den, vel, Tcomps, Trace = vdf_moments(gvdf_tstamp, vdf_super, tidx)
+
+        # This tells us how far off our v_parallel is from the defined assumed v_parallel
+        delta_v = vel - gvdf_tstamp.vshift[tidx]
+
+        # get the assume u_parallel, u_perp1, and u_perp2. from the set 
+        u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
+        u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
+        u_adj = np.array([u_xnew, u_ynew, u_znew])
 
         # if we want to further refine the estimate and obtain error bounds
         if(MCMC):
             # initializing the Instrument velocity 
-            VX      = u_corr_scipy[0] * 1.0
-            VY_init = u_corr_scipy[1] * 1.0
-            VZ_init = u_corr_scipy[2] * 1.0
-
-            u_bulk = np.asarray([VX, VY_init, VZ_init])
+            VX      = u_adj[0] * 1.0
+            VY_init = u_adj[1] * 1.0
+            VZ_init = u_adj[2] * 1.0
             
             # performing the mcmc of centroid finder
             nwalkers = MCMC_WALKERS
@@ -552,32 +562,24 @@ def main(start_idx = 0, Nsteps = None, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=
 
             u_corr = np.hstack([VX, v_yz_corr[tidx]])
 
-        # gvdf_tstamp.get_coors(u_corr, tidx)
-        # t1 = time.time()
-        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=1001)
-        # t2 = time.time()
-        den, vel, Tcomps, Trace = vdf_moments(gvdf_tstamp, vdf_super, tidx)
-        # t3 = time.time()
+            # computing super-resolution and moments from MCMC final correction
+            vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=1001)
+            den, vel, Tcomps, Trace = vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
-        # print((t2-t1), (t3-t2))
+            # This tells us how far off our v_parallel is from the defined assumed v_parallel
+            delta_v = vel - gvdf_tstamp.vshift[tidx]
+
+            # get the assume u_parallel, u_perp1, and u_perp2. from the set 
+            u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
+            u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
+            u_adj = np.array([u_xnew, u_ynew, u_znew])
+
         if SAVE_FIGS:
             plotter.plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=SAVE_FIGS)
             plotter.plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel, SAVE=SAVE_FIGS)
 
         dens[tidx] = den
         vels[tidx] = vel
-        
-        v_span = gvdf_tstamp.v_span[tidx]
-        v_mag  = np.linalg.norm(v_span)
-        
-        # This tells us how far off our v_parallel is from the defined assumed v_parallel
-        delta_v = vel - gvdf_tstamp.vshift[tidx]
-
-        # get the assume u_parallel, u_perp1, and u_perp2. from the set 
-        u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-        u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-
-        u_adj = np.array([u_xnew, u_ynew, u_znew])
         v_rec[tidx] = u_adj
 
         bundle = {}
@@ -595,7 +597,7 @@ def main(start_idx = 0, Nsteps = None, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=
         vdf_rec_bundle[tidx] = bundle
 
     ts0 = datetime.strptime(str(gvdf_tstamp.l2_time[start_idx])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
-    ts1 = datetime.strptime(str(gvdf_tstamp.l2_time[start_idx + Nsteps])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
+    ts1 = datetime.strptime(str(gvdf_tstamp.l2_time[start_idx + Nsteps - 1])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
     ymd = ts0.strftime('%Y%m%d')
     a_label = ts0.strftime('%H%M%S')
     b_label = ts1.strftime('%H%M%S')
@@ -604,10 +606,10 @@ def main(start_idx = 0, Nsteps = None, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=
 if __name__=='__main__':
     # Initial Parameters
     # trange = ['2020-01-29T00:00:00', '2020-01-29T23:59:59']
-    # trange = ['2020-01-26T00:00:00', '2020-01-26T23:59:59']
+    trange = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
     # trange = ['2022-02-25T15:00:00', '2022-02-25T16:00:00']
     # trange = ['2024-12-25T09:00:00', '2024-12-25T12:00:00']
-    trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
+    # trange = ['2024-12-24T09:59:59', '2024-12-24T12:00:00']
     # trange = ['2025-03-21T13:00:00', '2025-03-21T15:00:00']
     # trange = ['2025-03-22T01:00:00', '2025-03-22T03:00:00']
     credentials = fn.load_config('./config.json')
@@ -624,8 +626,8 @@ if __name__=='__main__':
     ITERATE           = False
     CLIP              = True
     MCMC              = True
-    MCMC_WALKERS      = 4
-    MCMC_STEPS        = 200
+    MCMC_WALKERS      = 8
+    MCMC_STEPS        = 500
     MIN_METHOD        = 'L-BFGS-B'   # Limited memory Broyden–Fletcher–Goldfarb–Shanno algorithm
     SAVE_FIGS         = False
 
@@ -638,5 +640,5 @@ if __name__=='__main__':
                           ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
 
     # executing the main scripts here
-    # main(0, len(psp_vdf.time.data) - 1)
-    main(0, 10, MCMC=MCMC, MCMC_WALKERS=MCMC_WALKERS, MCMC_STEPS=MCMC_STEPS, MIN_METHOD=MIN_METHOD)
+    main(0, MCMC=MCMC, MCMC_WALKERS=MCMC_WALKERS, MCMC_STEPS=MCMC_STEPS, MIN_METHOD=MIN_METHOD)
+    # main(0, 10, MCMC=MCMC, MCMC_WALKERS=MCMC_WALKERS, MCMC_STEPS=MCMC_STEPS, MIN_METHOD=MIN_METHOD)
