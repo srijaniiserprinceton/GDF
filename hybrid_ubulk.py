@@ -423,7 +423,7 @@ def log_likelihood(model_params, VX, vdfdata, tidx):
     cost = np.sum((vdfdata[~zeromask] - vdf_inv[~zeromask])**2)
     return -0.5 * cost
 
-def loss_fn_Slepians(p0_2d, points, values, n, origin, u, v, tidx):
+def loss_fn_Slepians(p0_2d, values, n, origin, u, v, tidx):
     p0 = origin + p0_2d[0]*u + p0_2d[1]*v
     pred, __, __ = gvdf_tstamp.inversion(p0, values, tidx)
     return np.mean((values - pred)**2)
@@ -438,7 +438,7 @@ def find_symmetry_point(points, values, n, loss_fn, tidx, origin=None, MIN_METHO
     v = np.cross(n, u)
 
     if(origin is None): origin = np.mean(points, axis=0)  # reasonable guess
-    res = minimize(loss_fn, x0=[0.0, 0.0], args=(points, values, n, origin, u, v, tidx), method=MIN_METHOD)
+    res = minimize(loss_fn, x0=[0.0, 0.0], args=(values, n, origin, u, v, tidx), method=MIN_METHOD)
     best_p0 = origin + res.x[0] * u + res.x[1] * v
     return best_p0, res.fun
 
@@ -549,6 +549,9 @@ def main(start_idx = 0, Nsteps = None, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=
             # plotting the results of the emcee
             labels = ["VY", "VZ"]
             flat_samples = sampler.get_chain(flat=True)
+
+            # generating the covariance matrix
+            covmat = np.cov(flat_samples.T)
             
             if SAVE_FIGS:
                 fig = corner.corner(flat_samples, labels=labels, show_titles=True)
@@ -593,6 +596,7 @@ def main(start_idx = 0, Nsteps = None, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=
             bundle['u_corr_scipy'] = u_corr_scipy
             bundle['v_yz_lower'] = v_yz_lower
             bundle['v_yz_upper'] = v_yz_upper
+            bundle['covmat'] = covmat
 
         vdf_rec_bundle[tidx] = bundle
 
@@ -629,7 +633,7 @@ if __name__=='__main__':
     MCMC_WALKERS      = 8
     MCMC_STEPS        = 500
     MIN_METHOD        = 'L-BFGS-B'   # Limited memory Broyden–Fletcher–Goldfarb–Shanno algorithm
-    SAVE_FIGS         = False
+    SAVE_FIGS         = True
 
     # Load in the VDFs for given timerange
     psp_vdf = fn.init_psp_vdf(trange, CREDENTIALS=creds, CLIP=CLIP)
@@ -640,5 +644,6 @@ if __name__=='__main__':
                           ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
 
     # executing the main scripts here
-    main(0, MCMC=MCMC, MCMC_WALKERS=MCMC_WALKERS, MCMC_STEPS=MCMC_STEPS, MIN_METHOD=MIN_METHOD)
-    # main(0, 10, MCMC=MCMC, MCMC_WALKERS=MCMC_WALKERS, MCMC_STEPS=MCMC_STEPS, MIN_METHOD=MIN_METHOD)
+    main(0, MCMC=MCMC, MCMC_WALKERS=MCMC_WALKERS, MCMC_STEPS=MCMC_STEPS, MIN_METHOD=MIN_METHOD, SAVE_FIGS=SAVE_FIGS)
+    # main(0, 10, MCMC=MCMC, MCMC_WALKERS=MCMC_WALKERS, MCMC_STEPS=MCMC_STEPS, MIN_METHOD=MIN_METHOD,
+    #      SAVE_FIGS=SAVE_FIGS)
