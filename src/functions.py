@@ -371,7 +371,36 @@ def inverse_rotate_vector_field_aligned(Ax, Ay, Az, Nx, Ny, Nz, Px, Py, Pz, Qx, 
 
     return(An, Ap, Aq)
 
-def load_config(file_path):
-    with open(file_path, 'r') as file:
-        config = json.load(file)
-    return config
+
+# TODO: MAKE ARBITRARY VDF MOMENT CALCULATOR
+def vdf_moments(gvdf, vdf_super, tidx):
+    minval = gvdf.minval[tidx]
+    maxval = gvdf.maxval[tidx]
+    grids = gvdf.grid_points
+    vx = grids[:,0].reshape(gvdf.npts, gvdf.npts)
+    vy = grids[:,1].reshape(gvdf.npts, gvdf.npts)
+    dx = vx[1,0] - vx[0,0]
+    dy = vy[0,1] - vy[0,0]
+
+    mask = gvdf.hull_mask
+    mask2 = grids[mask,1] >= 0
+
+    f_super = np.power(10, vdf_super) * minval
+
+    f_super[f_super > 5*maxval] = 0.0
+
+    density = 2*np.pi*np.sum(grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)
+    velocity = (2*np.pi*np.sum(grids[mask,0][mask2] * 1e5 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5))
+
+    vpara = (velocity/density)
+
+    m_p = 1.6726e-24        # g        
+    k_b = 1.380649e-16      # erg/K
+
+    T_para = (m_p/k_b)*(2*np.pi*np.sum((grids[mask,0][mask2] * 1e5 - vpara)**2 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)/density)
+    T_perp = (m_p/(2*k_b))*(2*np.pi*np.sum((grids[mask,1][mask2] * 1e5)**2 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)/density)
+
+    T_comp = T_para, T_perp
+    T_trace = (T_para + 2*T_perp)/3
+
+    return(density, vpara/1e5, T_comp, T_trace)
