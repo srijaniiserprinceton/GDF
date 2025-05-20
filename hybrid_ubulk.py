@@ -11,6 +11,8 @@ from scipy.special import eval_legendre
 from scipy.optimize import minimize
 from datetime import datetime
 NAX = np.newaxis
+import warnings
+warnings.filterwarnings("ignore")
 
 import eval_Slepians
 from src import functions as fn
@@ -423,6 +425,31 @@ def log_likelihood(model_params, VX, vdfdata, tidx):
     cost = np.sum((vdfdata[~zeromask] - vdf_inv[~zeromask])**2)
     return -0.5 * cost
 
+@profile
+def log_prior_perpspace(model_params):
+    Vperp1, Vperp2 = model_params
+    if -100 < Vperp1 < 100 and -100 < Vperp2 < 100:
+        return 0.0
+    return -np.inf
+
+@profile
+def log_probability_perpspace(model_params, vdfdata, tidx, u_init_scipy, u, v):
+    lp = log_prior_perpspace(model_params)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp + log_likelihood_perpspace(model_params, u_init_scipy, vdfdata, tidx, u, v)
+
+@profile
+def log_likelihood_perpspace(p0_2d, origin, vdfdata, tidx, u, v):
+    u_bulk = origin + p0_2d[0]*u + p0_2d[1]*v
+    # get new grids and initialize new inversion
+    # gvdf_tstamp.get_coors(u_bulk, tidx)
+    # perform new inversion using the v_span
+    vdf_inv, zeromask, _ = gvdf_tstamp.inversion(u_bulk, vdfdata, tidx)
+
+    cost = np.sum((vdfdata[~zeromask] - vdf_inv[~zeromask])**2)
+    return -0.5 * cost
+
 def loss_fn_Slepians(p0_2d, values, n, origin, u, v, tidx):
     p0 = origin + p0_2d[0]*u + p0_2d[1]*v
     pred, __, __ = gvdf_tstamp.inversion(p0, values, tidx)
@@ -440,7 +467,7 @@ def find_symmetry_point(points, values, n, loss_fn, tidx, origin=None, MIN_METHO
     if(origin is None): origin = np.mean(points, axis=0)  # reasonable guess
     res = minimize(loss_fn, x0=[0.0, 0.0], args=(values, n, origin, u, v, tidx), method=MIN_METHOD)
     best_p0 = origin + res.x[0] * u + res.x[1] * v
-    return best_p0, res.fun
+    return best_p0, res.fun, u, v
 
 def vdf_moments(gvdf, vdf_super, tidx):
     minval = gvdf.minval[tidx]
@@ -474,6 +501,11 @@ def vdf_moments(gvdf, vdf_super, tidx):
 
     return(density, vpara/1e5, T_comp, T_trace)
     
+def project_uncertainty(Sigma_ab, u, v, coord='y'):
+    coord_idx = {'x': 0, 'y': 1, 'z': 2}[coord]
+    J = np.array([u[coord_idx], v[coord_idx]])  # Projection vector for desired component
+    sigma2 = J @ Sigma_ab @ J.T
+    return np.sqrt(sigma2)
 
 def write_pickle(x, fname):
     with open(f'{fname}.pkl', 'wb') as handle:
@@ -482,9 +514,12 @@ def write_pickle(x, fname):
 @profile
 def main(start_idx = 0, Nsteps = None, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=2000, MIN_METHOD='L-BFGS-B', SAVE_FIGS=False):
     # the dictionary elements
-    v_yz_corr  = {}
-    v_yz_lower = {}
-    v_yz_upper = {}
+    # v_yz_corr  = {}
+    # v_yz_lower = {}
+    # v_yz_upper = {}
+    vperp_12_corr  = {}
+    vperp_12_lower = {}
+    vperp_12_upper = {}
     dens = {}
     vels = {}
     v_rec = {}
@@ -514,12 +549,12 @@ def main(start_idx = 0, Nsteps = None, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=
                                    gvdf_tstamp.vz[tidx][gvdf_tstamp.nanmask[tidx]]]).T
 
         bvec = gvdf_tstamp.b_span[tidx] / np.linalg.norm(gvdf_tstamp.b_span[tidx])
-        u_corr, __ = find_symmetry_point(threeD_points, vdfdata, bvec, loss_fn_Slepians, tidx, origin=u_origin, MIN_METHOD=MIN_METHOD)
+        u_corr, __, u, v = find_symmetry_point(threeD_points, vdfdata, bvec, loss_fn_Slepians, tidx, origin=u_origin, MIN_METHOD=MIN_METHOD)
 
         u_corr_scipy = u_corr * 1.0
         
         # computing super-resolution and moments from scipy correction
-        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=1001)
+        vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=101)
         den, vel, Tcomps, Trace = vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
         # This tells us how far off our v_parallel is from the defined assumed v_parallel
@@ -533,21 +568,26 @@ def main(start_idx = 0, Nsteps = None, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=
         # if we want to further refine the estimate and obtain error bounds
         if(MCMC):
             # initializing the Instrument velocity 
-            VX      = u_adj[0] * 1.0
-            VY_init = u_adj[1] * 1.0
-            VZ_init = u_adj[2] * 1.0
+            # VX      = u_adj[0] * 1.0
+            # VY_init = u_adj[1] * 1.0
+            # VZ_init = u_adj[2] * 1.0
+            Vperp1, Vperp2 = 0.0, 0.0
             
             # performing the mcmc of centroid finder
             nwalkers = MCMC_WALKERS
-            VY_pos = np.random.rand(nwalkers) + VY_init
-            VZ_pos = np.random.rand(nwalkers) + VZ_init
-            pos = np.array([VY_pos, VZ_pos]).T
+            # VY_pos = np.random.rand(nwalkers) + VY_init
+            # VZ_pos = np.random.rand(nwalkers) + VZ_init
+            # pos = np.array([VY_pos, VZ_pos]).T
+            Vperp1_pos = np.random.rand(nwalkers) + Vperp1
+            Vperp2_pos = np.random.rand(nwalkers) + Vperp2
+            pos = np.array([Vperp1_pos, Vperp2_pos]).T
 
-            sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx, u_corr_scipy))
+            # sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability, args=(VX, vdfdata, tidx, u_corr_scipy))
+            sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability_perpspace, args=(vdfdata, tidx, u_adj, u, v))
             sampler.run_mcmc(pos, MCMC_STEPS, progress=False)
             
             # plotting the results of the emcee
-            labels = ["VY", "VZ"]
+            labels = [r"$V_{\perp 1}$", r"$V_{\perp 2}$"]
             flat_samples = sampler.get_chain(flat=True)
 
             # generating the covariance matrix
@@ -559,14 +599,24 @@ def main(start_idx = 0, Nsteps = None, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=
                 plt.close(fig)
 
             # printing the 0.5 quantile values
-            v_yz_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
-            v_yz_lower[tidx] = np.quantile(flat_samples,q=[0.14],axis=0).squeeze()
-            v_yz_upper[tidx] = np.quantile(flat_samples,q=[0.86],axis=0).squeeze()
+            # v_yz_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
+            # v_yz_lower[tidx] = np.quantile(flat_samples,q=[0.14],axis=0).squeeze()
+            # v_yz_upper[tidx] = np.quantile(flat_samples,q=[0.86],axis=0).squeeze()
+            vperp_12_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
+            vperp_12_lower[tidx] = np.quantile(flat_samples,q=[0.14],axis=0).squeeze()
+            vperp_12_upper[tidx] = np.quantile(flat_samples,q=[0.86],axis=0).squeeze()
 
-            u_corr = np.hstack([VX, v_yz_corr[tidx]])
+            # u_corr = np.hstack([VX, v_yz_corr[tidx]])
+            u_corr = u_adj + vperp_12_corr[tidx][0] * u + vperp_12_corr[tidx][1] * v
+
+            # making the uncertainties from the covariance matrix
+            vperp_12_covmat = np.cov(flat_samples.T)
+            sigma_x = project_uncertainty(vperp_12_covmat, u, v, 'x')
+            sigma_y = project_uncertainty(vperp_12_covmat, u, v, 'y')
+            sigma_z = project_uncertainty(vperp_12_covmat, u, v, 'z')
 
             # computing super-resolution and moments from MCMC final correction
-            vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=1001)
+            vdf_inv, zeromask, coeffs, vdf_super = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=101)
             den, vel, Tcomps, Trace = vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
             # This tells us how far off our v_parallel is from the defined assumed v_parallel
@@ -594,9 +644,10 @@ def main(start_idx = 0, Nsteps = None, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=
         if(MCMC):
             bundle['u_corr']  = u_corr
             bundle['u_corr_scipy'] = u_corr_scipy
-            bundle['v_yz_lower'] = v_yz_lower
-            bundle['v_yz_upper'] = v_yz_upper
-            bundle['covmat'] = covmat
+            bundle['vperp_12_covmat'] = vperp_12_covmat
+            bundle['sigma_x'] = sigma_x
+            bundle['sigma_y'] = sigma_y
+            bundle['sigma_z'] = sigma_z
 
         vdf_rec_bundle[tidx] = bundle
 
@@ -644,6 +695,6 @@ if __name__=='__main__':
                           ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
 
     # executing the main scripts here
-    main(0, MCMC=MCMC, MCMC_WALKERS=MCMC_WALKERS, MCMC_STEPS=MCMC_STEPS, MIN_METHOD=MIN_METHOD, SAVE_FIGS=SAVE_FIGS)
-    # main(0, 10, MCMC=MCMC, MCMC_WALKERS=MCMC_WALKERS, MCMC_STEPS=MCMC_STEPS, MIN_METHOD=MIN_METHOD,
-    #      SAVE_FIGS=SAVE_FIGS)
+    # main(0, MCMC=MCMC, MCMC_WALKERS=MCMC_WALKERS, MCMC_STEPS=MCMC_STEPS, MIN_METHOD=MIN_METHOD, SAVE_FIGS=SAVE_FIGS)
+    main(0, 10, MCMC=MCMC, MCMC_WALKERS=MCMC_WALKERS, MCMC_STEPS=MCMC_STEPS, MIN_METHOD=MIN_METHOD,
+         SAVE_FIGS=SAVE_FIGS)
