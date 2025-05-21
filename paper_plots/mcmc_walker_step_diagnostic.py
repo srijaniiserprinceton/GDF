@@ -38,7 +38,7 @@ if __name__ == "__main__":
     current_file_directory = os.path.dirname(__file__)
     data_dir = f'{current_file_directory}/mcmc_walker_step'
     time_str = '20200126_071201_073054'
-    ref_dict = read_pickle(f'{data_dir}/scipy_vdf_rec_data_8_2000_{time_str}')
+    ref_dict = read_pickle(f'{data_dir}/scipy_vdf_rec_data_8_1500_{time_str}')
     Ntimes = len(ref_dict.keys())
 
     u_corr_ref = np.asarray([ref_dict[i]['u_corr'] for i in range(Ntimes)])
@@ -102,8 +102,8 @@ if __name__ == "__main__":
     marker_arr = np.array(['o', 'v', '^', '*', 'x', '+', 's'])
 
     for i in range(len(walker_arr)):
-        plt.plot(sigma_vy_arr[i], comp_times[-1,-1] / comp_times[i], ls=ls_arr[i], color=color_arr[i], label=f'Walkers = {walker_arr[i]}')
-        for j in range(len(iterations_arr)):
+        plt.plot(sigma_vy_arr[i,:-1], comp_times[-1,-1] / comp_times[i,:-1], ls=ls_arr[i], color=color_arr[i], label=f'Walkers = {walker_arr[i]}')
+        for j in range(len(iterations_arr)-1):
             plt.scatter(sigma_vy_arr[i,j], comp_times[-1,-1] / comp_times[i,j], marker=marker_arr[j], color=color_arr[i], label=iterations_arr[j])
     
     plt.grid(True)
@@ -119,8 +119,8 @@ if __name__ == "__main__":
     marker_arr = np.array(['o', 'v', '^', '*', 'x', '+', 's'])
 
     for i in range(len(walker_arr)):
-        plt.plot(sigma_vz_arr[i], comp_times[-1,-1] / comp_times[i], ls=ls_arr[i], color=color_arr[i], label=f'Walkers = {walker_arr[i]}')
-        for j in range(len(iterations_arr)):
+        plt.plot(sigma_vz_arr[i,:-1], comp_times[-1,-1] / comp_times[i,:-1], ls=ls_arr[i], color=color_arr[i], label=f'Walkers = {walker_arr[i]}')
+        for j in range(len(iterations_arr)-1):
             plt.scatter(sigma_vz_arr[i,j], comp_times[-1,-1] / comp_times[i,j], marker=marker_arr[j], color=color_arr[i], label=iterations_arr[j])
     
     plt.grid(True)
