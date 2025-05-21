@@ -15,11 +15,24 @@ def fit_gaussian(hist_data, ax):
     x = np.linspace(-10, 10, 100)
     y = norm.pdf(x, mu, sigma)
     ax.plot(x, y, 'k--', linewidth=2)
-    ax.text(0.95, 0.95, r"$\sigma = $"+f"{sigma:.3f}", transform=ax.transAxes, ha='right', va='top')
+    ax.text(0.95, 0.95, r"$\sigma = $" + f"{sigma:.3f}", transform=ax.transAxes, ha='right', va='top')
+
+    return sigma
 
 if __name__ == "__main__":
     walker_arr = np.array([4, 6, 8])
     iterations_arr = np.array([200, 400, 600, 800, 1000, 1500, 2000])
+
+    # compute times
+    comp_times = np.array([[21.61, 17.05, 12.31, 10.35, 8.19, 6.25, 4.34],
+                           [30.38, 24.07, 16.73, 14.20, 10.88, 8.44, 5.55],
+                           [43.98, 28.51, 20.2, 17.03, 16.0, 10.13, 6.39]])
+    
+    comp_times = np.flip(comp_times, axis=1)
+
+    # creating array to store the sigma for each case
+    sigma_vy_arr = np.zeros_like(comp_times)
+    sigma_vz_arr = np.zeros_like(comp_times)
 
     # loading the reference data dictionary
     current_file_directory = os.path.dirname(__file__)
@@ -43,11 +56,15 @@ if __name__ == "__main__":
                                      range=(-10,10), color='blue', alpha=0.6)
             ax[iteration_idx,2*walker_idx+1].hist(u_corr[:,2] - u_corr_ref[:,2], bins=15, density=True,
                                      range=(-10,10), color='gray', alpha=0.6)
-            fit_gaussian(u_corr[:,1] - u_corr_ref[:,1], ax[iteration_idx,2*walker_idx])
-            fit_gaussian(u_corr[:,2] - u_corr_ref[:,2], ax[iteration_idx,2*walker_idx+1])
+            sigma_vy = fit_gaussian(u_corr[:,1] - u_corr_ref[:,1], ax[iteration_idx,2*walker_idx])
+            sigma_vz = fit_gaussian(u_corr[:,2] - u_corr_ref[:,2], ax[iteration_idx,2*walker_idx+1])
             ax[iteration_idx,2*walker_idx].set_ylim([0, 0.3])
             ax[iteration_idx,2*walker_idx+1].set_ylim([0, 0.3])
             ax[iteration_idx,0].set_ylabel(f'{iteration}', fontweight='bold', fontsize=14)
+
+            # storing the sigma values in the arrays
+            sigma_vy_arr[walker_idx, iteration_idx] = sigma_vy
+            sigma_vz_arr[walker_idx, iteration_idx] = sigma_vz
 
     # Draw a horizontal lines at those coordinates
     arrow_len = 0.08
@@ -76,6 +93,42 @@ if __name__ == "__main__":
     plt.subplots_adjust(left=0.07, right=0.98, bottom=0.04, top=0.95)
 
     plt.savefig('MCMC_convergence_test.pdf')
+
+    #--------- Making the convergence plot for Vy ---------------#
+    plt.figure(figsize=(8,8))
+    # plotting the sigma against computational time
+    color_arr = np.array(['blue', 'red', 'black'])
+    ls_arr = np.array(['solid', 'dashed', 'dotted'])
+    marker_arr = np.array(['o', 'v', '^', '*', 'x', '+', 's'])
+
+    for i in range(len(walker_arr)):
+        plt.plot(sigma_vy_arr[i], comp_times[-1,-1] / comp_times[i], ls=ls_arr[i], color=color_arr[i], label=f'Walkers = {walker_arr[i]}')
+        for j in range(len(iterations_arr)):
+            plt.scatter(sigma_vy_arr[i,j], comp_times[-1,-1] / comp_times[i,j], marker=marker_arr[j], color=color_arr[i], label=iterations_arr[j])
+    
+    plt.grid(True)
+    plt.legend()
+    plt.xlabel(r'Spread in convergence of $V_y$', fontweight='bold', fontsize=14)
+    plt.ylabel(r'Speedup w.r.t 8 walkers 2000 iterations', fontweight='bold', fontsize=14)
+
+    #--------- Making the convergence plot for Vz ---------------#
+    plt.figure(figsize=(8,8))
+    # plotting the sigma against computational time
+    color_arr = np.array(['blue', 'red', 'black'])
+    ls_arr = np.array(['solid', 'dashed', 'dotted'])
+    marker_arr = np.array(['o', 'v', '^', '*', 'x', '+', 's'])
+
+    for i in range(len(walker_arr)):
+        plt.plot(sigma_vz_arr[i], comp_times[-1,-1] / comp_times[i], ls=ls_arr[i], color=color_arr[i], label=f'Walkers = {walker_arr[i]}')
+        for j in range(len(iterations_arr)):
+            plt.scatter(sigma_vz_arr[i,j], comp_times[-1,-1] / comp_times[i,j], marker=marker_arr[j], color=color_arr[i], label=iterations_arr[j])
+    
+    plt.grid(True)
+    plt.legend()
+    plt.xlabel(r'Spread in convergence of $V_z$', fontweight='bold', fontsize=14)
+    plt.ylabel(r'Speedup w.r.t 8 walkers 2000 iterations', fontweight='bold', fontsize=14)
+
+
 
 
             
