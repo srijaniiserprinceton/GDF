@@ -341,7 +341,7 @@ def project_uncertainty(Sigma_ab, u, v, coord='y'):
     return np.sqrt(sigma2)
 
 @profile
-def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=2000, MIN_METHOD='L-BFGS-B', SAVE_FIGS=False):
+def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=2000, MIN_METHOD='L-BFGS-B', SAVE_FIGS=False, SAVE_PKL=True):
     # the dictionary elements
     vperp_12_corr  = {}
     vperp_12_lower = {}
@@ -456,7 +456,9 @@ def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKER
     ymd = ts0.strftime('%Y%m%d')
     a_label = ts0.strftime('%H%M%S')
     b_label = ts1.strftime('%H%M%S')
-    misc_fn.write_pickle(vdf_rec_bundle, f'./Outputs/scipy_vdf_rec_data_{MCMC_WALKERS}_{MCMC_STEPS}_{ymd}_{a_label}_{b_label}')
+
+    if(SAVE_PKL):
+        misc_fn.write_pickle(vdf_rec_bundle, f'./Outputs/scipy_vdf_rec_data_{MCMC_WALKERS}_{MCMC_STEPS}_{ymd}_{a_label}_{b_label}')
 
 def run(config):
     global psp_vdf, gvdf_tstamp
@@ -482,7 +484,8 @@ def run(config):
          MCMC_WALKERS=config.MCMC_WALKERS,
          MCMC_STEPS=config.MCMC_STEPS,
          MIN_METHOD=config.MIN_METHOD,
-         SAVE_FIGS=config.SAVE_FIGS)
+         SAVE_FIGS=config.SAVE_FIGS,
+         SAVE_PKL =config.SAVE_PKL)
 
     return gvdf_tstamp
 

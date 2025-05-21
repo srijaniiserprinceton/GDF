@@ -23,5 +23,5 @@ MCMC              = True
 MCMC_WALKERS      = 6
 MCMC_STEPS        = 200
 MIN_METHOD        = 'L-BFGS-B'
-SAVE_FIGS         = True
-SAVE_PKL          = True
+SAVE_FIGS         = False
+SAVE_PKL          = False
