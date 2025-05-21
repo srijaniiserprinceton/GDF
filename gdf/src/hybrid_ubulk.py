@@ -14,11 +14,11 @@ from tqdm import tqdm
 import pickle
 import warnings
 
-import eval_Slepians
-from src import functions as fn
-from src import mics_funcs as misc_fn
-from src import basis_funcs as basis_fn
-from src import plotter
+from gdf.src import eval_Slepians
+from gdf.src import functions as fn
+from gdf.src import misc_funcs as misc_fn
+from gdf.src import basis_funcs as basis_fn
+from gdf.src import plotter
 
 NAX = np.newaxis
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
