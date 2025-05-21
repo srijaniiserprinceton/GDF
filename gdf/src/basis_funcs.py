@@ -9,7 +9,7 @@ def get_Bsplines_scipy(knots, p, r_grid):
     t = np.append(t, knots)
     t = np.append(t, np.array([knots[-1] for i in range(p)]))
     bsp_basis_coefs = np.identity(len(knots) + (p-1))
-    spl = BSpline(t, bsp_basis_coefs, p, extrapolate=True)
+    spl = BSpline(t, bsp_basis_coefs, p, extrapolate=False)
     B_i_n = spl(r_grid).T
     B_i_n = np.nan_to_num(spl(r_grid).T)
 

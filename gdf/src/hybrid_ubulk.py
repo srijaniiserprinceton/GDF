@@ -231,7 +231,7 @@ class gyrovdf:
 
                 # Generate the regular grid we are interested in.
                 # TODO: Replace with a grid function!
-                x = np.linspace(0, 1000, NPTS)
+                x = np.linspace(0, 2000, NPTS)
                 y = np.linspace(-1000, 1000, NPTS)
 
                 xx, yy = np.meshgrid(x, y, indexing='ij')
