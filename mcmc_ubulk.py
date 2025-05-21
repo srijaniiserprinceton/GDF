@@ -753,4 +753,4 @@ if __name__=='__main__':
                           ITERATE=ITERATE, CREDENTIALS=creds, CLIP=CLIP)
 
     # executing the main scripts here
-    main()
+    main(0,1)

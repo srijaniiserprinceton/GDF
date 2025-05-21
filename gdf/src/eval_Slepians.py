@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt; plt.ion()
 NAX = np.newaxis
 
-import src.functions as fn
-import coordinate_frame_functions as coor_fn
+from gdf.src import functions as fn
+from gdf.src import coordinate_frame_functions as coor_fn
 
 class Slep_transverse:
     def __init__(self):

@@ -8,7 +8,7 @@ CREDS = None       # credential file.
 
 # Start and End index
 START_INDEX = 0
-NSTEPS = 11
+NSTEPS = 1
 
 # Core analysis parameters
 TH                = 60
@@ -20,7 +20,7 @@ COUNT_MASK        = 2
 CLIP              = True
 NPTS_SUPER        = 101
 MCMC              = True
-MCMC_WALKERS      = 8
-MCMC_STEPS        = 500
+MCMC_WALKERS      = 6
+MCMC_STEPS        = 200
 MIN_METHOD        = 'L-BFGS-B'
 SAVE_FIGS         = True
