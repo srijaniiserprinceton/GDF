@@ -84,6 +84,9 @@ class gyrovdf:
 
         # obtaining the grid points from an actual PSP field-aligned VDF (instrument frame)
         self.setup_timewindow(vdf_dict, trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
+
+        # generating the Slepian normalizations to be later used for Bspline regularization
+        self.Slep.gen_Slep_norms()
     
     def setup_timewindow(self, vdf_dict, trange, CREDENTIALS=None, CLIP=False):
         time = vdf_dict.time.data
@@ -179,7 +182,12 @@ class gyrovdf:
                 new_edges, _ = merge_bins(bin_edges, counts, self.spline_mincount)
                 log_knots = np.sum(new_edges, axis=1)/2
 
+                # adding the first and last points as knots
+                log_knots = np.append(new_edges[0][0] - dlnv/2., log_knots)
+                log_knots = np.append(log_knots, new_edges[-1][-1] + dlnv/2.)
+
                 # discarding knots at counts less than 10 (always discarding the last knot with low count)
+                # removing the first and last unconstrained knots
                 self.knots = np.power(10, log_knots)
 
                 # arranging the knots in an increasing order

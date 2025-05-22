@@ -7,7 +7,7 @@ TRANGE = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
 CREDS = None       # credential file.
 
 # Start and End index
-START_INDEX = 0
+START_INDEX = 1
 NSTEPS = 1
 
 # Core analysis parameters

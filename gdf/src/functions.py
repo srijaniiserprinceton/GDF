@@ -5,6 +5,7 @@ import xarray as xr
 import pyspedas
 import cdflib
 import glob
+from scipy.integrate import simpson as simps
 
 from datetime import datetime
 from pathlib import Path
@@ -404,3 +405,6 @@ def vdf_moments(gvdf, vdf_super, tidx):
     T_trace = (T_para + 2*T_perp)/3
 
     return(density, vpara/1e5, T_comp, T_trace)
+
+def norm_eval_theta(S1, S2, theta=np.linspace(0,180,360)):
+    return simps(S1 * S2 * np.sin(np.radians(theta)), x=np.radians(theta))
