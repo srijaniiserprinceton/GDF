@@ -2,7 +2,7 @@ import numpy as np
 import cdflib
 import matplotlib.pyplot as plt
 
-import src.functions as fn
+import gdf.src.functions as fn
 import astropy.constants as c
 import astropy.units as u
 

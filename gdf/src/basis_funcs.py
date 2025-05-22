@@ -15,6 +15,11 @@ def get_Bsplines_scipy(knots, p, r_grid):
 
     return(B_i_n)
 
+def get_Bspline_second_derivative(B_i_n):
+    B_i_n_rr = np.gradient(np.gradient(B_i_n, axis=0), axis=0)
+    B_i_n_rr_sqrd = np.einsum('ij, lj->ilj', B_i_n_rr, B_i_n_rr)
+    return(B_i_n_rr_sqrd)
+
 def get_Slepians_scipy(slep_coeffs, theta_grid, Lmax, N2D=None):
     S_alpha_n = None
     theta_nonan = np.radians(theta_grid)

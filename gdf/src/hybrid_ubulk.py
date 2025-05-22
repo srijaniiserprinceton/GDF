@@ -263,6 +263,10 @@ class gyrovdf:
             def super_inversion(vdfdata):
                 # obtaining the coefficients
                 G_g = self.G_k_n @ self.G_k_n.T
+                
+                # Setup the BSpline regularization
+                Brr_i_k_n = basis_fn.get_Bspline_second_derivative(self.super_B_i_n) 
+                
                 I = np.identity(len(G_g))
                 coeffs = np.linalg.inv(G_g + mu * I) @ self.G_k_n @ vdfdata
 
