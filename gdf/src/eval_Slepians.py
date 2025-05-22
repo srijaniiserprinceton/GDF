@@ -5,12 +5,14 @@ NAX = np.newaxis
 
 from gdf.src import functions as fn
 from gdf.src import coordinate_frame_functions as coor_fn
+from gdf.src import basis_funcs as basis_fn
 
 class Slep_transverse:
     def __init__(self):
         self.slep_dir = fn.read_config()[0]  
         self.C = None       # Gives us the tapers for 1D Legendre Polynomials
         self.V = None       # Concentration coefficient
+        self.norm = None    # The norm for the Slepian function
 
         #--Starting Matlab engine to get the Slepian functions---#
         import matlab.engine as matlab
@@ -25,6 +27,7 @@ class Slep_transverse:
         [E,V,N,th,C] = self.eng.sdwcap(TH, Lmax, m, nth, [], 1, nargout=5)
         self.C = C
         self.V = np.asarray(V).squeeze()
+        self.Lmax = Lmax
 
     def gen_Slep_basis(self, theta_grid):
         [G, th] = self.eng.pl2th(self.C, theta_grid, np.double(1), nargout=2)
@@ -32,6 +35,17 @@ class Slep_transverse:
 
         self.G = G
         self.th = th
+
+    def gen_Slep_norms(self):
+        # creating the theta grid to evaluate the norms
+        theta_arr = np.linspace(0, 180, 360)
+        S_alpha_theta = basis_fn.get_Slepians_scipy(self.C, theta_arr, self.Lmax)
+
+        # initializing the norm array
+        self.norm = np.zeros_like(self.V)
+
+        for i in range(len(self.V)):
+            self.norm[i] = fn.norm_eval_theta(S_alpha_theta[i], S_alpha_theta[i], theta_arr)
 
 if __name__=='__main__':
     # defining the concentration problem to obtain the Slepian tapers
