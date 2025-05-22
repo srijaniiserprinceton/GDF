@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.interpolate import BSpline
 from scipy.special import eval_legendre
-
+from scipy.integrate import simps
 NAX = np.newaxis
 
 def get_Bsplines_scipy(knots, p, r_grid):
@@ -15,10 +15,20 @@ def get_Bsplines_scipy(knots, p, r_grid):
 
     return(B_i_n)
 
-def get_Bspline_second_derivative(B_i_n):
-    B_i_n_rr = np.gradient(np.gradient(B_i_n, axis=0), axis=0)
-    B_i_n_rr_sqrd = np.einsum('ij, lj->ilj', B_i_n_rr, B_i_n_rr)
-    return(B_i_n_rr_sqrd)
+def get_Bspline_second_derivative(knots, p):
+    r = np.linspace(0, 2000)
+
+    # Evaluate Bsplines on regular grid
+    B_i_r = get_Bsplines_scipy(knots, p, r)
+
+    # Define second derivative
+    d2r_B_i_r = np.gradient(np.gradient(B_i_r, axis=0), axis=0)
+    d2r_B_i_r_sqrd = np.einsum('ij, lj->ilj', d2r_B_i_r, d2r_B_i_r)
+
+    # Integrate
+    B_i_i = simps(d2r_B_i_r_sqrd * (r**2)[NAX,NAX,:], x=r, axis=-1)
+
+    return(B_i_i)
 
 def get_Slepians_scipy(slep_coeffs, theta_grid, Lmax, N2D=None):
     S_alpha_n = None

@@ -77,16 +77,17 @@ class gyrovdf:
         # loading the Slepians tapers once
         self.Slep = eval_Slepians.Slep_transverse()
         self.Slep.gen_Slep_tapers(self.TH, self.Lmax)
+        # generating the Slepian normalizations to be later used for Bspline regularization
+        self.Slep.gen_Slep_norms()
 
         # truncating beyond Shannon number
         if self.N2D is None:
             self.N2D = int(np.sum(self.Slep.V))
+        
+        self.Slep.norm = self.Slep.norm[:self.N2D]
 
         # obtaining the grid points from an actual PSP field-aligned VDF (instrument frame)
         self.setup_timewindow(vdf_dict, trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
-
-        # generating the Slepian normalizations to be later used for Bspline regularization
-        self.Slep.gen_Slep_norms()
     
     def setup_timewindow(self, vdf_dict, trange, CREDENTIALS=None, CLIP=False):
         time = vdf_dict.time.data
@@ -273,10 +274,12 @@ class gyrovdf:
                 G_g = self.G_k_n @ self.G_k_n.T
                 
                 # Setup the BSpline regularization
-                Brr_i_k_n = basis_fn.get_Bspline_second_derivative(self.super_B_i_n) 
-                
-                I = np.identity(len(G_g))
-                coeffs = np.linalg.inv(G_g + mu * I) @ self.G_k_n @ vdfdata
+                D_i_i = basis_fn.get_Bspline_second_derivative(self.knots, self.p)
+
+                # Augment the D-matrix
+                D = np.kron(D_i_i, np.diag(self.Slep.norm))
+                # I = np.identity(len(G_g))
+                coeffs = np.linalg.inv(G_g + mu * D) @ self.G_k_n @ vdfdata
 
                 # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                 vdf_rec = coeffs @ self.G_k_n
