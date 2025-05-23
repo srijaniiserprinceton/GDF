@@ -24,9 +24,6 @@ NAX = np.newaxis
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
 warnings.filterwarnings("ignore")
 
-# Globally defined regularization term.
-mu = 1e-3
-
 gvdf_tstamp = None
 psp_vdf = None
 
@@ -66,13 +63,14 @@ def merge_bins(bin_edges, counts, threshold):
 
 
 class gyrovdf:
-    def __init__(self, vdf_dict, trange, TH=60, Lmax=12, N2D=None, p=3, spline_mincount=2, count_mask=5, CREDENTIALS=None, CLIP=False):
+    def __init__(self, vdf_dict, trange, TH=60, Lmax=12, N2D=None, p=3, spline_mincount=2, count_mask=5, mu=1e-3, CREDENTIALS=None, CLIP=False):
         self.TH = TH  
         self.Lmax = Lmax
         self.N2D = N2D
         self.p = p
         self.count_mask = count_mask 
         self.spline_mincount = spline_mincount
+        self.mu = mu
 
         # loading the Slepians tapers once
         self.Slep = eval_Slepians.Slep_transverse()
@@ -218,7 +216,7 @@ class gyrovdf:
                 # obtaining the coefficients
                 G_g = self.G_k_n @ self.G_k_n.T
                 I = np.identity(len(G_g))
-                coeffs = np.linalg.inv(G_g + mu * I) @ self.G_k_n @ vdfdata
+                coeffs = np.linalg.inv(G_g + self.mu * I) @ self.G_k_n @ vdfdata
 
                 # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                 vdf_rec = coeffs @ self.G_k_n
@@ -279,7 +277,7 @@ class gyrovdf:
                 # Augment the D-matrix
                 D = np.kron(D_i_i, np.diag(self.Slep.norm))
                 # I = np.identity(len(G_g))
-                coeffs = np.linalg.inv(G_g + mu * D) @ self.G_k_n @ vdfdata
+                coeffs = np.linalg.inv(G_g + self.mu * D) @ self.G_k_n @ vdfdata
 
                 # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                 vdf_rec = coeffs @ self.G_k_n
@@ -490,6 +488,7 @@ def run(config):
                           N2D=config.N2D,
                           count_mask=config.COUNT_MASK,
                           spline_mincount=config.SPLINE_MINCOUNT,
+                          mu=config.MU,
                           CREDENTIALS=creds,
                           CLIP=config.CLIP)
 

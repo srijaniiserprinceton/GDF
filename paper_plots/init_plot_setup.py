@@ -17,6 +17,7 @@ N2D               = 3
 P                 = 3
 SPLINE_MINCOUNT   = 7
 COUNT_MASK        = 2
+MU                = 1e-3
 CLIP              = True
 NPTS_SUPER        = 101
 MCMC              = True
