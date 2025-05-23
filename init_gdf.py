@@ -2,7 +2,8 @@
 
 # Define the time range we are running for
 # TRANGE = ['2020-01-26T07:12:00', '2020-01-26T07:30:59']
-TRANGE = ['2022-02-25T16:57:19', '2022-02-25T17:01:00']
+# TRANGE = ['2022-02-25T16:57:19', '2022-02-25T17:01:00']
+TRANGE = ['2024-03-03T12:12:00', '2024-03-03T17:30:59']
 
 # Get the credentials
 CREDS = None       # credential file.
