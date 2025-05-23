@@ -2,9 +2,8 @@ import json
 import numpy as np
 import scipy as sp
 
-import src.functions as fn
-import coordinate_frame_functions as coor_fn
-import inversion as inv
+import gdf.src.functions as fn
+import gdf.src.coordinate_frame_functions as coor_fn
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm

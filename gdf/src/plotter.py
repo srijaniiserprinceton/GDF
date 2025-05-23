@@ -94,7 +94,8 @@ def plot_super_resolution(gvdf, tidx, vdf_super, mu, SAVE=False, VDFUNITS=False,
         if VSHIFT:
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
-            ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf.vshift[tidx], color='k', marker='.', s=3)
+            # ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf.vshift[tidx], color='k', marker='.', s=3)
+            ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf.vshift, color='k', marker='.', s=3)
             if DENSITY:
                 Bmag = np.linalg.norm(gvdf.b_span[tidx])
                 VA = form.speeds.Alfven_speed(Bmag * u.nT, DENSITY * u.cm**(-3), ion='p+').to(u.km/u.s)
@@ -153,7 +154,8 @@ def plot_gyrospan(gvdf, tidx, vdfdata, SAVE=False, VDFUNITS=False, VSHIFT=None, 
     else:
         ax1 = ax.tricontourf(v_perp_all, v_para_all - VSHIFT, vdf_data_all, levels=np.linspace(0,4.0,10), cmap='plasma')
         
-    ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf.vshift[tidx], color='k', marker='.', s=3)
+    # ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf.vshift[tidx], color='k', marker='.', s=3)
+    ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf.vshift, color='k', marker='.', s=3)
     cbar = plt.colorbar(ax1)
     cbar.ax.tick_params(labelsize=18) 
     ax.set_xlabel(r'$v_{\perp}$', fontsize=19)

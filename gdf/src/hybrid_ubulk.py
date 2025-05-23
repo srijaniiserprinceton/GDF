@@ -154,8 +154,9 @@ class gyrovdf:
         # NOTE: NEED TO CHECK ABOVE CALCULATION.
 
         # Boosting the vparallel
-        self.vshift = np.linalg.norm(self.v_span, axis=1)
-        self.vpara -= self.vshift[tidx,NAX,NAX,NAX]
+        max_r = np.nanmax(self.vperp/np.tan(np.radians(self.TH)) - np.abs(self.vpara))
+        self.vshift = max_r  #np.linalg.norm(self.v_span, axis=1)
+        self.vpara -= self.vshift[NAX,NAX,NAX]
 
         # converting the grid to spherical polar in the field aligned frame
         r, theta, phi = c2s(self.vperp1, self.vperp2, self.vpara)
@@ -166,18 +167,20 @@ class gyrovdf:
             def make_knots(tidx):
                 self.knots, self.vpara_nonan = None, None
 
+                # the knot locations
+                self.vpara_nonan = self.r_fa[self.nanmask[tidx]] * np.cos(np.radians(self.theta_fa[self.nanmask[tidx]]))
+                self.rfac_nonan = self.r_fa[self.nanmask[tidx]]
+
                 # finding the minimum and maximum velocities with counts to find the knot locations
                 vmin = np.min(self.velocity[tidx, self.nanmask[tidx]])
                 vmax = np.max(self.velocity[tidx, self.nanmask[tidx]])
                 dlnv = 0.0348
                 
                 Nbins = int((np.log10(vmax) - np.log10(vmin)) / dlnv)
-
-                # the knot locations
-                self.vpara_nonan = self.r_fa[self.nanmask[tidx]] * np.cos(np.radians(self.theta_fa[self.nanmask[tidx]]))
-                self.rfac_nonan = self.r_fa[self.nanmask[tidx]]
-
                 counts, bin_edges = np.histogram(np.log10(self.rfac_nonan), bins=Nbins)
+                
+                gvdf_tstamp.hist_counts = counts
+                gvdf_tstamp.bins = (bin_edges[0:-1] + bin_edges[1:])/2
 
                 new_edges, _ = merge_bins(bin_edges, counts, self.spline_mincount)
                 log_knots = np.sum(new_edges, axis=1)/2
@@ -276,14 +279,14 @@ class gyrovdf:
                 D_i_i = basis_fn.get_Bspline_second_derivative(self.knots, self.p)
 
                 # Augment the D-matrix
-                D = np.kron(D_i_i, np.diag(self.Slep.norm))
+                self.D = np.kron(D_i_i, np.diag(self.Slep.norm))
                 I = np.identity(len(G_g))
 
                 # making the data and model misfit arrays
                 data_misfit, model_misfit = [], []
 
                 for mu in mu_arr:
-                    coeffs = np.linalg.inv(G_g + mu * D) @ self.G_k_n @ vdfdata
+                    coeffs = np.linalg.inv(G_g + mu * self.D) @ self.G_k_n @ vdfdata
 
                     # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                     vdf_rec = coeffs @ self.G_k_n
@@ -292,7 +295,7 @@ class gyrovdf:
                     data_misfit.append(np.linalg.norm(vdf_rec - vdfdata))
 
                     # computing and appending the model misfit
-                    model_misfit.append(np.linalg.norm(coeffs @ D @ coeffs))
+                    model_misfit.append(np.linalg.norm(coeffs @ self.D @ coeffs))
 
                 # normalizing the misfit arrays for better knee finding
                 model_misfit = misc_fn.norm_array(model_misfit)
@@ -302,7 +305,8 @@ class gyrovdf:
                 knee_idx = fn.geometric_knee(model_misfit, data_misfit)
 
                 # computing the final superresolution with the final choice of mu
-                coeffs = np.linalg.inv(G_g + mu_arr[knee_idx] * D) @ self.G_k_n @ vdfdata
+                # coeffs = np.linalg.inv(G_g + self.mu * I) @ self.G_k_n @ vdfdata
+                coeffs = np.linalg.inv(G_g + mu_arr[knee_idx] * self.D) @ self.G_k_n @ vdfdata
 
                 # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                 vdf_rec = coeffs @ self.G_k_n
@@ -417,7 +421,7 @@ def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKER
         den, vel, Tcomps, Trace = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
         # This tells us how far off our v_parallel is from the defined assumed v_parallel
-        delta_v = vel - gvdf_tstamp.vshift[tidx]
+        delta_v = vel - gvdf_tstamp.vshift#[tidx]
 
         # get the assume u_parallel, u_perp1, and u_perp2. from the set 
         u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
@@ -464,7 +468,7 @@ def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKER
             den, vel, Tcomps, Trace = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
             # This tells us how far off our v_parallel is from the defined assumed v_parallel
-            delta_v = vel - gvdf_tstamp.vshift[tidx]
+            delta_v = vel - gvdf_tstamp.vshift#[tidx]
 
             # get the assume u_parallel, u_perp1, and u_perp2. from the set 
             u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
