@@ -6,6 +6,7 @@ import pyspedas
 import cdflib
 import glob
 from scipy.integrate import simpson as simps
+from sklearn.linear_model import LinearRegression
 
 from datetime import datetime
 from pathlib import Path
@@ -408,3 +409,36 @@ def vdf_moments(gvdf, vdf_super, tidx):
 
 def norm_eval_theta(S1, S2, theta=np.linspace(0,180,360)):
     return simps(S1 * S2 * np.sin(np.radians(theta)), x=np.radians(theta))
+
+# testing out different L-curve knee detection algorithms
+def compute_lcurve_corner(norms, residuals):
+    """
+    Find the 'corner' of the L-curve (max curvature) in log-log space.
+    Returns the index of the optimal lambda.
+    """
+    x = norms
+    y = residuals
+
+    # Compute first and second derivatives
+    dx = np.gradient(x)
+    dy = np.gradient(y)
+    d2x = np.gradient(dx)
+    d2y = np.gradient(dy)
+
+    # Compute curvature κ using parametric form
+    curvature = np.abs(dx * d2y - dy * d2x) / (dx**2 + dy**2)**1.5
+
+    # Find the index of max curvature
+    knee_index = np.argmax(curvature)
+    return knee_index
+
+def geometric_knee(x, y):
+    x, y = np.array(x), np.array(y)
+    # Line: from first to last point
+    line_vec = np.array([x[-1] - x[0], y[-1] - y[0]])
+    line_vec_norm = line_vec / np.linalg.norm(line_vec)
+    point_vecs = np.stack([x - x[0], y - y[0]], axis=1)
+    proj_lens = point_vecs @ line_vec_norm
+    proj_points = np.outer(proj_lens, line_vec_norm) + np.array([x[0], y[0]])
+    distances = np.linalg.norm(point_vecs - (proj_points - np.array([x[0], y[0]])), axis=1)
+    return np.argmax(distances)

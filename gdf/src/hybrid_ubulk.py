@@ -26,6 +26,7 @@ warnings.filterwarnings("ignore")
 
 gvdf_tstamp = None
 psp_vdf = None
+mu_arr = np.logspace(-12, -3, 20)
 
 def merge_bins(bin_edges, counts, threshold):
     merged_edges = []
@@ -280,7 +281,6 @@ class gyrovdf:
 
                 # making the data and model misfit arrays
                 data_misfit, model_misfit = [], []
-                mu_arr = np.logspace(-12, -3, 20)
 
                 for mu in mu_arr:
                     coeffs = np.linalg.inv(G_g + mu * D) @ self.G_k_n @ vdfdata
@@ -294,8 +294,15 @@ class gyrovdf:
                     # computing and appending the model misfit
                     model_misfit.append(np.linalg.norm(coeffs @ D @ coeffs))
 
+                # normalizing the misfit arrays for better knee finding
+                model_misfit = misc_fn.norm_array(model_misfit)
+                data_misfit = misc_fn.norm_array(data_misfit)
+
+                # finding the knee of the L-curve and plotting, if necessary
+                knee_idx = fn.geometric_knee(model_misfit, data_misfit)
+
                 # computing the final superresolution with the final choice of mu
-                coeffs = np.linalg.inv(G_g + self.mu * D) @ self.G_k_n @ vdfdata
+                coeffs = np.linalg.inv(G_g + mu_arr[knee_idx] * D) @ self.G_k_n @ vdfdata
 
                 # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                 vdf_rec = coeffs @ self.G_k_n
@@ -306,7 +313,7 @@ class gyrovdf:
                 # finding the zeros which need to be masked to avoid bad cost functions
                 zeromask = vdf_rec == 0
 
-                return vdf_rec, zeromask, vdf_super, data_misfit, model_misfit
+                return vdf_rec, zeromask, vdf_super, data_misfit, model_misfit, knee_idx
 
             self.get_coors(u_bulk, tidx)
             make_knots(tidx)
@@ -406,7 +413,7 @@ def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKER
         u_corr_scipy = u_corr * 1.0
         
         # computing super-resolution and moments from scipy correction
-        vdf_inv, _, vdf_super, data_misfit, model_misfit = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=NPTS_SUPER)
+        vdf_inv, _, vdf_super, data_misfit, model_misfit, knee_idx = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=NPTS_SUPER)
         den, vel, Tcomps, Trace = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
         # This tells us how far off our v_parallel is from the defined assumed v_parallel
@@ -453,7 +460,7 @@ def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKER
             sigma_z = project_uncertainty(vperp_12_covmat, u, v, 'z')
 
             # computing super-resolution and moments from MCMC final correction
-            vdf_inv, _, vdf_super, data_misfit, model_misfit = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=NPTS_SUPER)
+            vdf_inv, _, vdf_super, data_misfit, model_misfit, knee_idx = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=NPTS_SUPER)
             den, vel, Tcomps, Trace = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
             # This tells us how far off our v_parallel is from the defined assumed v_parallel
@@ -466,7 +473,8 @@ def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKER
 
         if SAVE_FIGS:
             plotter.plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=SAVE_FIGS)
-            plotter.plot_super_resolution(gvdf_tstamp, tidx, vdf_super, VDFUNITS=True, VSHIFT=vel, SAVE=SAVE_FIGS)
+            plotter.plot_super_resolution(gvdf_tstamp, tidx, vdf_super, mu_arr[knee_idx], VDFUNITS=True, VSHIFT=vel, SAVE=SAVE_FIGS)
+            plotter.plot_Lcurve_knee(tidx, model_misfit, data_misfit, knee_idx, mu_arr[knee_idx], SAVE=SAVE_FIGS)
 
         bundle = {}
         bundle['den'] = den

@@ -1,5 +1,6 @@
 import pickle
 import json
+import numpy as np
 
 def load_config(file_path):
     with open(file_path, 'r') as file:
@@ -23,3 +24,6 @@ def read_pickle(fname):
         x = pickle.load(handle)
     return x
 
+def norm_array(arr):
+    arr = np.asarray(arr)
+    return (arr - np.nanmin(arr)) / (np.nanmax(arr) - np.nanmin(arr))

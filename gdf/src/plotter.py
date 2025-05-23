@@ -81,7 +81,7 @@ def plot_span_vs_rec_contour(gvdf, vdf_data, vdf_rec, tidx=None, GRID=False, VA=
 
     else: plt.show()
 
-def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSHIFT=None, DENSITY=None):
+def plot_super_resolution(gvdf, tidx, vdf_super, mu, SAVE=False, VDFUNITS=False, VSHIFT=None, DENSITY=None):
     grids = gvdf.grid_points
     mask = gvdf.hull_mask
 
@@ -114,6 +114,9 @@ def plot_super_resolution(gvdf, tidx, vdf_super, SAVE=False, VDFUNITS=False, VSH
     cbar.ax.tick_params(labelsize=18) 
     ax.set_xlabel(r'$v_{\perp}$', fontsize=19)
     ax.set_ylabel(r'$v_{\parallel}$', fontsize=19)
+    ax.text(0.95, 0.95, r'$\mu = $' + f'{mu:.2e}', fontsize=14, fontweight='bold',
+            bbox=dict(facecolor='white', alpha=0.5, edgecolor='black', boxstyle='round,pad=0.5'),
+            transform=ax.transAxes, ha='right', va='top')
     ax.set_title(f'Super Resolution | {str(gvdf.l2_time[tidx])[:19]}', fontsize=19)
     ax.tick_params(axis='both', which='major', labelsize=18)
     # ax.set_xlim([-400,400])
@@ -159,3 +162,19 @@ def plot_gyrospan(gvdf, tidx, vdfdata, SAVE=False, VDFUNITS=False, VSHIFT=None, 
     ax.tick_params(axis='both', which='major', labelsize=18)
     ax.set_xlim([-400,400])
     ax.set_aspect('equal')
+
+def plot_Lcurve_knee(tidx, model_misfit, data_misfit, knee_idx, mu, SAVE=False):
+    fig = plt.figure()
+    plt.plot(model_misfit, data_misfit, 'b')
+    plt.plot(model_misfit, data_misfit, 'or')
+    plt.plot(model_misfit[knee_idx], data_misfit[knee_idx], 'xk')
+    plt.gca().text(0.95, 0.95, r'$\mu = $' + f'{mu:.2e}',
+                   bbox=dict(facecolor='white', alpha=0.5, edgecolor='black', boxstyle='round,pad=0.5'),
+                   transform=plt.gca().transAxes, ha='right', va='top')
+    plt.grid(True)
+    plt.xlabel('Model Misfit', fontsize=14, fontweight='bold')
+    plt.ylabel('Data Misfit', fontsize=14, fontweight='bold')
+
+    if(SAVE):
+        plt.savefig(f'./Figures/kneeL/kneeL_{tidx}.pdf')
+        plt.close(fig)
