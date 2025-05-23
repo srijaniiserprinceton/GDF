@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore")
 
 gvdf_tstamp = None
 psp_vdf = None
-mu_arr = np.logspace(-12, -3, 20)
+mu_arr = np.logspace(-10, -5, 20)
 
 def merge_bins(bin_edges, counts, threshold):
     merged_edges = []

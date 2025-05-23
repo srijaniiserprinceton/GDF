@@ -9,21 +9,21 @@ CREDS = None       # credential file.
 
 # Start and End index
 START_INDEX = 0
-NSTEPS = 3
+NSTEPS = 15
 
 # Core analysis parameters
 TH                = 60
 LMAX              = 12
 N2D               = 3
 P                 = 3
-SPLINE_MINCOUNT   = 3
+SPLINE_MINCOUNT   = 7
 COUNT_MASK        = 2
 MU                = 1e-3   # only used for gyroaxis and not superresolution
 CLIP              = True
 NPTS_SUPER        = 101
 MCMC              = True
 MCMC_WALKERS      = 8
-MCMC_STEPS        = 2000
+MCMC_STEPS        = 200
 MIN_METHOD        = 'L-BFGS-B'
 SAVE_FIGS         = True
 SAVE_PKL          = True
