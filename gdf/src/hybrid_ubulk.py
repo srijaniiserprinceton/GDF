@@ -276,17 +276,37 @@ class gyrovdf:
 
                 # Augment the D-matrix
                 D = np.kron(D_i_i, np.diag(self.Slep.norm))
-                # I = np.identity(len(G_g))
+                I = np.identity(len(G_g))
+
+                # making the data and model misfit arrays
+                data_misfit, model_misfit = [], []
+                mu_arr = np.logspace(-12, -3, 20)
+
+                for mu in mu_arr:
+                    coeffs = np.linalg.inv(G_g + mu * D) @ self.G_k_n @ vdfdata
+
+                    # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
+                    vdf_rec = coeffs @ self.G_k_n
+
+                    # computing and appending the data misfit
+                    data_misfit.append(np.linalg.norm(vdf_rec - vdfdata))
+
+                    # computing and appending the model misfit
+                    model_misfit.append(np.linalg.norm(coeffs @ D @ coeffs))
+
+                # computing the final superresolution with the final choice of mu
                 coeffs = np.linalg.inv(G_g + self.mu * D) @ self.G_k_n @ vdfdata
 
                 # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
                 vdf_rec = coeffs @ self.G_k_n
+
+                # the superresolved VDF using the coefficient inferred from the sparse measurements
                 vdf_super = coeffs.flatten() @ self.super_G_k_n
 
                 # finding the zeros which need to be masked to avoid bad cost functions
                 zeromask = vdf_rec == 0
 
-                return vdf_rec, zeromask, vdf_super
+                return vdf_rec, zeromask, vdf_super, data_misfit, model_misfit
 
             self.get_coors(u_bulk, tidx)
             make_knots(tidx)
@@ -386,7 +406,7 @@ def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKER
         u_corr_scipy = u_corr * 1.0
         
         # computing super-resolution and moments from scipy correction
-        vdf_inv, _, vdf_super = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=NPTS_SUPER)
+        vdf_inv, _, vdf_super, data_misfit, model_misfit = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=NPTS_SUPER)
         den, vel, Tcomps, Trace = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
         # This tells us how far off our v_parallel is from the defined assumed v_parallel
@@ -433,7 +453,7 @@ def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKER
             sigma_z = project_uncertainty(vperp_12_covmat, u, v, 'z')
 
             # computing super-resolution and moments from MCMC final correction
-            vdf_inv, _, vdf_super = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=NPTS_SUPER)
+            vdf_inv, _, vdf_super, data_misfit, model_misfit = gvdf_tstamp.inversion(u_corr, vdfdata, tidx, SUPER=True, NPTS=NPTS_SUPER)
             den, vel, Tcomps, Trace = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
             # This tells us how far off our v_parallel is from the defined assumed v_parallel
@@ -454,6 +474,8 @@ def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKER
         bundle['component_temp'] = Tcomps
         bundle['scalar_temp'] = Trace
         bundle['u_final'] = u_adj
+        bundle['data_misfit'] = data_misfit
+        bundle['model_misfit'] = model_misfit
         if(MCMC):
             bundle['u_corr']  = u_corr
             bundle['u_corr_scipy'] = u_corr_scipy
