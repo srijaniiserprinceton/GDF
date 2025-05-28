@@ -11,9 +11,9 @@ START_INDEX = 8
 NSTEPS = 1
 
 # Core analysis parameters
-TH                = 60
+TH                = 80
 LMAX              = 12
-N2D               = 3
+N2D               = None
 SPLINE_MINCOUNT   = 7
 COUNT_MASK        = 0
 MU                = 1e-3
