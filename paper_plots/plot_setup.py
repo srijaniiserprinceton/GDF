@@ -77,8 +77,8 @@ S_alpha_theta = basis_fn.get_Slepians_scipy(gvdf_tstamp.Slep.C, theta_grid,
                                             gvdf_tstamp.Lmax, gvdf_tstamp.N2D)
 plt.figure()
 for i in range(gvdf_tstamp.N2D):
-    # 9 is the index of the timestamp we are plotting in the plot_init_setup.py file
-    plt.plot(gvdf_tstamp.theta_fa[gvdf_tstamp.nanmask[9]][Bspline_mask],
+    # 8 is the index of the timestamp we are plotting in the plot_init_setup.py file
+    plt.plot(gvdf_tstamp.theta_fa[gvdf_tstamp.nanmask[8]][Bspline_mask],
              gvdf_tstamp.S_alpha_n[i][Bspline_mask], 'ok', alpha=0.6)
     plt.plot(theta_grid, S_alpha_theta[i], label=r'$S_{%i}(\theta)$'%(i))
 

@@ -155,7 +155,10 @@ class gyrovdf:
 
         # Boosting the vparallel
         # max_r = np.nanmax(self.vperp/np.tan(np.radians(self.TH)) - np.abs(self.vpara))
-        # self.vshift = max_r  #np.linalg.norm(self.v_span, axis=1)
+        vpara1 = self.vpara - np.nanmax(self.vpara)
+        max_r = np.nanmax(self.vperp[self.nanmask[tidx]]/np.tan(np.radians(self.TH)) + (vpara1[self.nanmask[tidx]]))
+        self.vshift = max_r + np.nanmax(self.vpara) #np.linalg.norm(self.v_span, axis=1)
+        self.vpara -= np.abs(self.vshift)
 
         '''
         max_r = np.nanmax(self.vperp[self.nanmask[tidx]]/np.tan(np.radians(self.TH))- np.abs(self.vpara[self.nanmask[tidx]]))
@@ -165,12 +168,14 @@ class gyrovdf:
         self.vpara -= self.vshift[NAX,NAX,NAX]
         '''
 
+        '''
         max_angle_idx = np.argmax(np.arctan2(self.vperp[self.nanmask[tidx]],
                                   np.abs(self.vpara[self.nanmask[tidx]])))
         vpara_at_maxangle = self.vpara[self.nanmask[tidx]][max_angle_idx]
         vperp_at_maxangle = self.vperp[self.nanmask[tidx]][max_angle_idx]
         self.vshift = vperp_at_maxangle/np.tan(np.radians(self.TH)) + vpara_at_maxangle
         self.vpara -= np.abs(self.vshift)
+        '''
 
         # converting the grid to spherical polar in the field aligned frame
         r, theta, phi = c2s(self.vperp1, self.vperp2, self.vpara)
