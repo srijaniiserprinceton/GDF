@@ -11,11 +11,11 @@ START_INDEX = 8
 NSTEPS = 1
 
 # Core analysis parameters
-TH                = 60
+TH                = 80
 LMAX              = 12
-N2D               = 3
+N2D               = 4
 SPLINE_MINCOUNT   = 7
-COUNT_MASK        = 0
+COUNT_MASK        = 2
 MU                = 1e-3
 CLIP              = True
 NPTS_SUPER        = 101
@@ -23,5 +23,5 @@ MCMC              = True
 MCMC_WALKERS      = 6
 MCMC_STEPS        = 200
 MIN_METHOD        = 'L-BFGS-B'
-SAVE_FIGS         = True
+SAVE_FIGS         = True#False
 SAVE_PKL          = False
