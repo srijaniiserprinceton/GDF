@@ -13,7 +13,7 @@ NSTEPS = 1
 # Core analysis parameters
 TH                = 80
 LMAX              = 12
-N2D               = 4
+N2D               = 3
 SPLINE_MINCOUNT   = 7
 COUNT_MASK        = 2
 MU                = 1e-3
