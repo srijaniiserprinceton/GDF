@@ -141,7 +141,7 @@ class gyrovdf:
 
         # Rotate the plasma frame data into the magnetic field aligned frame.
         vpara, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(self.ux, self.uy, self.uz,
-                                                                        *fn.field_aligned_coordinates(self.b_span[tidx])))
+                                                                        *fn.field_aligned_coordinates(self.b_span[tidx])))                                                            
         
         self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
@@ -154,9 +154,23 @@ class gyrovdf:
         # NOTE: NEED TO CHECK ABOVE CALCULATION.
 
         # Boosting the vparallel
-        max_r = np.nanmax(self.vperp/np.tan(np.radians(self.TH)) - np.abs(self.vpara))
-        self.vshift = max_r  #np.linalg.norm(self.v_span, axis=1)
+        # max_r = np.nanmax(self.vperp/np.tan(np.radians(self.TH)) - np.abs(self.vpara))
+        # self.vshift = max_r  #np.linalg.norm(self.v_span, axis=1)
+
+        '''
+        max_r = np.nanmax(self.vperp[self.nanmask[tidx]]/np.tan(np.radians(self.TH))- np.abs(self.vpara[self.nanmask[tidx]]))
+        argmax_for_max_r = np.argmax(self.vperp[self.nanmask[tidx]]/np.tan(np.radians(self.TH))- np.abs(self.vpara[self.nanmask[tidx]]))
+        vpara_argmax_for_max_r = self.vpara[self.nanmask[tidx]][argmax_for_max_r]
+        self.vshift = max_r + vpara_argmax_for_max_r
         self.vpara -= self.vshift[NAX,NAX,NAX]
+        '''
+
+        max_angle_idx = np.argmax(np.arctan2(self.vperp[self.nanmask[tidx]],
+                                  np.abs(self.vpara[self.nanmask[tidx]])))
+        vpara_at_maxangle = self.vpara[self.nanmask[tidx]][max_angle_idx]
+        vperp_at_maxangle = self.vperp[self.nanmask[tidx]][max_angle_idx]
+        self.vshift = vperp_at_maxangle/np.tan(np.radians(self.TH)) + vpara_at_maxangle
+        self.vpara -= np.abs(self.vshift)
 
         # converting the grid to spherical polar in the field aligned frame
         r, theta, phi = c2s(self.vperp1, self.vperp2, self.vpara)
