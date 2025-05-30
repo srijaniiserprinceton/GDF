@@ -87,6 +87,9 @@ class gyrovdf:
 
         # obtaining the grid points from an actual PSP field-aligned VDF (instrument frame)
         self.setup_timewindow(vdf_dict, trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
+
+        # this is updated everytime
+        self.vdfdata = None
     
     def setup_timewindow(self, vdf_dict, trange, CREDENTIALS=None, CLIP=False):
         time = vdf_dict.time.data
@@ -157,8 +160,10 @@ class gyrovdf:
         # max_r = np.nanmax(self.vperp/np.tan(np.radians(self.TH)) - np.abs(self.vpara))
         vpara1 = self.vpara - np.nanmax(self.vpara)
         max_r = np.nanmax(self.vperp[self.nanmask[tidx]]/np.tan(np.radians(self.TH)) + (vpara1[self.nanmask[tidx]]))
-        self.vshift = max_r + np.nanmax(self.vpara) #np.linalg.norm(self.v_span, axis=1)
-        self.vpara -= np.abs(self.vshift)
+        # self.vshift = max_r + np.nanmax(self.vpara) #np.linalg.norm(self.v_span, axis=1)
+        # self.vpara -= np.abs(self.vshift)
+        self.vshift = np.linalg.norm(self.v_span, axis=1)[tidx]
+        self.vpara -= self.vshift
 
         '''
         max_r = np.nanmax(self.vperp[self.nanmask[tidx]]/np.tan(np.radians(self.TH))- np.abs(self.vpara[self.nanmask[tidx]]))
@@ -423,6 +428,7 @@ def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKER
 
         # initializing the vdf data to optimize (this is the normalized and logarithmic value)
         vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
+        gvdf_tstamp.vdfdata = vdfdata * 1.0
 
         # initializing the Instrument velocity 
         u_origin = gvdf_tstamp.v_span[tidx,:]
