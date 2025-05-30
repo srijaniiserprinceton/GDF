@@ -69,7 +69,7 @@ def biMax_model(v_para, v_perp, den, u_para, w_perp, w_para):
     return const*exponent
 
 import xarray as xr
-def make_synthetic_cdf(time_array, energy_sort, phi_sort, theta_sort, vdf):
+def make_synthetic_cdf(time_array, energy_sort, phi_sort, theta_sort, vdf, bspan, uspan):
     # set the xarray time
     xr_time_array = time_array
 
@@ -85,7 +85,9 @@ def make_synthetic_cdf(time_array, energy_sort, phi_sort, theta_sort, vdf):
     xr_theta  = xr.DataArray(theta_sort,  dims = ['time', 'energy_dim', 'theta_dim', 'phi_dim'], coords = dict(time = xr_time_array, energy_dim = np.arange(32), theta_dim = np.arange(8), phi_dim = np.arange(8)), attrs={'units':'degrees', 'fillval' : 'np.array([nan], dtype=float32)', 'validmin':'-180', 'validmax' : '360', 'scale' : 'linear'})
     xr_vdf    = xr.DataArray(vdf,         dims = ['time', 'energy_dim', 'theta_dim', 'phi_dim'], coords = dict(time = xr_time_array, energy_dim = np.arange(32), theta_dim = np.arange(8), phi_dim = np.arange(8)), attrs={'units':'s^3/cm^6', 'fillval' : 'np.array([nan], dtype=float32)', 'validmin':'0.001', 'validmax' : '1e+16', 'scale' : 'log'})
     xr_count  = xr.DataArray(count_sort,  dims = ['time', 'energy_dim', 'theta_dim', 'phi_dim'], coords = dict(time = xr_time_array, energy_dim = np.arange(32), theta_dim = np.arange(8), phi_dim = np.arange(8)), attrs={'units':'integer', 'fillval' : 'np.array([0], dtype=float32)', 'validmin':'0', 'validmax' : '2048', 'scale' : 'linear'})
-    xr_unix   = xr.DataArray(unix_time, dims=['time'], coords=dict(time = xr_time_array), attrs={'units' : 'time', 'description':'Unix time'}) 
+    xr_unix   = xr.DataArray(unix_time, dims=['time'], coords=dict(time = xr_time_array), attrs={'units' : 'time', 'description':'Unix time'})
+    xr_bspan  = xr.DataArray(bspan, dims=['time', 'coor'], coords=dict(time = xr_time_array, coor=np.arange(3)), attrs={'units' : 'None', 'description':'B-unit vector'})
+    xr_uspan   = xr.DataArray(uspan, dims=['time', 'coor'], coords=dict(time = xr_time_array, coor=np.arange(3)), attrs={'units' : 'km/s', 'description':'Approximate bulk speed'})
 
     # Generate the xarray.Dataset
     xr_ds = xr.Dataset({
@@ -95,9 +97,11 @@ def make_synthetic_cdf(time_array, energy_sort, phi_sort, theta_sort, vdf):
                         'phi' : xr_phi,
                         'theta' : xr_theta,
                         'vdf' : xr_vdf,
-                        'counts' : xr_count
+                        'counts' : xr_count, 
+                        'b_span': xr_bspan,
+                        'u_span': xr_uspan,
                        },
-                       attrs={'description' : 'SPAN-i data recast into proper format. VDF unit is in s^3/cm^6.'})
+                       attrs={'description' : 'Temp SPAN-i data recast into proper format. VDF unit is in s^3/cm^6.'})
     
     return(xr_ds)
 
@@ -123,43 +127,59 @@ if __name__ == '__main__':
 
     # Get the u_parallel offset.
     #u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*np.array(cdfdata.vcm.data[tidx]), *fn.field_aligned_coordinates(np.asarray(cdfdata.B_inst.data[tidx])))
-    
-    Btemp = np.array([0.95, -0.8, 0])
-    u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*np.array(cdfdata.vcm.data[tidx]), *fn.field_aligned_coordinates(np.asarray(Btemp)))
+    values = np.linspace(-0.8, 0.2, 10)
 
-    # Now we need to define the 3D vdf
-    vpara1 = np.repeat(XX, NP).reshape(ND,ND,NP) + u_para     # Add in the scalar boost in the parallel direciton!
-    vperp1 = YY[:,:,None] * np.cos(phi0)[None, None, :]
-    vperp2 = YY[:,:,None] * np.sin(phi0)[None, None, :]
+    vdf_inter = np.zeros((10, 32, 8, 8))
+    b_span = np.zeros((10, 3))
+    u_span = np.zeros((10, 3))
 
-    # Now repeat the f_biMax model valeus
-    f_bimax_3D = np.repeat(f_bimax, NP).reshape(-1, NP)
+    for i, val in enumerate(values[8:9]):
+        print(f"{i} has a value of {val}")
+        Btemp = np.array([0.95, val, 0])
+        u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*np.array(cdfdata.vcm.data[tidx]), *fn.field_aligned_coordinates(np.asarray(Btemp)))
 
-    # Rotate the grids into the instrument frame
-    # vxg, vyg, vzg = fn.inverse_rotate_vector_field_aligned(*np.array([vpara1.flatten(), vperp1.flatten(), vperp2.flatten()]), *fn.field_aligned_coordinates(np.asarray(cdfdata.B_inst.data[tidx])))
-    vxg, vyg, vzg = fn.inverse_rotate_vector_field_aligned(*np.array([vpara1.flatten(), vperp1.flatten(), vperp2.flatten()]), *fn.field_aligned_coordinates(np.asarray(Btemp)))
+        # Now we need to define the 3D vdf
+        vpara1 = np.repeat(XX, NP).reshape(ND,ND,NP) + u_para     # Add in the scalar boost in the parallel direciton!
+        vperp1 = YY[:,:,None] * np.cos(phi0)[None, None, :]
+        vperp2 = YY[:,:,None] * np.sin(phi0)[None, None, :]
 
-    ux, uy, uz = fn.inverse_rotate_vector_field_aligned(*np.array([u_para, 0, 0]), *fn.field_aligned_coordinates(np.asarray(Btemp)))
+        # Now repeat the f_biMax model valeus
+        f_bimax_3D = np.repeat(f_bimax, NP).reshape(-1, NP)
 
-    # Define the SPAN-i grids
-    vel = 13.85*np.sqrt(psp_vdf.energy.data[0,:,:,:])
-    theta = np.radians(psp_vdf.theta.data[0,:,:,:])
-    phi = np.radians(psp_vdf.phi.data[0,:,:,:])
+        # Rotate the grids into the instrument frame
+        # vxg, vyg, vzg = fn.inverse_rotate_vector_field_aligned(*np.array([vpara1.flatten(), vperp1.flatten(), vperp2.flatten()]), *fn.field_aligned_coordinates(np.asarray(cdfdata.B_inst.data[tidx])))
+        vxg, vyg, vzg = fn.inverse_rotate_vector_field_aligned(*np.array([vpara1.flatten(), vperp1.flatten(), vperp2.flatten()]), *fn.field_aligned_coordinates(np.asarray(Btemp)))
 
-    # Define the new grids 
-    vx = vel * np.cos(theta) * np.cos(phi)
-    vy = vel * np.cos(theta) * np.sin(phi)
-    vz = vel * np.sin(theta)
+        ux, uy, uz = fn.inverse_rotate_vector_field_aligned(*np.array([u_para, 0, 0]), *fn.field_aligned_coordinates(np.asarray(Btemp)))
 
-    # Define the points, values and target points
-    points = np.vstack([vxg, vyg, vzg]).T
-    points_target = np.vstack([vx.flatten(), vy.flatten(), vz.flatten()]).T
+        # Define the SPAN-i grids
+        vel = 13.85*np.sqrt(psp_vdf.energy.data[0,:,:,:])
+        theta = np.radians(psp_vdf.theta.data[0,:,:,:])
+        phi = np.radians(psp_vdf.phi.data[0,:,:,:])
 
-    values = f_bimax_3D.flatten()
+        # Define the new grids 
+        vx = vel * np.cos(theta) * np.cos(phi)
+        vy = vel * np.cos(theta) * np.sin(phi)
+        vz = vel * np.sin(theta)
 
-    # Interpolate using linear interpolation
-    f_interp = griddata(points=points, values=values, xi=points_target, method='linear')
-    f_interp = f_interp.reshape(32,8,8)
+        # Define the points, values and target points
+        points = np.vstack([vxg, vyg, vzg]).T
+        points_target = np.vstack([vx.flatten(), vy.flatten(), vz.flatten()]).T
+
+        values = f_bimax_3D.flatten()
+
+        # Interpolate using linear interpolation
+        f_interp = griddata(points=points, values=values, xi=points_target, method='linear')
+        f_interp = f_interp.reshape(32,8,8)
+
+        vdf_inter[i,:,:,:] = f_interp
+        b_span[i,:] = Btemp
+        u_span[i,:] = np.array([ux, uy, uz])
+        print('completed')
+
+    ds = make_synthetic_cdf(np.arange(10), psp_vdf.energy.data[0:10,:,:,:], 
+                            psp_vdf.phi.data[0:10,:,:,:], psp_vdf.theta.data[0:10,:,:,:],
+                            vdf_inter, b_span, u_span)
 
     fig, ax = plt.subplots(1, 3, layout='constrained', figsize=(18,6))
     ax0 = ax[0].tricontourf(grids[:,1], -grids[:,0] + u_para, np.log10(f_bimax + 1) - 30, levels=np.linspace(-22, -18.5, 8))

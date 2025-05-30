@@ -9,7 +9,7 @@ from gdf.src import basis_funcs as basis_fn
 # loading the config file to obtain the desired gvdf dictionary
 current_file_dir = os.path.dirname(__file__)
 # expects that the init file will be in the local directory of this script
-config_file = 'init_plot_setup'
+config_file = 'init_gdf'
 
 # importing the config file
 config = importlib.import_module(config_file, package=current_file_dir)
