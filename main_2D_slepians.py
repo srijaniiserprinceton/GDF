@@ -2,12 +2,13 @@ import sys, importlib
 import numpy as np
 from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt; plt.ion()
+import matplotlib.colors as colors
 
 from gdf.src import hybrid_ubulk
 from gdf.src import functions as fn
 from gdf.src import misc_funcs as misc_fn
 
-N = 12
+N = 16
 
 # config file
 config_file = sys.argv[1]
@@ -63,7 +64,7 @@ Slep2D.gen_Slep_basis(points_idx[sortidx], np.double(N), np.array([xx.flatten(),
 
 # plotting the basis functions inside the domain
 fig, ax = plt.subplots(2, 10, figsize=(15,3), sharex=True, sharey=True)
-for i in range(N):
+for i in range(20):
     row, col = i // 10, i % 10
     ax[row,col].pcolormesh(xx, yy, np.reshape(Slep2D.H[:,i], (49,49), 'C'),
                            cmap='seismic', rasterized=True)
@@ -82,7 +83,7 @@ Slep2D_ = Slep_2D()
 Slep2D_.gen_Slep_basis(points_idx[sortidx], np.double(N), np.array([eval_gridx, eval_gridy]).T)
 
 # clipping off at the Shannon number
-N2D = int(np.sum(Slep2D_.V))
+N2D = None# int(np.sum(Slep2D_.V))
 Slep2D_.G = Slep2D_.G[:,:N2D]
 Slep2D_.H = Slep2D_.H[:,:N2D]
 
@@ -96,11 +97,23 @@ GTG = Slep2D_.G.T @ Slep2D_.G
 coeffs = np.linalg.inv(GTG) @ Slep2D_.G.T @ vdf_data
 
 # reconstructing
-vdfrec = coeffs @ Slep2D.G[:,:N2D].T
+vdfrec = coeffs @ Slep2D.H[:,:N2D].T
+tidx = config.START_INDEX
+
+frec = np.power(10, vdfrec) * gvdf_tstamp.minval[tidx]
+f_data = np.power(10, vdf_data) * gvdf_tstamp.minval[tidx]
+
+cmap = plt.cm.plasma
+
 
 # plotting the reconstructed VDF
 plt.figure(figsize=(8,6), layout='constrained')
-plt.contourf(xx, yy, np.reshape(vdfrec, (49,49), 'C'), levels=np.linspace(0,6.0,20), cmap='plasma')
-plt.colorbar()
-plt.scatter(eval_gridx, eval_gridy, color='k', s=1)
+lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1), int(np.log10(gvdf_tstamp.maxval[tidx])+1), 10)
+norm = colors.BoundaryNorm(lvls, cmap.N)
+ax1 = plt.tricontourf(xx.flatten(), yy.flatten(), np.log10(frec), levels=lvls, cmap='plasma')
+# plt.contourf(xx, yy, np.reshape(vdfrec, (49,49), 'C'), levels=np.linspace(0,6.0,20), cmap='plasma')
+plt.scatter(eval_gridx, eval_gridy, c=np.log10(f_data), s=50, cmap='plasma', norm=norm)
+plt.colorbar(ax1)
 plt.gca().set_aspect('equal')
+plt.xlabel(r'$v_{\perp}$', fontsize=19)
+plt.ylabel(r'$v_{\parallel}$', fontsize=19)

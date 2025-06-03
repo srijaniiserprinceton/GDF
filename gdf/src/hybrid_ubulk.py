@@ -160,9 +160,9 @@ class gyrovdf:
         # max_r = np.nanmax(self.vperp/np.tan(np.radians(self.TH)) - np.abs(self.vpara))
         vpara1 = self.vpara - np.nanmax(self.vpara)
         max_r = np.nanmax(self.vperp[self.nanmask[tidx]]/np.tan(np.radians(self.TH)) + (vpara1[self.nanmask[tidx]]))
-        # self.vshift = max_r + np.nanmax(self.vpara) #np.linalg.norm(self.v_span, axis=1)
+        self.vshift = max_r + np.nanmax(self.vpara) #np.linalg.norm(self.v_span, axis=1)
         # self.vpara -= np.abs(self.vshift)
-        self.vshift = np.linalg.norm(self.v_span, axis=1)[tidx]
+        # self.vshift = np.linalg.norm(self.v_span, axis=1)[tidx]
         self.vpara -= self.vshift
 
         '''

@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 import plasmapy.formulary as form
 import astropy.constants as c
 import astropy.units as u
@@ -90,12 +91,16 @@ def plot_super_resolution(gvdf, tidx, vdf_super, mu, SAVE=False, VDFUNITS=False,
 
     if VDFUNITS:
         f_super = np.power(10, vdf_super) * gvdf.minval[tidx]
-        lvls = np.linspace(int(np.log10(gvdf.minval[tidx]) - 1), int(np.log10(gvdf.maxval[tidx])+1), 20)
+        f_data = np.power(10, gvdf.vdfdata) * gvdf.minval[tidx]
+        lvls = np.linspace(int(np.log10(gvdf.minval[tidx]) - 1), int(np.log10(gvdf.maxval[tidx])+1), 10)
+        cmap = plt.cm.plasma
+        norm = colors.BoundaryNorm(lvls, cmap.N)
         if VSHIFT:
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
-            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
             # ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf.vshift[tidx], color='k', marker='.', s=3)
-            ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - VSHIFT, color='k', marker='.', s=3)
+            # ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - VSHIFT, color='k', marker='.', s=3)
+            plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - VSHIFT, c=np.log10(f_data), s=50, cmap='plasma', norm=norm)
+            # plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan - VSHIFT, c=np.log10(f_data), s=50, cmap='plasma', norm=norm)
             if DENSITY:
                 Bmag = np.linalg.norm(gvdf.b_span[tidx])
                 VA = form.speeds.Alfven_speed(Bmag * u.nT, DENSITY * u.cm**(-3), ion='p+').to(u.km/u.s)
@@ -106,11 +111,15 @@ def plot_super_resolution(gvdf, tidx, vdf_super, mu, SAVE=False, VDFUNITS=False,
         else:
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
             ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], np.log10(f_super[mask]), levels=lvls, cmap='plasma')
-            ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=3)
+            # ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=3)
+            plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=np.log10(f_data), s=50, cmap='plasma', norm=norm)
+            # plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=np.log10(f_data), s=50, cmap='plasma', norm=norm)
     else:
         ax1 = ax.tricontourf(grids[mask,1], grids[mask,0], vdf_super[mask], levels=np.linspace(0,4.0,10), cmap='plasma')
 
-        ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=3)
+        # ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, color='k', marker='.', s=3)
+        plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=(gvdf.vdfdata), s=50, cmap='plasma', norm=norm)
+        # plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=(gvdf.vdfdata), s=50, cmap='plasma', norm=norm)          # Only for testing
     cbar = plt.colorbar(ax1)
     cbar.ax.tick_params(labelsize=18) 
     ax.set_xlabel(r'$v_{\perp}$', fontsize=19)
