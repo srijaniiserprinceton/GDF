@@ -8,7 +8,7 @@ from gdf.src import hybrid_ubulk
 from gdf.src import functions as fn
 from gdf.src import misc_funcs as misc_fn
 
-N = 16
+N = 20
 
 # config file
 config_file = sys.argv[1]
@@ -83,7 +83,7 @@ Slep2D_ = Slep_2D()
 Slep2D_.gen_Slep_basis(points_idx[sortidx], np.double(N), np.array([eval_gridx, eval_gridy]).T)
 
 # clipping off at the Shannon number
-N2D = None# int(np.sum(Slep2D_.V))
+N2D = None #int(np.sum(Slep2D_.V))
 Slep2D_.G = Slep2D_.G[:,:N2D]
 Slep2D_.H = Slep2D_.H[:,:N2D]
 

@@ -9,7 +9,7 @@ from gdf.src import basis_funcs as basis_fn
 # loading the config file to obtain the desired gvdf dictionary
 current_file_dir = os.path.dirname(__file__)
 # expects that the init file will be in the local directory of this script
-config_file = 'init_gdf'
+config_file = 'init_plot_setup'
 
 # importing the config file
 config = importlib.import_module(config_file, package=current_file_dir)
@@ -33,9 +33,10 @@ plt.plot(rgrid, B_i_n[Bsp_idx], 'r', lw=4)
 
 plt.xlim([rmin * 0.95, rmax * 1.05])
 plt.xlabel('Radial grid [km/s]', fontweight='bold')
-plt.ylabel('Bspline (normalized units)', fontweight='bold')
+plt.ylabel('B-spline (normalized units)', fontweight='bold')
 plt.grid(True)
 plt.tight_layout()
+plt.savefig('B-spline.pdf')
 
 # making the 2D vperp-vpara grid and the corresponding 2D rgrid
 NPTS = 1000
@@ -47,29 +48,12 @@ rr  = np.sqrt(xx**2 + yy**2)
 
 Bspline_i_rr = basis_fn.get_Bsplines_scipy(gvdf_tstamp.knots, 3, rr)
 
-#------------- plotting the Slepian grid setup ---------------#
-plt.figure()
-plt.pcolormesh(xx, yy, Bspline_i_rr[Bsp_idx].T, cmap='Reds', rasterized=True, alpha=0.6)
+#------------- plotting the 2D grid setup ---------------#
 # Bspline mask to find which points lie on the represented Bspline
 r_Bspline = rgrid[np.where(B_i_n[Bsp_idx] > 0.1)]
 rmin_Bspline, rmax_Bspline = r_Bspline.min(), r_Bspline.max()
 Bspline_mask = (np.sqrt(gvdf_tstamp.vperp_nonan**2 + gvdf_tstamp.vpara_nonan**2) >= rmin_Bspline) *\
                (np.sqrt(gvdf_tstamp.vperp_nonan**2 + gvdf_tstamp.vpara_nonan**2) <= rmax_Bspline)
-plt.plot(gvdf_tstamp.vperp_nonan[Bspline_mask], gvdf_tstamp.vpara_nonan[Bspline_mask], 'ok')
-plt.plot(gvdf_tstamp.vperp_nonan[~Bspline_mask], gvdf_tstamp.vpara_nonan[~Bspline_mask], '.k')
-# marking the origin
-plt.scatter(0, 0, marker='x', s=40, color='black')
-# drawing the TH degree polar cap
-xvals = np.linspace(0, gvdf_tstamp.vperp_nonan.max(), 100)
-yvals = xvals / np.tan(np.radians(gvdf_tstamp.TH))
-plt.plot(xvals, yvals, '--k')
-plt.plot(np.zeros_like(xvals), np.linspace(0, rmax * 1.05, 100), '--k')
-plt.ylim([None, rmax * 1.05])
-plt.xlim([-50, None])
-plt.gca().set_aspect('equal')
-plt.xlabel(r'$\mathbf{v}_{\perp}$ [km/s]', fontweight='bold')
-plt.ylabel(r'$\mathbf{v}_{||}$ [km/s]', fontweight='bold')
-plt.tight_layout()
 
 # obtaining the smooth Slepian functions on a dense regular grid
 theta_grid = np.linspace(0, 180, 360)
@@ -86,6 +70,29 @@ plt.axvline(gvdf_tstamp.TH, color='red', ls='dashed')
 plt.xlabel(r'$\mathbf{\theta}$ [in degrees]', fontweight='bold')
 plt.ylabel('Slepians (normalized units)', fontweight='bold')
 plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.savefig('Slepian.pdf')
 
+#------------- plotting the Slepian grid setup ---------------#
+plt.rcParams['font.size'] = 7
+plt.figure()
+plt.pcolormesh(xx, yy, Bspline_i_rr[Bsp_idx].T, cmap='Reds', rasterized=True, alpha=0.6)
+plt.plot(gvdf_tstamp.vperp_nonan[Bspline_mask], gvdf_tstamp.vpara_nonan[Bspline_mask], 'ok')
+plt.plot(gvdf_tstamp.vperp_nonan[~Bspline_mask], gvdf_tstamp.vpara_nonan[~Bspline_mask], '.k')
+# marking the origin
+plt.scatter(0, 0, marker='x', s=40, color='black')
+# drawing the TH degree polar cap
+xvals = np.linspace(0, gvdf_tstamp.vperp_nonan.max(), 100)
+yvals = xvals / np.tan(np.radians(gvdf_tstamp.TH))
+plt.plot(xvals, yvals, '--k')
+plt.plot(np.zeros_like(xvals), np.linspace(0, rmax * 1.05, 100), '--k')
+plt.ylim([None, rmax * 1.05])
+plt.xlim([-50, None])
+plt.gca().set_aspect('equal')
+plt.xlabel(r'$\mathbf{v}_{\perp}$ [km/s]', fontweight='bold')
+plt.ylabel(r'$\mathbf{v}_{||}$ [km/s]', fontweight='bold')
+plt.tight_layout()
+plt.savefig('2D_grid.pdf')
 
 
