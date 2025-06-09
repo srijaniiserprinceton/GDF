@@ -1,8 +1,8 @@
 # init_gdf.py
 
 # Define the time range we are running for
-# TRANGE = ['2020-01-26T14:28:00', '2020-01-26T15:30:59']
-TRANGE = ['2022-02-25T16:56:00', '2022-02-25T17:01:00']
+TRANGE = ['2020-01-26T14:28:00', '2020-01-26T15:30:59']
+# TRANGE = ['2022-02-25T16:56:00', '2022-02-25T17:01:00']
 # TRANGE = ['2024-03-30T12:12:00', '2024-03-30T17:30:59']
 # TRANGE = ['2024-09-24T12:12:00', '2024-09-24T17:30:59']
 
@@ -10,7 +10,7 @@ TRANGE = ['2022-02-25T16:56:00', '2022-02-25T17:01:00']
 CREDS = None       # credential file.
 
 # Start and End index
-START_INDEX = 15
+START_INDEX = 0
 NSTEPS = 1 #None
 
 # Core analysis parameters
