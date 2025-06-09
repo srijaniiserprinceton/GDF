@@ -472,6 +472,7 @@ def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101, MCMC = False, MCMC_WALKER
             
             if SAVE_FIGS:
                 fig = corner.corner(flat_samples, labels=labels, show_titles=True)
+                plt.tight_layout()
                 plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
                 plt.close(fig)
 

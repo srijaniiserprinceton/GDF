@@ -3,12 +3,13 @@ import numpy as np
 from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt; plt.ion()
 import matplotlib.colors as colors
+plt.rcParams['font.size'] = 16
 
 from gdf.src import hybrid_ubulk
 from gdf.src import functions as fn
 from gdf.src import misc_funcs as misc_fn
 
-N = 16
+N = 12
 
 # config file
 config_file = sys.argv[1]
@@ -24,11 +25,6 @@ idx = np.unique(tri.convex_hull)
 points_idx = np.flip(points[idx], axis=1)
 angles = np.arctan2(points_idx[:,0], points_idx[:,1]- np.mean(points_idx[:,1]))
 sortidx = np.argsort(angles)
-
-# plotting the points and the boundary
-plt.figure()
-plt.scatter(points_idx[:,0], points_idx[:,1], color='red')
-plt.plot(points_idx[:,0][sortidx], points_idx[:,1][sortidx], 'k')
 
 class Slep_2D:
     def __init__(self):
@@ -63,16 +59,22 @@ Slep2D = Slep_2D()
 Slep2D.gen_Slep_basis(points_idx[sortidx], np.double(N), np.array([xx.flatten(), yy.flatten()]).T)
 
 # plotting the basis functions inside the domain
-fig, ax = plt.subplots(2, 10, figsize=(15,3), sharex=True, sharey=True)
-for i in range(20):
-    row, col = i // 10, i % 10
+fig, ax = plt.subplots(2, 6, figsize=(7,3.1), sharex=True, sharey=True)
+for i in range(12):
+    row, col = i // 6, i % 6
     ax[row,col].pcolormesh(xx, yy, np.reshape(Slep2D.H[:,i], (49,49), 'C'),
                            cmap='seismic', rasterized=True)
     ax[row,col].plot(points_idx[:,0][sortidx], points_idx[:,1][sortidx], 'k')
     ax[row,col].set_aspect('equal')
-    ax[row,col].set_title(r'$\alpha_{%i}$ = '%i + f'{Slep2D.V[i]:.3e}', fontsize=10)
+    ax[row,col].set_title(r'$\mathbf{\alpha_{%i}}$='%(i+1) + f'{Slep2D.V[i]:.3f}', fontsize=10)
+    ax[row,col].tick_params(axis='both', labelsize=7)
+    ax[row,col].tick_params(axis='both', labelsize=7)
 
-plt.subplots_adjust(top=0.95, bottom=0.1, left=0.05, right=0.98, wspace=0.02, hspace=0.02)
+plt.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.98, wspace=0.02, hspace=0.02)
+
+fig.supxlabel(r'$v_{\perp}$', fontsize=12)
+fig.supylabel(r'$v_{\parallel}$', fontsize=12)
+plt.savefig('paper_plots/Slepian_2D_basis.pdf')
 
 # setting up the inversion process
 eval_gridx = np.append(-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan)
@@ -83,7 +85,7 @@ Slep2D_ = Slep_2D()
 Slep2D_.gen_Slep_basis(points_idx[sortidx], np.double(N), np.array([eval_gridx, eval_gridy]).T)
 
 # clipping off at the Shannon number
-N2D = None# int(np.sum(Slep2D_.V))
+N2D = None #int(np.sum(Slep2D_.V))
 Slep2D_.G = Slep2D_.G[:,:N2D]
 Slep2D_.H = Slep2D_.H[:,:N2D]
 
@@ -104,16 +106,27 @@ frec = np.power(10, vdfrec) * gvdf_tstamp.minval[tidx]
 f_data = np.power(10, vdf_data) * gvdf_tstamp.minval[tidx]
 
 cmap = plt.cm.plasma
-
-
-# plotting the reconstructed VDF
-plt.figure(figsize=(8,6), layout='constrained')
-lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1), int(np.log10(gvdf_tstamp.maxval[tidx])+1), 10)
+lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
+                   int(np.log10(gvdf_tstamp.maxval[tidx])+1), 10)
 norm = colors.BoundaryNorm(lvls, cmap.N)
-ax1 = plt.tricontourf(xx.flatten(), yy.flatten(), np.log10(frec), levels=lvls, cmap='plasma')
-# plt.contourf(xx, yy, np.reshape(vdfrec, (49,49), 'C'), levels=np.linspace(0,6.0,20), cmap='plasma')
-plt.scatter(eval_gridx, eval_gridy, c=np.log10(f_data), s=50, cmap='plasma', norm=norm)
-plt.colorbar(ax1)
-plt.gca().set_aspect('equal')
-plt.xlabel(r'$v_{\perp}$', fontsize=19)
-plt.ylabel(r'$v_{\parallel}$', fontsize=19)
+
+xmagmax = eval_gridx.max() * 1.12
+
+# plotting the points and the boundary
+fig, ax = plt.subplots(1, 2, figsize=(7.5,3.5), sharey=True)
+ax[0].plot(points_idx[:,0][sortidx], points_idx[:,1][sortidx], '--k')
+ax[0].scatter(eval_gridx, eval_gridy, c=np.log10(f_data), s=50, cmap='plasma', norm=norm)
+ax[0].set_aspect('equal')
+ax[0].set_xlim([-xmagmax, xmagmax])
+
+ax[1].plot(points_idx[:,0][sortidx], points_idx[:,1][sortidx], '--w')
+ax1 = ax[1].tricontourf(xx.flatten(), yy.flatten(), np.log10(frec), levels=lvls, cmap='plasma')
+ax[1].scatter(eval_gridx, eval_gridy, c=np.log10(f_data), s=50, cmap='plasma', norm=norm)
+ax[1].set_aspect('equal')
+ax[1].set_xlim([-xmagmax, xmagmax])
+
+fig.supxlabel(r'$v_{\perp}$', fontsize=19)
+fig.supylabel(r'$v_{\parallel}$', fontsize=19)
+
+plt.subplots_adjust(top=0.98, bottom=0.18, left=0.14, right=0.98, wspace=0.05, hspace=0.05)
+plt.savefig('paper_plots/Sleprec_comparison.pdf')
