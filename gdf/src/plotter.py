@@ -4,6 +4,8 @@ import matplotlib.colors as colors
 import plasmapy.formulary as form
 import astropy.constants as c
 import astropy.units as u
+from matplotlib import ticker
+plt.rcParams['font.size'] = 16
 plt.ion()
 
 def plot_span_vs_rec_scatter(tidx, gvdf, vdf_data, vdf_rec):
@@ -189,3 +191,77 @@ def plot_Lcurve_knee(tidx, model_misfit, data_misfit, knee_idx, mu, SAVE=False):
     if(SAVE):
         plt.savefig(f'./Figures/kneeL/kneeL_{tidx}.pdf')
         plt.close(fig)
+
+def plot_CartSlep(xx, yy, CartSlep, tidx, ext='png'):
+    # making the alpha arrays for even and odd functions
+    # ea = even alpha, oa = odd alpha
+    ea, oa = 1.0, 0.3
+    alpha_arr = np.array([ea, ea, oa,
+                          oa, ea, ea,
+                          oa, ea, ea,
+                          oa, ea, oa])
+
+    # plotting the basis functions inside the domain
+    fig, ax = plt.subplots(4, 3, figsize=(4,6.2), sharex=True, sharey=True)
+    for i in range(12):
+        row, col = i // 3, i % 3
+        ax[row,col].pcolormesh(xx, yy, np.reshape(CartSlep.H[:,i], (49,49), 'C'),
+                            cmap='seismic', rasterized=True, alpha=alpha_arr[i])
+        ax[row,col].plot(CartSlep.XY[:,0], CartSlep.XY[:,1], 'k', alpha=alpha_arr[i])
+        ax[row,col].set_aspect('equal')
+        ax[row,col].set_title(r'$\mathbf{\alpha_{%i}}$='%(i+1) + f'{CartSlep.V[i]:.3f}', fontsize=10)
+        ax[row,col].tick_params(axis='both', labelsize=7)
+        ax[row,col].tick_params(axis='both', labelsize=7)
+
+    plt.subplots_adjust(top=0.97, bottom=0.06, left=0.15, right=0.98, wspace=0.1, hspace=0.1)
+
+    ax[3,1].set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=12)
+    fig.supylabel(r'$v_{\parallel}$ [km/s]', fontsize=12)
+    plt.savefig(f'Figures/CartSlep/basis_tidx={tidx}.{ext}')
+    plt.close()
+
+def plot_supres_CartSlep(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supres, tidx, ext='png'):
+    # the SPAN data grids in FAC
+    span_gridx = np.append(-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan)
+    span_gridy = np.append(gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan)
+    xmagmax = span_gridx.max() * 1.12
+
+    # making the colorbar norm function
+    cmap = plt.cm.plasma
+    lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
+                       int(np.log10(gvdf_tstamp.maxval[tidx]) + 1), 10)
+    norm = colors.BoundaryNorm(lvls, ncolors=cmap.N)
+
+    # plotting the points and the boundary
+    fig, ax = plt.subplots(2, 1, figsize=(4.7,7.5), sharey=True)
+    ax[0].plot(CartSlep.XY[:,0], CartSlep.XY[:,1], '--k')
+    ax[0].scatter(span_gridx, span_gridy, c=np.log10(f_data), s=50,
+                  cmap='plasma', norm=norm, edgecolor='k', linewidths=0.5)
+    ax[0].set_aspect('equal')
+    ax[0].set_xlim([-xmagmax, xmagmax])
+    ax[0].text(0.02, 0.94, "(A)", transform=ax[0].transAxes, fontsize=12, fontweight='bold',
+               bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
+
+    ax[1].plot(CartSlep.XY[:,0], CartSlep.XY[:,1], '--w')
+    im = ax[1].tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres), levels=lvls, cmap='plasma')
+    ax[1].scatter(span_gridx, span_gridy, c=np.log10(f_data), s=50,
+                  cmap='plasma', norm=norm, edgecolor='k', linewidths=0.5)
+    ax[1].set_aspect('equal')
+    ax[1].set_xlim([-xmagmax, xmagmax])
+    ax[1].text(0.02, 0.94, "(B)", transform=ax[1].transAxes, fontsize=12, fontweight='bold',
+            bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
+
+    ax[1].set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
+    fig.supylabel(r'$v_{\parallel}$ [km/s]', fontsize=19)
+
+    cax = fig.add_axes([ax[0].get_position().x0 + 0.06, ax[0].get_position().y1+0.05,
+                        ax[0].get_position().x1 - ax[0].get_position().x0, 0.02])
+    cbar = fig.colorbar(im, cax=cax, orientation='horizontal', location='top')
+    cbar.ax.tick_params(labelsize=14)
+    tick_locator = ticker.MaxNLocator(integer=True)
+    cbar.locator = tick_locator
+    cbar.update_ticks()
+
+    plt.subplots_adjust(top=0.92, bottom=0.1, left=0.14, right=1.0, wspace=0.1, hspace=0.15)
+    plt.savefig(f'Figures/super_res_CartSlep/tidx={tidx}.{ext}')
+    plt.close()

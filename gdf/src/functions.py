@@ -7,6 +7,8 @@ import cdflib
 import glob
 from scipy.integrate import simpson as simps
 from sklearn.linear_model import LinearRegression
+from scipy.spatial import Delaunay
+import matplotlib.pyplot as plt; plt.ion(); plt.rcParams['font.size'] = 16
 
 from datetime import datetime
 from pathlib import Path
@@ -442,3 +444,59 @@ def geometric_knee(x, y):
     proj_points = np.outer(proj_lens, line_vec_norm) + np.array([x[0], y[0]])
     distances = np.linalg.norm(point_vecs - (proj_points - np.array([x[0], y[0]])), axis=1)
     return np.argmax(distances)
+
+def merge_bins(bin_edges, counts, threshold):
+    merged_edges = []
+    merged_counts = []
+
+    current_count = 0
+    start_edge = bin_edges[0]
+
+    for i in range(len(counts)):
+        current_count += counts[i]
+
+        # If merged count is at or above threshold, finalize the current bin
+        if current_count >= threshold:
+            end_edge = bin_edges[i + 1]
+            merged_edges.append((start_edge, end_edge))
+            merged_counts.append(current_count)
+            if i + 1 < len(bin_edges):  # Prepare for next merge
+                start_edge = bin_edges[i + 1]
+            current_count = 0
+        # else continue merging into the next bin
+
+    # Handle any remaining counts (less than threshold at end)
+    if current_count > 0:
+        if merged_edges:
+            # Merge remaining with last bin
+            last_start, last_end = merged_edges[-1]
+            merged_edges[-1] = (last_start, bin_edges[-1])
+            merged_counts[-1] += current_count
+        else:
+            # If everything was under threshold, merge all into one
+            merged_edges.append((bin_edges[0], bin_edges[-1]))
+            merged_counts.append(current_count)
+
+    return merged_edges, merged_counts
+
+def find_convexhull_boundary(xpoints, ypoints, plothull=True):
+    points = np.vstack([xpoints, ypoints]).T
+    tri = Delaunay(points)
+    idx = np.unique(tri.convex_hull)
+    points_idx = np.flip(points[idx], axis=1)
+    angles = np.arctan2(points_idx[:,0], points_idx[:,1] - np.mean(points_idx[:,1]))
+    sortidx = np.argsort(angles)
+    points_sorted = points_idx[sortidx]
+    boundary_points = np.vstack([points_sorted, points_sorted[0]])
+
+    if(plothull):
+        plt.figure()
+        plt.scatter(ypoints, xpoints, color='k')
+        plt.plot(boundary_points[:,0], boundary_points[:,1], '--r')
+        plt.gca().set_aspect('equal')
+        plt.xlabel('X', fontweight='bold', fontsize=14)
+        plt.ylabel('Y', fontweight='bold', fontsize=14)
+        plt.tight_layout()
+
+    # returned points can be simply plotted to give a closed contour circumscribing all points
+    return boundary_points
