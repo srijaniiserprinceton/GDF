@@ -133,9 +133,9 @@ if __name__ == '__main__':
     b_span = np.zeros((10, 3))
     u_span = np.zeros((10, 3))
 
-    for i, val in enumerate(values[8:9]):
+    for i, val in enumerate(values):
         print(f"{i} has a value of {val}")
-        Btemp = np.array([0.95, val, 0])
+        Btemp = np.array([0.95, val, -0.2])
         u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*np.array(cdfdata.vcm.data[tidx]), *fn.field_aligned_coordinates(np.asarray(Btemp)))
 
         # Now we need to define the 3D vdf
@@ -177,25 +177,28 @@ if __name__ == '__main__':
         u_span[i,:] = np.array([ux, uy, uz])
         print('completed')
 
+
+        fig, ax = plt.subplots(1, 3, layout='constrained', figsize=(18,6))
+        ax0 = ax[0].tricontourf(grids[:,1], -grids[:,0] + u_para, np.log10(f_bimax + 1) - 30, levels=np.linspace(-22, -18.5, 8))
+        ax[0].set_xlabel(r'$v_{\perp}$')
+        ax[0].set_ylabel(r'$v_{\parallel}$')
+
+        vidx, tidx, pidx = np.unravel_index(np.nanargmax(f_interp), (NP,8,8))
+        ax[1].scatter(vx[:,tidx,:], vy[:,tidx,:], color='k', marker='.')
+        ax1 = ax[1].contourf(vx[:,tidx,:], vy[:,tidx,:], np.log10(f_interp[:,tidx,:] + 1) - 30, levels=np.linspace(-22, -18.5, 8))
+        
+        ax[2].scatter(vx[:,:,pidx], vz[:,:,pidx], color='k', marker='.')
+        ax2 = ax[2].contourf(vx[:,:,pidx], vz[:,:,pidx], np.log10(f_interp[:,:,pidx] + 1) - 30, levels=np.linspace(-22, -18.5, 8))
+
+        ax[1].set_xlabel(r'$v_x$')
+        ax[1].set_ylabel(r'$v_y$')
+        ax[2].set_xlabel(r'$v_x$')
+        ax[2].set_ylabel(r'$v_z$')
+
+        plt.colorbar(ax2)
+
     ds = make_synthetic_cdf(np.arange(10), psp_vdf.energy.data[0:10,:,:,:], 
                             psp_vdf.phi.data[0:10,:,:,:], psp_vdf.theta.data[0:10,:,:,:],
                             vdf_inter, b_span, u_span)
 
-    fig, ax = plt.subplots(1, 3, layout='constrained', figsize=(18,6))
-    ax0 = ax[0].tricontourf(grids[:,1], -grids[:,0] + u_para, np.log10(f_bimax + 1) - 30, levels=np.linspace(-22, -18.5, 8))
-    ax[0].set_xlabel(r'$v_{\perp}$')
-    ax[0].set_ylabel(r'$v_{\parallel}$')
 
-    vidx, tidx, pidx = np.unravel_index(np.nanargmax(f_interp), (NP,8,8))
-    ax[1].scatter(vx[:,tidx,:], vy[:,tidx,:], color='k', marker='.')
-    ax1 = ax[1].contourf(vx[:,tidx,:], vy[:,tidx,:], np.log10(f_interp[:,tidx,:] + 1) - 30, levels=np.linspace(-22, -18.5, 8))
-    
-    ax[2].scatter(vx[:,:,pidx], vz[:,:,pidx], color='k', marker='.')
-    ax2 = ax[2].contourf(vx[:,:,pidx], vz[:,:,pidx], np.log10(f_interp[:,:,pidx] + 1) - 30, levels=np.linspace(-22, -18.5, 8))
-
-    ax[1].set_xlabel(r'$v_x$')
-    ax[1].set_ylabel(r'$v_y$')
-    ax[2].set_xlabel(r'$v_x$')
-    ax[2].set_ylabel(r'$v_z$')
-
-    plt.colorbar(ax2)
