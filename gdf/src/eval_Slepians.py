@@ -47,6 +47,28 @@ class Slep_transverse:
         for i in range(len(self.V)):
             self.norm[i] = fn.norm_eval_theta(S_alpha_theta[i], S_alpha_theta[i], theta_arr)
 
+class Slep_2D_Cartesian:
+    def __init__(self):
+        self.slep_dir = fn.read_config()[0]  
+        self.C = None       # Gives us the tapers for 1D Legendre Polynomials
+        self.V = None       # Concentration coefficient
+        self.norm = None    # The norm for the Slepian function
+
+        #--Starting Matlab engine to get the Slepian functions---#
+        import matlab.engine as matlab
+        self.eng = matlab.start_matlab()
+        s = self.eng.genpath(self.slep_dir)
+        self.eng.addpath(s, nargout=0)
+    
+    def gen_Slep_basis(self, XY, N, XYP):
+        [G,H,V,K,XYP,XY,A] = self.eng.localization2D(XY, N, [], 'GL', [], [], np.array([[10.,10.]]), XYP, nargout=7)
+        self.G = np.asarray(G)
+        self.H = np.asarray(H)
+        self.V = np.asarray(V).squeeze()
+        self.A = A
+        self.K = K
+        self.XY = np.asarray(XY)
+
 if __name__=='__main__':
     # defining the concentration problem to obtain the Slepian tapers
     TH = 75
