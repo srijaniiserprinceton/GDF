@@ -218,7 +218,7 @@ def plot_CartSlep(xx, yy, CartSlep, tidx, ext='png'):
     ax[3,1].set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=12)
     fig.supylabel(r'$v_{\parallel}$ [km/s]', fontsize=12)
     plt.savefig(f'Figures/CartSlep/basis_tidx={tidx}.{ext}')
-    plt.close()
+    # plt.close()
 
 def plot_supres_CartSlep(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supres, tidx, ext='png'):
     # the SPAN data grids in FAC
@@ -245,7 +245,7 @@ def plot_supres_CartSlep(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supres, tidx, 
     ax[1].plot(CartSlep.XY[:,0], CartSlep.XY[:,1], '--w')
     im = ax[1].tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres), levels=lvls, cmap='plasma')
     ax[1].scatter(span_gridx, span_gridy, c=np.log10(f_data), s=50,
-                  cmap='plasma', norm=norm, edgecolor='k', linewidths=0.5)
+                  cmap='plasma', norm=norm)#, edgecolor='k', linewidths=0.5)
     ax[1].set_aspect('equal')
     ax[1].set_xlim([-xmagmax, xmagmax])
     ax[1].text(0.02, 0.94, "(B)", transform=ax[1].transAxes, fontsize=12, fontweight='bold',
@@ -264,4 +264,4 @@ def plot_supres_CartSlep(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supres, tidx, 
 
     plt.subplots_adjust(top=0.92, bottom=0.1, left=0.14, right=1.0, wspace=0.1, hspace=0.15)
     plt.savefig(f'Figures/super_res_CartSlep/tidx={tidx}.{ext}')
-    plt.close()
+    # plt.close()

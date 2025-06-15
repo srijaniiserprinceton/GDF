@@ -36,3 +36,4 @@ dependencies:
     - jax==0.4.34
     - pyspedas
     - cdflib==0.4.9
+    - sphinx==8.2.3
