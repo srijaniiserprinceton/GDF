@@ -42,17 +42,10 @@ def get_model_params(cdfdata, tidx, grids):
     # get the magnetic field data
     b_inst = cdfdata.B_inst.data[tidx]
 
-    # Rotate vel into field aligned coordinates
-    u_para_1, u_perp1_1, u_perp2_1 = fn.rotate_vector_field_aligned(*np.array(vel), *fn.field_aligned_coordinates(np.asarray(b_inst)))
-
-    uperp_1 = np.sqrt(u_perp1_1**2 + u_perp2_1**2)
-
-    # Define the centroid of the beam
-    u_para_2, u_perp1_2, u_perp2_2 = np.array([u_para_1 + vdrift, u_perp1_1, u_perp2_1])
-
-    print(u_para_1, u_para_2)
-
-    uperp_2 = np.sqrt(u_perp1_2**2 + u_perp2_2**2)
+    # Since we are making a synthetic model, we will build the VDF centered at the core
+    # of the 
+    u_para_1 = 0
+    u_para_2 = u_para_1 + vdrift
 
     # Core
     f_core = biMax_model(vpara, vperp, den_core * 1e15, u_para_1, wperp_1.value, wpara_1.value)
@@ -116,7 +109,7 @@ if __name__ == '__main__':
     ND = 50
     NP = 32
 
-    vpara = np.linspace(-1000,0,ND)
+    vpara = np.linspace(-500,500,ND)
     vperp = np.linspace(0,1000,ND)
     phi0 = np.linspace(0, 2*np.pi, NP)
 
@@ -127,19 +120,22 @@ if __name__ == '__main__':
 
     # Get the u_parallel offset.
     #u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*np.array(cdfdata.vcm.data[tidx]), *fn.field_aligned_coordinates(np.asarray(cdfdata.B_inst.data[tidx])))
-    values = np.linspace(-0.8, 0.2, 10)
+    Nsteps = 15
+    # values = np.linspace(-1.0, 1.0, Nsteps)
+    theta = np.linspace(np.pi/2, -np.pi/2, Nsteps)
 
-    vdf_inter = np.zeros((10, 32, 8, 8))
-    b_span = np.zeros((10, 3))
-    u_span = np.zeros((10, 3))
+    vdf_inter = np.zeros((Nsteps, 32, 8, 8))
+    b_span = np.zeros((Nsteps, 3))
+    u_span = np.zeros((Nsteps, 3))
 
-    for i, val in enumerate(values):
+    for i, val in enumerate(theta[9:10]):
         print(f"{i} has a value of {val}")
-        Btemp = np.array([0.95, val, -0.2])
+        Btemp = np.array([np.cos(val), np.sin(val), 0.2])
+        # Btemp = np.array([1,-1,0.2])
         u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*np.array(cdfdata.vcm.data[tidx]), *fn.field_aligned_coordinates(np.asarray(Btemp)))
 
         # Now we need to define the 3D vdf
-        vpara1 = np.repeat(XX, NP).reshape(ND,ND,NP) + u_para     # Add in the scalar boost in the parallel direciton!
+        vpara1 = np.repeat(XX, NP).reshape(ND,ND,NP)    # Add in the scalar boost in the parallel direciton!
         vperp1 = YY[:,:,None] * np.cos(phi0)[None, None, :]
         vperp2 = YY[:,:,None] * np.sin(phi0)[None, None, :]
 
@@ -150,26 +146,33 @@ if __name__ == '__main__':
         # vxg, vyg, vzg = fn.inverse_rotate_vector_field_aligned(*np.array([vpara1.flatten(), vperp1.flatten(), vperp2.flatten()]), *fn.field_aligned_coordinates(np.asarray(cdfdata.B_inst.data[tidx])))
         vxg, vyg, vzg = fn.inverse_rotate_vector_field_aligned(*np.array([vpara1.flatten(), vperp1.flatten(), vperp2.flatten()]), *fn.field_aligned_coordinates(np.asarray(Btemp)))
 
-        ux, uy, uz = fn.inverse_rotate_vector_field_aligned(*np.array([u_para, 0, 0]), *fn.field_aligned_coordinates(np.asarray(Btemp)))
+        # Add the shift to vxg, vyg, vzg so that we are in the correct instrument frame. 
+        uxg, uyg, uzg = cdfdata.vcm.data[tidx]
+
+        vxg -= 500
+        vyg += 300
+        vzg -= 0
+
+        ux, uy, uz = fn.inverse_rotate_vector_field_aligned(*np.array([u_para, u_perp1, u_perp2]), *fn.field_aligned_coordinates(np.asarray(Btemp)))
 
         # Define the SPAN-i grids
         vel = 13.85*np.sqrt(psp_vdf.energy.data[0,:,:,:])
-        theta = np.radians(psp_vdf.theta.data[0,:,:,:])
-        phi = np.radians(psp_vdf.phi.data[0,:,:,:])
+        theta = np.radians(psp_vdf.theta.data[0,:,:,:]) + np.pi/2.
+        phi = np.radians(psp_vdf.phi.data[0,:,:,:]) #- np.pi
 
         # Define the new grids 
-        vx = vel * np.cos(theta) * np.cos(phi)
-        vy = vel * np.cos(theta) * np.sin(phi)
-        vz = vel * np.sin(theta)
+        vx = vel * np.sin(theta) * np.cos(phi)
+        vy = vel * np.sin(theta) * np.sin(phi)
+        vz = vel * np.cos(theta)
 
         # Define the points, values and target points
         points = np.vstack([vxg, vyg, vzg]).T
         points_target = np.vstack([vx.flatten(), vy.flatten(), vz.flatten()]).T
 
-        values = f_bimax_3D.flatten()
+        fvalues = f_bimax_3D.flatten()
 
         # Interpolate using linear interpolation
-        f_interp = griddata(points=points, values=values, xi=points_target, method='linear')
+        f_interp = griddata(points=points, values=fvalues, xi=points_target, method='linear')
         f_interp = f_interp.reshape(32,8,8)
 
         vdf_inter[i,:,:,:] = f_interp
@@ -179,16 +182,16 @@ if __name__ == '__main__':
 
 
         fig, ax = plt.subplots(1, 3, layout='constrained', figsize=(18,6))
-        ax0 = ax[0].tricontourf(grids[:,1], -grids[:,0] + u_para, np.log10(f_bimax + 1) - 30, levels=np.linspace(-22, -18.5, 8))
+        ax0 = ax[0].tricontourf(grids[:,1], -grids[:,0], np.log10(f_bimax + 1) - 30, levels=np.linspace(-24, -17, 10), cmap='plasma')
         ax[0].set_xlabel(r'$v_{\perp}$')
         ax[0].set_ylabel(r'$v_{\parallel}$')
 
         vidx, tidx, pidx = np.unravel_index(np.nanargmax(f_interp), (NP,8,8))
         ax[1].scatter(vx[:,tidx,:], vy[:,tidx,:], color='k', marker='.')
-        ax1 = ax[1].contourf(vx[:,tidx,:], vy[:,tidx,:], np.log10(f_interp[:,tidx,:] + 1) - 30, levels=np.linspace(-22, -18.5, 8))
+        ax1 = ax[1].contourf(vx[:,tidx,:], vy[:,tidx,:], np.log10(f_interp[:,tidx,:] + 1) - 30, levels=np.linspace(-24, -17, 10), cmap='plasma')
         
         ax[2].scatter(vx[:,:,pidx], vz[:,:,pidx], color='k', marker='.')
-        ax2 = ax[2].contourf(vx[:,:,pidx], vz[:,:,pidx], np.log10(f_interp[:,:,pidx] + 1) - 30, levels=np.linspace(-22, -18.5, 8))
+        ax2 = ax[2].contourf(vx[:,:,pidx], vz[:,:,pidx], np.log10(f_interp[:,:,pidx] + 1) - 30, levels=np.linspace(-24, -17, 10), cmap='plasma')
 
         ax[1].set_xlabel(r'$v_x$')
         ax[1].set_ylabel(r'$v_y$')
@@ -196,9 +199,11 @@ if __name__ == '__main__':
         ax[2].set_ylabel(r'$v_z$')
 
         plt.colorbar(ax2)
+        plt.savefig(f'/home/michael/Research/GDF/Figures/biMax_figs/{i}.png')
+        plt.close()
 
-    ds = make_synthetic_cdf(np.arange(10), psp_vdf.energy.data[0:10,:,:,:], 
-                            psp_vdf.phi.data[0:10,:,:,:], psp_vdf.theta.data[0:10,:,:,:],
+    ds = make_synthetic_cdf(np.arange(Nsteps), psp_vdf.energy.data[0:Nsteps,:,:,:], 
+                            psp_vdf.phi.data[0:Nsteps,:,:,:], psp_vdf.theta.data[0:Nsteps,:,:,:],
                             vdf_inter, b_span, u_span)
 
 

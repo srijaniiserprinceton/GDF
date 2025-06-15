@@ -528,7 +528,7 @@ def run(config):
     creds = config.CREDS
     creds  = misc_fn.credential_reader(config.CREDS)
 
-    psp_vdf = cdflib.cdf_to_xarray('./bimax_vdf_2.cdf')  
+    psp_vdf = cdflib.cdf_to_xarray(config.FILENAME)  
 
     gvdf_tstamp = gyrovdf(psp_vdf, trange,
                           Lmax=config.LMAX,
