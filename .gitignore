@@ -17,4 +17,6 @@ __pycache__
 *.json
 *.lprof
 *.egg-info
-docs/
+docs/build/
+docs/source/.doctrees/
+docs/source/.buildinfo
