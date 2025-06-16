@@ -5,6 +5,17 @@ from scipy.integrate import simps
 NAX = np.newaxis
 
 def get_Bsplines_scipy(knots, p, r_grid):
+    """Add two numbers.
+
+    Args
+    ----
+        a (int): First number.
+        b (int): Second number.
+
+    Returns
+    -------
+        int: The sum of the two numbers.
+    """
     t = np.array([knots[0] for i in range(p)])
     t = np.append(t, knots)
     t = np.append(t, np.array([knots[-1] for i in range(p)]))

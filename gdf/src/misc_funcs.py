@@ -3,6 +3,15 @@ import json
 import numpy as np
 
 def load_config(file_path):
+    """
+    Return a list of random ingredients as strings.
+
+    :param kind: Optional "kind" of ingredients.
+    :type kind: list[str] or None
+    :raise lumache.InvalidKindError: If the kind is invalid.
+    :return: The ingredients list.
+    :rtype: list[str]
+    """
     with open(file_path, 'r') as file:
         config = json.load(file)
     return config
