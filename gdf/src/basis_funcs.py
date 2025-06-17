@@ -5,16 +5,18 @@ from scipy.integrate import simps
 NAX = np.newaxis
 
 def get_Bsplines_scipy(knots, p, r_grid):
-    """Add two numbers.
+    """Generates the B-splines $\beta_i(r)$.
 
     Args
     ----
-        a (int): First number.
-        b (int): Second number.
+        knots (array-like): Array of knot locations in [km/s] space.
+        p (int): Order of the B-splines.
+        r_grid (array_like): Grid on which the B-spline is evaluated.
 
     Returns
     -------
-        int: The sum of the two numbers.
+        B_i_n (array_like): The final set of B-splines of
+                            shape (knots x radial grid).
     """
     t = np.array([knots[0] for i in range(p)])
     t = np.append(t, knots)
