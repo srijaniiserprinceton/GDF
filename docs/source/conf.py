@@ -22,8 +22,12 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx_copybutton',
+    'sphinx.ext.mathjax',
+    'numpydoc',
 ]
-# extensions += ['numpydoc']
+
+numpydoc_show_class_members = False
+numpydoc_class_members_toctree = False
 
 templates_path = ['_templates']
 exclude_patterns = []
@@ -54,3 +58,5 @@ html_static_path = ['_static']
 
 import sys, os
 sys.path.insert(0, os.path.abspath('../../gdf/src'))
+
+autodoc_typehints = 'none'

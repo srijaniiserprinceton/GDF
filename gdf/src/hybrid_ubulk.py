@@ -215,6 +215,7 @@ class gyrovdf:
                 # TODO: Replace with a grid function!
                 x = np.linspace(0, 2000, NPTS)
                 y = np.linspace(-1000, 1000, NPTS)
+                self.super_vpara = x * 1.0
 
                 xx, yy = np.meshgrid(x, y, indexing='ij')
                 self.grid_points = np.vstack([xx.flatten(), yy.flatten()]).T
@@ -247,7 +248,7 @@ class gyrovdf:
                 G_g = self.G_k_n @ self.G_k_n.T
                 
                 # Setup the BSpline regularization
-                D_i_i = basis_fn.get_Bspline_second_derivative(self.knots, self.p)
+                D_i_i = basis_fn.get_Bspline_second_derivative(self.knots, self.p, self.super_vpara)
 
                 # Augment the D-matrix
                 self.D = np.kron(D_i_i, np.diag(self.Slep.norm))
