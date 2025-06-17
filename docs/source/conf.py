@@ -21,6 +21,7 @@ extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
+    'sphinx_copybutton',
 ]
 # extensions += ['numpydoc']
 

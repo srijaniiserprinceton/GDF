@@ -6,16 +6,20 @@
 GDF documentation
 =================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+GDF or Gyrotorpic Distribution Functions are a commonly used approximation for
+solar wind velocity distribution functions (VDFs). This repository uses Slepian
+basis function based reconstructions to recover distribution functions from
+Parker Solar Probe's SPAN-Ai instrument. This repository is an extension of vdfit
+which was designed for reconstructing agyritropic MMS and Solar Orbiter VDFs 
+to the PSP measurements.
 
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-
+   
    install
+   getting_started
    basis_functions
    polar_cap
    cartesian
