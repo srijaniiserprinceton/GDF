@@ -20,3 +20,4 @@ __pycache__
 docs/build/
 docs/source/.doctrees/
 docs/source/.buildinfo
+docs/source/_static

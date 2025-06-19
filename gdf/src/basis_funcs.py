@@ -12,7 +12,7 @@ def get_Bsplines_scipy(knots, p, r_grid):
 
     Parameters
     ----------
-    knots : array-like, shape (n,)
+    knots : array-like
         Array of knot locations in velocity phase space and units of [km/s].
 
     p : int
@@ -64,11 +64,37 @@ def get_Bspline_second_derivative(knots, p, r_grid):
     d2r_B_i_r_sqrd = np.einsum('ij, lj->ilj', d2r_B_i_r, d2r_B_i_r)
 
     # Integrate
-    d2B_i_i = simps(d2r_B_i_r_sqrd * (r**2)[NAX,NAX,:], x=r_grid, axis=-1)
+    d2B_i_i = simps(d2r_B_i_r_sqrd * (r_grid**2)[NAX,NAX,:], x=r_grid, axis=-1)
 
     return(d2B_i_i)
 
 def get_Slepians_scipy(slep_coeffs, theta_grid, Lmax, N2D=None):
+    r"""
+    Evaluates polar-cap Slepian functions :math:`S_{\alpha}(\theta)` on a 
+    desired :math:`\theta` array using the pre-computed localization coefficients
+    :math:`\mathbf{C}(\Theta, L_{\rm{max}})` for a given polar cap angle :math:`\Theta` and maximum
+    angular degree :math:`L_{\rm{max}}`.
+
+    Parameters
+    ----------
+    slep_coeffs : array-like
+        Localization coefficients computed from sdwcap.mat from F.J.Simons repository 
+        `slepian_alpha`. This is computed for a choice of :math:`\Theta` and :math:`L_{\rm{max}}`.
+
+    theta_grid : array-like
+        The grid of angles in degrees where we want to evaluate the polar-cap Slepian basis.
+
+    Lmax : int
+        The maximum angular degree corresponding to the `slep_coeffs`.
+
+    N2D : int, optional
+        Optional argument indicating the number of basis functions to be returned.
+
+    Returns
+    -------
+    S_alpha_n : array-like
+        The array of 1D Slepian functions of a polar cap of shape (Nbasis, Ntheta).
+    """
     S_alpha_n = None
     theta_nonan = np.radians(theta_grid)
 

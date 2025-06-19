@@ -26,7 +26,7 @@ def inversion_CartSlep(gvdf_tstamp, N):
     CartSlep.gen_Slep_basis(boundary_points, np.double(N), np.array([eval_gridx, eval_gridy]).T)
 
     # clipping off at the Shannon number
-    N2D = int(np.sum(CartSlep.V))
+    N2D = None #int(np.sum(CartSlep.V))
     CartSlep.G = CartSlep.G[:,:N2D]
     CartSlep.H = CartSlep.H[:,:N2D]
 
@@ -52,7 +52,7 @@ def super_resolution(coeffs, boundary_points, N, plotSlep=False):
     CartSlep.gen_Slep_basis(boundary_points, np.double(N), np.array([xx.flatten(), yy.flatten()]).T)
 
     # clipping off at the Shannon number
-    N2D = int(np.sum(CartSlep.V))
+    N2D = None #int(np.sum(CartSlep.V))
 
     # constructing the super-resolved grid
     vdfrec = coeffs @ CartSlep.H[:,:N2D].T
@@ -116,7 +116,7 @@ def get_Nbasis(Atotal, Acells, P, VC, nlargest=3):
     K = (np.pi - 15*np.pi/180)/VC * (P[:,0] / np.sqrt(2*Acells))
     N = K**2 * Atotal / (4 * np.pi)
 
-    return np.min([np.mean(N[:nlargest*2]), 12])
+    return np.min([np.mean(N[:nlargest*2]), 14])
 
 if __name__=='__main__':
     # importing the config file provided at command line

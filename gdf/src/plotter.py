@@ -226,6 +226,8 @@ def plot_supres_CartSlep(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supres, tidx, 
     span_gridy = np.append(gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan)
     xmagmax = span_gridx.max() * 1.12
 
+    Nspangrids = len(span_gridx)
+
     # making the colorbar norm function
     cmap = plt.cm.plasma
     lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
@@ -244,7 +246,7 @@ def plot_supres_CartSlep(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supres, tidx, 
 
     ax[1].plot(CartSlep.XY[:,0], CartSlep.XY[:,1], '--w')
     im = ax[1].tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres), levels=lvls, cmap='plasma')
-    ax[1].scatter(span_gridx, span_gridy, c=np.log10(f_data), s=50,
+    ax[1].scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data[Nspangrids//2:]), s=50,
                   cmap='plasma', norm=norm)#, edgecolor='k', linewidths=0.5)
     ax[1].set_aspect('equal')
     ax[1].set_xlim([-xmagmax, xmagmax])
