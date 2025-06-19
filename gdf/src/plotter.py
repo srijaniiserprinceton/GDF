@@ -23,14 +23,14 @@ def plot_span_vs_rec_scatter(tidx, gvdf, vdf_data, vdf_rec):
     ax0 = ax[0].scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=(vdf_nonan), vmin=0, vmax=4)
     ax[0].scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=(vdf_nonan), vmin=0, vmax=4)
     ax[0].set_title('SPAN VDF')
-    ax[0].set_ylabel(r'$v_{\parallel}$')
-    ax[0].set_xlabel(r'$v_{\perp}$')
+    ax[0].set_ylabel(r'$v_{\parallel}$ [km/s]')
+    ax[0].set_xlabel(r'$v_{\perp}$ [km/s]')
     ax[0].set_aspect('equal')
     # making the scatter plot of the gyrotropic VDF
     ax1 = ax[1].scatter(gvdf.vperp_nonan, gvdf.vpara_nonan, c=vdf_rec_nonan, vmin=0, vmax=4)
     ax[1].scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=vdf_rec_nonan, vmin=0, vmax=4)
     ax[1].set_title('Reconstructed VDF')
-    ax[1].set_xlabel(r'$v_{\perp}$')
+    ax[1].set_xlabel(r'$v_{\perp}$ [km/s]')
     ax[1].set_aspect('equal')
     plt.colorbar(ax1)
 
@@ -46,8 +46,8 @@ def plot_span_vs_rec_contour(gvdf, vdf_data, vdf_rec, tidx=None, GRID=False, VA=
     else:
         v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])
         v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])
-        xlabel = r'$v_{\perp}$'
-        ylabel = r'$v_{\parallel}$'
+        xlabel = r'$v_{\perp}$ [km/s]'
+        ylabel = r'$v_{\parallel}$ [km/s]'
 
     # v_para_all -= gvdf.fac.vshift[tidx]
 
@@ -124,8 +124,8 @@ def plot_super_resolution(gvdf, tidx, vdf_super, mu, SAVE=False, VDFUNITS=False,
         # plt.scatter(-gvdf.vperp_nonan, gvdf.vpara_nonan, c=(gvdf.vdfdata), s=50, cmap='plasma', norm=norm)          # Only for testing
     cbar = plt.colorbar(ax1)
     cbar.ax.tick_params(labelsize=18) 
-    ax.set_xlabel(r'$v_{\perp}$', fontsize=19)
-    ax.set_ylabel(r'$v_{\parallel}$', fontsize=19)
+    ax.set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
+    ax.set_ylabel(r'$v_{\parallel}$ [km/s]', fontsize=19)
     ax.text(0.95, 0.95, r'$\mu = $' + f'{mu:.2e}', fontsize=14, fontweight='bold',
             bbox=dict(facecolor='white', alpha=0.5, edgecolor='black', boxstyle='round,pad=0.5'),
             transform=ax.transAxes, ha='right', va='top')
@@ -135,7 +135,7 @@ def plot_super_resolution(gvdf, tidx, vdf_super, mu, SAVE=False, VDFUNITS=False,
     ax.set_aspect('equal')
 
     if SAVE:
-        plt.savefig(f'./Figures/super_res/super_resolved_{tidx}_{gvdf.npts}.pdf')
+        plt.savefig(f'./Figures/super_res/super_resolved_{tidx}_{gvdf.npts}.png')
         plt.close(fig)
     else: plt.show()
 
@@ -169,8 +169,8 @@ def plot_gyrospan(gvdf, tidx, vdfdata, SAVE=False, VDFUNITS=False, VSHIFT=None, 
     ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf.vshift, color='k', marker='.', s=3)
     cbar = plt.colorbar(ax1)
     cbar.ax.tick_params(labelsize=18) 
-    ax.set_xlabel(r'$v_{\perp}$', fontsize=19)
-    ax.set_ylabel(r'$v_{\parallel}$', fontsize=19)
+    ax.set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
+    ax.set_ylabel(r'$v_{\parallel}$ [km/s]', fontsize=19)
     ax.set_title(f'Super Resolution | {str(gvdf.l2_time[tidx])[:19]}', fontsize=19)
     ax.tick_params(axis='both', which='major', labelsize=18)
     ax.set_xlim([-400,400])
@@ -189,7 +189,7 @@ def plot_Lcurve_knee(tidx, model_misfit, data_misfit, knee_idx, mu, SAVE=False):
     plt.ylabel('Data Misfit', fontsize=14, fontweight='bold')
 
     if(SAVE):
-        plt.savefig(f'./Figures/kneeL/kneeL_{tidx}.pdf')
+        plt.savefig(f'./Figures/kneeL/kneeL_{tidx}.png')
         plt.close(fig)
 
 def plot_CartSlep(xx, yy, CartSlep, tidx, ext='png'):
