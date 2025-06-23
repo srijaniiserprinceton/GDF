@@ -106,4 +106,4 @@ In order to run the Matlab codes that we need, the repositories require a direct
    git clone https://github.com/csdms-contrib/slepian_foxtrot.git
 
 Finally, since we run Matlab from inside our Python codebase by using `matlabengine <https://pypi.org/project/matlabengine/>`_,
-we require a ``.config`` file which contains the absolute path to the ``Slepians`` directory.
+we require a ``.config`` file which contains the absolute path to the ``Slepians`` directory. 

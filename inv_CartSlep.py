@@ -116,7 +116,7 @@ def get_Nbasis(Atotal, Acells, P, VC, nlargest=3):
     K = (np.pi - 15*np.pi/180)/VC * (P[:,0] / np.sqrt(2*Acells))
     N = K**2 * Atotal / (4 * np.pi)
 
-    return np.min([np.mean(N[:nlargest*2]), 14])
+    return np.min([np.mean(N[:nlargest*2]), 12])
 
 if __name__=='__main__':
     # importing the config file provided at command line
