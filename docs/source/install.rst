@@ -63,3 +63,47 @@ instance
    
    import gdf
 
+.. _matlab_slepian_installation:
+
+Installing the Slepian packages (Matlab):
+=========================================
+
+The final step involves installing the Slepian repositories developed in 
+Matlab. A list of all the Slepian repositories can be found `here <https://geoweb.princeton.edu/people/simons/software.html>`_. 
+For our purposes, we only require two packages `slepian_alpha <https://github.com/csdms-contrib/slepian_alpha>`_ and 
+`slepian_foxtrot <https://github.com/csdms-contrib/slepian_foxtrot>`_. Since these packages are written in Matlab, it is 
+expected that the user would have Matlab (version > Matlab_R2024a) installed on their system. It is advisable to keep the Slepian
+repositories outside the `gdf` repository. A directory structure as shown below is recommended
+
+Directory structure::
+
+    gdf/
+    ├── main.py
+    ├── init_gdf_default.py
+    ├── src/
+    │   └── ...
+    ├── Outputs/
+    │   └── ...
+    └── Figures/
+        └── ...
+
+    Slepians/
+    ├── slepian_alpha/
+    │   └── ...
+    ├── slepian_foxtrot/
+    │   └── ...
+    └── IFILES/
+        ├── LEGENDRE/
+        └── SDWCAP/
+
+As shown in the directory structue above, we assume that you have a directory ``Slepians`` outside the ``gdf`` directory. 
+In order to run the Matlab codes that we need, the repositories require a directory ``IFILES`` with two directories inside 
+``LEGENDRE`` and ``SDWCAP``. Once you are in the ``Slepians`` directory, clone the repositories as follows
+
+.. code-block::
+   
+   git clone https://github.com/csdms-contrib/slepian_alpha.git
+   git clone https://github.com/csdms-contrib/slepian_foxtrot.git
+
+Finally, since we run Matlab from inside our Python codebase by using `matlabengine <https://pypi.org/project/matlabengine/>`_,
+we require a ``.config`` file which contains the absolute path to the ``Slepians`` directory.
