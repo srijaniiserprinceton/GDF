@@ -32,7 +32,7 @@ Two of these generated figures that we would like to highlight at the outset are
   fine Cartesian grid. This figure can be found in ``Figures/super_res/``. All subsequent moments are
   computed using super-resolved distributions and *not* the crude SPAN-Ai FAC distributions.
 
-.. figure:: ../../Figures/span_rec_contour/tricontour_plot_0.png
+.. figure:: /_static/images/tricontour_plot_0.png
    :name: span_rec_comparison
    :alt: Comparing SPAN-Ai and reconstruction at SPAN resolution.
    :align: center
@@ -42,7 +42,7 @@ Two of these generated figures that we would like to highlight at the outset are
    grids into field aligned coordinates (FAC). **Right:** Same, but for the polar cap reconstructed GDF
    evaluated at the FAC grid locations. The colorbar is obtained from normalizing the log-scaled distributions.
 
-.. figure:: ../../Figures/super_res/super_resolved_0_101.png
+.. figure:: /_static/images/super_resolved_0_101.png
    :name: supres_polarcap
    :alt: Super-resolution using polar-cap reconstruction.
    :align: center
