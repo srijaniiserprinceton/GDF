@@ -65,8 +65,8 @@ instance
 
 .. _matlab_slepian_installation:
 
-Installing the Slepian packages (Matlab):
-=========================================
+Installing the Slepian packages (Matlab)
+========================================
 
 The final step involves installing the Slepian repositories developed in 
 Matlab. A list of all the Slepian repositories can be found `here <https://geoweb.princeton.edu/people/simons/software.html>`_. 
