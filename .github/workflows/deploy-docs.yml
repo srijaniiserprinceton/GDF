@@ -1,11 +1,6 @@
 name: Deploy Sphinx docs to GitHub Pages
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'docs/**'
-      - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:  # ✅ Manual trigger support added
 
 permissions:
