@@ -3,6 +3,10 @@ name: Deploy Sphinx docs to GitHub Pages
 on:
   push:
     branches: [master]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:  # ✅ Manual trigger support added
 
 permissions:
   contents: write
@@ -10,8 +14,9 @@ permissions:
 jobs:
   build-docs:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -19,12 +24,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           pip install sphinx sphinx-book-theme sphinx-copybutton numpydoc
-          # Add any other extensions you use
 
-      - name: Build documentation
+      - name: Build HTML docs
         run: |
           cd docs
           make html
@@ -34,3 +38,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: docs/build/html
+          force_orphan: true
