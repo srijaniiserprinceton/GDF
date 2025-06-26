@@ -8,7 +8,7 @@ CREDS = None
 
 # Start and End index
 START_INDEX = 0
-NSTEPS = 3                  # use None for entire TRANGE interval
+NSTEPS = 1                  # use None for entire TRANGE interval
 
 # Core analysis parameters
 TH                = 30
