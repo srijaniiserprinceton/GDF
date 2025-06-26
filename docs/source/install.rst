@@ -106,3 +106,20 @@ In order to run the Matlab codes that we need, the repositories require a direct
 
 Finally, since we run Matlab from inside our Python codebase by using `matlabengine <https://pypi.org/project/matlabengine/>`_,
 we require a ``.config`` file which contains the absolute path to the ``Slepians`` directory. 
+
+
+Building the repository structure and unit test
+===============================================
+After downloading the Matlab repositories, the last thing we need to do is to make the structure of the ``gdf`` repository. 
+This can be done by executingthe following make file in the ``setup`` mode
+
+.. code-block::
+   make setup
+
+This should setup the required directory structure required. Finally, in order to test the installation run the 
+makefile in the ``testrun`` mode.
+
+.. code-block::
+   make testrun
+
+If the installation is successful, this should go through without errors. Check the final generated figures in the directory ``Figures``. 
