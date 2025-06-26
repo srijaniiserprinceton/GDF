@@ -22,7 +22,7 @@ Next, setup your Python environment using
 
 .. code-block:: bash
    
-   conda env create -f pyspedas_env.yml
+   conda env create -f gdf_env.yml
 
 The rest of the documentation is written assuming you are in this 
 Python environment. In order to activate ``<your-env>`` execute in your

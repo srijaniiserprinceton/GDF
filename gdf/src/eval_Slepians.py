@@ -19,6 +19,10 @@ class Slep_transverse:
         self.eng = matlab.start_matlab()
         s = self.eng.genpath(self.slep_dir)
         self.eng.addpath(s, nargout=0)
+
+        # performing setenv for IFILES
+        IFILES_PATH = f'{self.slep_dir}/IFILES'
+        self.eng.setenv("IFILES", IFILES_PATH, nargout=0)
     
     def gen_Slep_tapers(self, TH, Lmax, m=0, nth=180):
         # converting to double type for Matlab code to work
