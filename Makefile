@@ -16,12 +16,12 @@ create_dirs:
 # Step 2: Copy files (customize paths as needed)
 copy_files:
 	@echo "📄 Copying Slepian template files..."
-	cp slepian_templates/*.m $(slepian_dir)/slepian_foxtrot/.
+	cp ./slepian_templates/*.m $(slepian_dir)/slepian_foxtrot/.
 
 # Step 3: Run Python installation test
 test:
 	@echo "🐍 Running installation test..."
-	run main.py init_gdf_default
+	python main.py init_gdf_default
 
 # Optional: Clean generated files
 clean:

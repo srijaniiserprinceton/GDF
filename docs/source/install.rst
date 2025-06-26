@@ -3,6 +3,12 @@
 *************
 Installation
 *************
+Clone the `gdf <https://github.com/srijaniiserprinceton/GDF>`_ github
+repository to your local system directory using
+
+.. code-block:: bash
+
+   git clone https://github.com/srijaniiserprinceton/GDF.git
 
 Installing a local Python environment
 =====================================
@@ -40,13 +46,6 @@ Python environment.
 
 Installing the ``gdf`` repository
 =================================
-Clone the `gdf <https://github.com/srijaniiserprinceton/GDF>`_ github
-repository to your local system directory using
-
-.. code-block:: bash
-
-   git clone https://github.com/srijaniiserprinceton/GDF.git
-
 The cloned ``GDF`` directory can be installed as a Python package
 in your local environment. Move into the cloned repository 
 directory: ``cd GDF``. In order to install the ``gdf`` Python package simply
