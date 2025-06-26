@@ -12,11 +12,11 @@ repository to your local system directory using
 
 Installing a local Python environment
 =====================================
-The requirements can be found in ``pyspedas_env.yml`` file. 
+The requirements can be found in ``gdf_env.yml`` file. 
 If you already have a local Python environment containing all the
 requirements, you can skip this step and move onto :ref:`gdf installation <gdf_installation>`.
 If not, it is advisable to install the Python environment from the
-``pyspedas_env.yml`` file. We have a default name ``pyspedas`` 
+``gdf_env.yml`` file. We have a default name ``gdf`` 
 assigned to this environment but you can change the name in the
 first line of the file.
 
