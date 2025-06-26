@@ -105,7 +105,23 @@ In order to run the Matlab codes that we need, the repositories require a direct
    git clone https://github.com/csdms-contrib/slepian_foxtrot.git
 
 Finally, since we run Matlab from inside our Python codebase by using `matlabengine <https://pypi.org/project/matlabengine/>`_,
-we require a ``.config`` file which contains the absolute path to the ``Slepians`` directory. 
+we require a ``.config`` file which contains the absolute path to the ``Slepians`` directory. In order to access the proprietary data,
+the user would need a ``config.json`` file in your ``GDF`` repository. This file should look like
+
+.. code-block::
+
+   {   
+   "psp" : {
+      "fields" : {
+         "username": "<your-fields-username>", 
+         "password" : "<your-fields-password>"
+            },
+      "sweap" : {
+         "username" : "<your-sweap-username>", 
+         "password" : "<your-sweap-password>"
+            }
+      }
+   }
 
 
 Building the repository structure and unit test
@@ -121,7 +137,7 @@ This should setup the required directory structure required. Finally, in order t
 makefile in the ``testrun`` mode.
 
 .. code-block::
-   
+
    make testrun
 
 If the installation is successful, this should go through without errors. Check the final generated figures in the directory ``Figures``. 
