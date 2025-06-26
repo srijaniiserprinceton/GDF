@@ -72,32 +72,10 @@ Matlab. A list of all the Slepian repositories can be found `here <https://geowe
 For our purposes, we only require two packages `slepian_alpha <https://github.com/csdms-contrib/slepian_alpha>`_ and 
 `slepian_foxtrot <https://github.com/csdms-contrib/slepian_foxtrot>`_. Since these packages are written in Matlab, it is 
 expected that the user would have Matlab (version > Matlab_R2024a) installed on their system. It is advisable to keep the Slepian
-repositories outside the `gdf` repository. A directory structure as shown below is recommended
+repositories outside the `gdf` repository.
 
-Directory structure::
-
-    gdf/
-    ├── main.py
-    ├── init_gdf_default.py
-    ├── src/
-    │   └── ...
-    ├── Outputs/
-    │   └── ...
-    └── Figures/
-        └── ...
-
-    Slepians/
-    ├── slepian_alpha/
-    │   └── ...
-    ├── slepian_foxtrot/
-    │   └── ...
-    └── IFILES/
-        ├── LEGENDRE/
-        └── SDWCAP/
-
-As shown in the directory structue above, we assume that you have a directory ``Slepians`` outside the ``gdf`` directory. 
-In order to run the Matlab codes that we need, the repositories require a directory ``IFILES`` with two directories inside 
-``LEGENDRE`` and ``SDWCAP``. Once you are in the ``Slepians`` directory, clone the repositories as follows
+We assume that you have a directory ``Slepians`` outside the ``gdf`` directory. Once you are in the ``Slepians`` directory,
+clone the repositories as follows
 
 .. code-block::
    
@@ -132,6 +110,30 @@ This can be done by executingthe following make file in the ``setup`` mode
 .. code-block::
 
    make setup
+
+Once this is run, you should have a directory structure as shown below (assuming you have downloaded a Slepians in a different 
+directory than the ``GDF`` repository).
+
+Directory structure::
+
+    gdf/
+    ├── main.py
+    ├── init_gdf_default.py
+    ├── src/
+    │   └── ...
+    ├── Outputs/
+    │   └── ...
+    └── Figures/
+        └── ...
+
+    Slepians/
+    ├── slepian_alpha/
+    │   └── ...
+    ├── slepian_foxtrot/
+    │   └── ...
+    └── IFILES/
+        ├── LEGENDRE/
+        └── SDWCAP/
 
 This should setup the required directory structure required. Finally, in order to test the installation run the 
 makefile in the ``testrun`` mode.
