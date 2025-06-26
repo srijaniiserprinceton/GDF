@@ -11,7 +11,11 @@ setup: create_dirs copy_files test
 # Step 1: Create necessary directories
 create_dirs:
 	@echo "📁 Creating directories..."
-	mkdir -p Outputs Figures
+	mkdir -p Outputs
+	mkdir -p Figures/mcmc_dists
+	mkdir -p Figures/span_rec_contour
+	mkdir -p Figures/super_res
+	mkdir -p Figures/kneeL
 
 # Step 2: Copy files (customize paths as needed)
 copy_files:
