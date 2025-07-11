@@ -101,6 +101,7 @@ class gyrovdf:
 
     def get_coors(self, u_bulk, tidx):
         self.vpara, self.vperp1, self.vperp2, self.vperp = None, None, None, None
+        self.ubulk = u_bulk * 1.0
         
         # Shift into the plasma frame
         self.ux = self.vx[tidx] - u_bulk[0, NAX, NAX, NAX]
@@ -135,7 +136,7 @@ class gyrovdf:
         self.r_fa = r.value
         self.theta_fa = np.degrees(theta.value) + 90
 
-    def inversion(self, u_bulk, vdfdata, tidx, SUPER=False, NPTS=101):
+    def inversion(self, u_bulk, vdfdata, tidx, SUPER=False, NPTS=101, grid_x=None, grid_y=None):
             def make_knots(tidx):
                 self.knots, self.vpara_nonan = None, None
 
@@ -201,7 +202,7 @@ class gyrovdf:
 
                 return vdf_rec, zeromask
             
-            def define_grids(NPTS):
+            def define_grids(NPTS, grid_x, grid_y):
                 self.npts = NPTS
 
                 self.v_para_all = np.concatenate([self.vpara_nonan, self.vpara_nonan])
@@ -213,8 +214,13 @@ class gyrovdf:
 
                 # Generate the regular grid we are interested in.
                 # TODO: Replace with a grid function!
-                x = np.linspace(0, 2000, NPTS)
-                y = np.linspace(-1000, 1000, NPTS)
+                if(grid_x is None):
+                    x = np.linspace(0, 2000, NPTS)
+                    y = np.linspace(-1000, 1000, NPTS)
+                else:
+                    x = grid_x * 1.0
+                    y = grid_y * 1.0
+
                 self.super_vpara = x * 1.0
 
                 xx, yy = np.meshgrid(x, y, indexing='ij')
@@ -298,7 +304,7 @@ class gyrovdf:
             get_G_matrix()
 
             if SUPER:
-                define_grids(NPTS)
+                define_grids(NPTS, grid_x, grid_y)
                 super_Bsplines()
                 super_Slepians()
                 super_G_matrix()
@@ -453,6 +459,8 @@ def main(start_idx = 0, Nsteps = None, NPTS_SUPER=101,
             u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
             u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
             u_adj = np.array([u_xnew, u_ynew, u_znew])
+        
+        gvdf_tstamp.vel = vel * 1.0
 
         if SAVE_FIGS:
             plotter.plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=SAVE_FIGS)

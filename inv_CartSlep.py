@@ -3,6 +3,7 @@ import numpy as np
 from line_profiler import profile
 from scipy.spatial import Voronoi, ConvexHull
 from shapely.geometry import Polygon, LineString
+import matplotlib.pyplot as plt; plt.ion(); import matplotlib.colors as colors; from matplotlib import ticker
 
 from gdf.src import hybrid_ubulk
 from gdf.src import functions as fn
@@ -45,6 +46,7 @@ def inversion_CartSlep(gvdf_tstamp, N):
 def super_resolution(coeffs, boundary_points, N, plotSlep=False):
     # making the grid on which to evaluate the Slepian functions
     eval_gridx = np.linspace(boundary_points[:,0].min(), boundary_points[:,0].max(), 49)
+    # eval_gridx = np.linspace(0.1, boundary_points[:,0].max(), 49)
     eval_gridy = np.linspace(boundary_points[:,1].min(), boundary_points[:,1].max(), 49)
     xx, yy = np.meshgrid(eval_gridx, eval_gridy, indexing='ij')
 
@@ -116,7 +118,59 @@ def get_Nbasis(Atotal, Acells, P, VC, nlargest=3):
     K = (np.pi - 15*np.pi/180)/VC * (P[:,0] / np.sqrt(2*Acells))
     N = K**2 * Atotal / (4 * np.pi)
 
-    return np.min([np.mean(N[:nlargest*2]), 12])
+    return np.min([np.mean(N[:nlargest*2]), 20])
+
+
+def plot_supres_CartSlep(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supres_A, f_supres_B, tidx):
+    # reshaping the VDFs correctly
+    f_supres_A = np.reshape(f_supres_A, (49,49)).T.flatten()
+    f_supres_B = np.reshape(f_supres_B, (49,49)).T.flatten()
+
+    # the SPAN data grids in FAC
+    span_gridx = np.append(-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan)
+    span_gridy = np.append(gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan)
+    xmagmax = span_gridx.max() * 1.12
+
+    Nspangrids = len(span_gridx)
+    
+    # making the colorbar norm function
+    cmap = plt.cm.plasma
+    lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
+                       int(np.log10(gvdf_tstamp.maxval[tidx]) + 1), 10)
+    norm = colors.BoundaryNorm(lvls, ncolors=cmap.N)
+
+    # plotting the points and the boundary
+    fig, ax = plt.subplots(2, 1, figsize=(4.7,7.5), sharey=True)
+    ax[0].plot(CartSlep.XY[:,0], CartSlep.XY[:,1], '--w')
+    im = ax[0].tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_A), levels=lvls, cmap='plasma')
+    ax[0].scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data[Nspangrids//2:]), s=50,
+                  cmap='plasma', norm=norm)#, edgecolor='k', linewidths=0.5)
+    ax[0].set_aspect('equal')
+    ax[0].set_xlim([-xmagmax, xmagmax])
+    ax[0].text(0.02, 0.94, "(B)", transform=ax[0].transAxes, fontsize=12, fontweight='bold',
+            bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
+
+    ax[1].plot(CartSlep.XY[:,0], CartSlep.XY[:,1], '--w')
+    im = ax[1].tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_B), levels=lvls, cmap='plasma')
+    ax[1].scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data[Nspangrids//2:]), s=50,
+                  cmap='plasma', norm=norm)#, edgecolor='k', linewidths=0.5)
+    ax[1].set_aspect('equal')
+    ax[1].set_xlim([-xmagmax, xmagmax])
+    ax[1].text(0.02, 0.94, "(B)", transform=ax[1].transAxes, fontsize=12, fontweight='bold',
+            bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
+
+    ax[1].set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
+    fig.supylabel(r'$v_{\parallel}$ [km/s]', fontsize=19)
+
+    cax = fig.add_axes([ax[0].get_position().x0 + 0.06, ax[0].get_position().y1+0.05,
+                        ax[0].get_position().x1 - ax[0].get_position().x0, 0.02])
+    cbar = fig.colorbar(im, cax=cax, orientation='horizontal', location='top')
+    cbar.ax.tick_params(labelsize=14)
+    tick_locator = ticker.MaxNLocator(integer=True)
+    cbar.locator = tick_locator
+    cbar.update_ticks()
+
+    plt.subplots_adjust(top=0.92, bottom=0.1, left=0.14, right=1.0, wspace=0.1, hspace=0.15)
 
 if __name__=='__main__':
     # importing the config file provided at command line
@@ -150,3 +204,65 @@ if __name__=='__main__':
     plotter.plot_CartSlep(xx, yy, CartSlep_hr, tidx)
     # plotting the final reconstruction
     plotter.plot_supres_CartSlep(gvdf_tstamp, CartSlep_hr, xx, yy, f_data, f_supres, tidx)
+
+
+
+    # genrating a new suepr resolved grid for the polar cap to match the data points on the Cartesian
+    boundary_points = CartSlep_lr.XY * 1.0
+    eval_gridx = np.linspace(boundary_points[:,0].min(), boundary_points[:,0].max(), 49)
+    # eval_gridx = np.linspace(0.1, boundary_points[:,0].max(), 49)
+    eval_gridy = np.linspace(boundary_points[:,1].min(), boundary_points[:,1].max(), 49)
+    vdf_inv, _, vdf_super, data_misfit, model_misfit, knee_idx = gvdf_tstamp.inversion(gvdf_tstamp.ubulk, gvdf_tstamp.vdfdata, tidx,
+                                                                                       SUPER=True, NPTS=None, grid_x=eval_gridy, grid_y=eval_gridx)
+    
+    # trying the joint fitting
+    A = gvdf_tstamp.G_k_n.T
+    Af = gvdf_tstamp.super_G_k_n.T
+    B = CartSlep_lr.G
+    Bf = CartSlep_hr.G
+    ndata_A, nparams_A = A.shape
+    ndata_B, nparams_B = B.shape
+    nf = Af.shape[0]
+
+    # transposing Bf
+    BfT = np.reshape(Bf, (int(np.sqrt(nf)),int(np.sqrt(nf)),nparams_B))
+    BfT = np.transpose(BfT, [1,0,2])
+    Bf = np.reshape(BfT, (-1,nparams_B))
+
+    # creating the G matrix
+    G = np.zeros((ndata_A + ndata_B + nf, nparams_A + nparams_B))
+
+    lam = 1e-1
+    # filling in A
+    G[:ndata_A, :nparams_A] += A
+    # filling in B
+    G[ndata_A:ndata_A+ndata_B, nparams_A:nparams_A+nparams_B] = B
+    #filling in the (A(m1) - B(m2)) term
+    G[ndata_A+ndata_B:ndata_A+ndata_B+nf, :nparams_A] = np.sqrt(lam) * Af
+    G[ndata_A+ndata_B:ndata_A+ndata_B+nf, nparams_A:nparams_A+nparams_B] = -np.sqrt(lam) * Bf
+
+    # creating the augmented data matrix
+    d = np.zeros((ndata_A + ndata_B + nf))
+    d[:ndata_A] = gvdf_tstamp.vdfdata
+    d[ndata_A:ndata_A+ndata_B] = vdf_data
+    
+    # calculating the coefficients
+    GT = G.T
+    GTG = GT @ G
+    GTd = GT @ d 
+    
+    # coefficients (mA + mB)
+    m = np.linalg.inv(GTG) @ GTd
+
+    mA, mB = m[:nparams_A], m[nparams_A:]
+
+    # reconstructing the two models
+    vdfrec_A = Af @ mA
+    vdfrec_B = Bf @ mB
+    
+    # converting the VDFs to SPAN-i consistent units
+    f_supres_A = np.power(10, vdfrec_A) * gvdf_tstamp.minval[tidx]
+    f_supres_B = np.power(10, vdfrec_B) * gvdf_tstamp.minval[tidx]
+
+    # plotting the two super resolutions
+    plot_supres_CartSlep(gvdf_tstamp, CartSlep_hr, xx, yy, f_data, f_supres_A, f_supres_B, tidx)
