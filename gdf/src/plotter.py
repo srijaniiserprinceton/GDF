@@ -37,7 +37,7 @@ def plot_span_vs_rec_scatter(tidx, gvdf, vdf_data, vdf_rec):
 
     plt.show()
 
-def plot_span_vs_rec_contour(gvdf, vdf_data, vdf_rec, tidx=None, GRID=False, VA=None, SAVE=False):
+def plot_span_vs_rec_contour_POLCAP(gvdf, vdf_data, vdf_rec, tidx, GRID=False, VA=None, SAVE=False, ext='png'):
     if VA:
         v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])/VA
         v_perp_all = np.concatenate([-gvdf.vperp_nonan, gvdf.vperp_nonan])/VA
@@ -79,12 +79,12 @@ def plot_span_vs_rec_contour(gvdf, vdf_data, vdf_rec, tidx=None, GRID=False, VA=
         [ax[i].scatter(v_perp_all[len(v_para_all)//2:,], v_para_all[len(v_para_all)//2:,], color='k', marker='.', s=3) for i in range(2)]
 
     if SAVE:
-        plt.savefig(f'./Figures/span_rec_contour/tricontour_plot_{tidx}')
+        plt.savefig(f'./Figures/span_rec_contour/tricontour_plot_{tidx}.{ext}')
         plt.close(fig)
 
     else: plt.show()
 
-def plot_super_resolution(gvdf, tidx, vdf_super, mu, SAVE=False, VDFUNITS=False, VSHIFT=None, DENSITY=None):
+def plot_super_resolution_POLCAP(gvdf, vdf_super, mu, tidx, SAVE=False, VDFUNITS=False, VSHIFT=None, DENSITY=None, ext='png'):
     grids = gvdf.grid_points
     mask = gvdf.hull_mask
 
@@ -135,7 +135,7 @@ def plot_super_resolution(gvdf, tidx, vdf_super, mu, SAVE=False, VDFUNITS=False,
     ax.set_aspect('equal')
 
     if SAVE:
-        plt.savefig(f'./Figures/super_res/super_resolved_{tidx}_{gvdf.nptsx}_{gvdf.nptsy}.png')
+        plt.savefig(f'./Figures/super_res/super_resolved_{tidx}_{gvdf.nptsx}_{gvdf.nptsy}.{ext}')
         plt.close(fig)
     else: plt.show()
 
@@ -176,7 +176,7 @@ def plot_gyrospan(gvdf, tidx, vdfdata, SAVE=False, VDFUNITS=False, VSHIFT=None, 
     ax.set_xlim([-400,400])
     ax.set_aspect('equal')
 
-def plot_Lcurve_knee(tidx, model_misfit, data_misfit, knee_idx, mu, SAVE=False):
+def plot_Lcurve_knee_POLCAP(tidx, model_misfit, data_misfit, knee_idx, mu, ext='png', SAVE=False):
     fig = plt.figure()
     plt.plot(model_misfit, data_misfit, 'b')
     plt.plot(model_misfit, data_misfit, 'or')
@@ -189,10 +189,10 @@ def plot_Lcurve_knee(tidx, model_misfit, data_misfit, knee_idx, mu, SAVE=False):
     plt.ylabel('Data Misfit', fontsize=14, fontweight='bold')
 
     if(SAVE):
-        plt.savefig(f'./Figures/kneeL/kneeL_{tidx}.png')
+        plt.savefig(f'./Figures/kneeL/kneeL_{tidx}.{ext}')
         plt.close(fig)
 
-def plot_CartSlep(xx, yy, CartSlep, tidx, ext='png'):
+def plot_CartSlep(xx, yy, CartSlep, tidx, ext='png', SAVE=False):
     # making the alpha arrays for even and odd functions
     # ea = even alpha, oa = odd alpha
     ea, oa = 1.0, 0.3
@@ -217,10 +217,14 @@ def plot_CartSlep(xx, yy, CartSlep, tidx, ext='png'):
 
     ax[3,1].set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=12)
     fig.supylabel(r'$v_{\parallel}$ [km/s]', fontsize=12)
-    plt.savefig(f'Figures/CartSlep/basis_tidx={tidx}.{ext}')
-    # plt.close()
 
-def plot_supres_CartSlep(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supres, tidx, ext='png'):
+    if(SAVE):
+        plt.savefig(f'Figures/CartSlep/basis_tidx={tidx}.{ext}')
+        plt.close()
+
+def plot_super_resolution_CARTSLEP(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supres, tidx, ext='png', SAVE=False):
+    f_supres = np.reshape(f_supres, (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy)).T.flatten()
+
     # the SPAN data grids in FAC
     span_gridx = np.append(-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan)
     span_gridy = np.append(gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan)
@@ -265,5 +269,29 @@ def plot_supres_CartSlep(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supres, tidx, 
     cbar.update_ticks()
 
     plt.subplots_adjust(top=0.92, bottom=0.1, left=0.14, right=1.0, wspace=0.1, hspace=0.15)
-    plt.savefig(f'Figures/super_res_CartSlep/tidx={tidx}.{ext}')
-    # plt.close()
+
+    if(SAVE):
+        plt.savefig(f'Figures/super_res_CartSlep/tidx={tidx}.{ext}')
+        plt.close()
+
+def polcap_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
+                   model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False):
+    plot_span_vs_rec_contour_POLCAP(gvdf_tstamp, gvdf_tstamp.vdfdata, vdf_inv, tidx,
+                                    GRID=True, SAVE=SAVE_FIGS)
+    plot_super_resolution_POLCAP(gvdf_tstamp, vdf_super, gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx],
+                                 tidx, VDFUNITS=True, VSHIFT=gvdf_tstamp.vel, SAVE=SAVE_FIGS)
+    plot_Lcurve_knee_POLCAP(tidx, model_misfit, data_misfit, gvdf_tstamp.knee_idx,
+                            gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx], SAVE=SAVE_FIGS)
+
+def cartesian_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
+                      model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False):
+    # reshaping grids for plotting
+    xx = np.reshape(gvdf_tstamp.grid_points[:,0], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
+    yy = np.reshape(gvdf_tstamp.grid_points[:,1], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
+
+    # converting the VDFs to SPAN-i consistent units
+    f_supres = np.power(10, vdf_super) * gvdf_tstamp.minval[tidx]
+    vdf_data = np.append(gvdf_tstamp.vdfdata, gvdf_tstamp.vdfdata)
+    f_data = np.power(10, vdf_data) * gvdf_tstamp.minval[tidx]
+
+    plot_super_resolution_CARTSLEP(gvdf_tstamp, gvdf_tstamp.CartSlep, xx, yy, f_data, f_supres, tidx, SAVE=SAVE_FIGS)

@@ -89,9 +89,6 @@ class Slep_transverse:
 class Slep_2D_Cartesian:
     def __init__(self):
         self.slep_dir = fn.read_config()[0]  
-        self.C = None       # Gives us the tapers for 1D Legendre Polynomials
-        self.V = None       # Concentration coefficient
-        self.norm = None    # The norm for the Slepian function
 
         #--Starting Matlab engine to get the Slepian functions---#
         import matlab.engine as matlab

@@ -108,7 +108,7 @@ def super_G_matrix(gvdf_tstamp):
     npoints = len(gvdf_tstamp.super_rfac)
     gvdf_tstamp.super_G_k_n = np.reshape(gvdf_tstamp.super_G_i_alpha_n, (-1, npoints))
 
-def super_resolution(gvdf_tstamp, vdfdata, tidx, NPTS):
+def super_resolution(gvdf_tstamp, tidx, NPTS):
     """
     Performs the final super-resolution including the regularization in B-splines. The 
     suepr-resolution values are calculated on the provided (grid_x, grid_y).
@@ -187,13 +187,13 @@ def super_resolution(gvdf_tstamp, vdfdata, tidx, NPTS):
 
     for mu in gvdf_tstamp.mu_arr:
         # coeffs = np.linalg.inv(G_g + mu * gvdf_tstamp.D) @ gvdf_tstamp.G_k_n @ vdfdata
-        coeffs = solve(G_g + mu * gvdf_tstamp.D, gvdf_tstamp.G_k_n @ vdfdata, assume_a='sym')
+        coeffs = solve(G_g + mu * gvdf_tstamp.D, gvdf_tstamp.G_k_n @ gvdf_tstamp.vdfdata, assume_a='sym')
 
         # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
         vdf_rec = coeffs @ gvdf_tstamp.G_k_n
 
         # computing and appending the data misfit
-        data_misfit.append(np.linalg.norm(vdf_rec - vdfdata))
+        data_misfit.append(np.linalg.norm(vdf_rec - gvdf_tstamp.vdfdata))
 
         # computing and appending the model misfit
         model_misfit.append(np.linalg.norm(coeffs @ gvdf_tstamp.D @ coeffs))
@@ -203,12 +203,12 @@ def super_resolution(gvdf_tstamp, vdfdata, tidx, NPTS):
     data_misfit = misc_fn.norm_array(data_misfit)
 
     # finding the knee of the L-curve and plotting, if necessary
-    knee_idx = fn.geometric_knee(model_misfit, data_misfit)
+    gvdf_tstamp.knee_idx = fn.geometric_knee(model_misfit, data_misfit)
 
     #------these are the final coefficients with the optimal (knee) choice for the regularization----------#
-    # coeffs = np.linalg.inv(G_g + gvdf_tstamp.mu_arr[knee_idx] * gvdf_tstamp.D) @ gvdf_tstamp.G_k_n @ vdfdata
-    coeffs = solve(G_g + gvdf_tstamp.mu_arr[knee_idx] * gvdf_tstamp.D,
-                   gvdf_tstamp.G_k_n @ vdfdata, assume_a='sym')
+    # coeffs = np.linalg.inv(G_g + gvdf_tstamp.mu_arr[knee_idx] * gvdf_tstamp.D) @ gvdf_tstamp.G_k_n @ gvdf_tstamp.vdfdata
+    coeffs = solve(G_g + gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx] * gvdf_tstamp.D,
+                   gvdf_tstamp.G_k_n @ gvdf_tstamp.vdfdata, assume_a='sym')
 
     # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
     vdf_rec = coeffs @ gvdf_tstamp.G_k_n
@@ -219,4 +219,4 @@ def super_resolution(gvdf_tstamp, vdfdata, tidx, NPTS):
     # finding the zeros which need to be masked to avoid bad cost functions
     zeromask = vdf_rec == 0
 
-    return vdf_rec, zeromask, vdf_super, data_misfit, model_misfit, knee_idx
+    return vdf_rec, zeromask, vdf_super, data_misfit, model_misfit

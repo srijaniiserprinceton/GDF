@@ -1,57 +1,107 @@
 import numpy as np
+from scipy.linalg import solve
 from line_profiler import profile
 
 from gdf.src import eval_Slepians
-from gdf.src import functions as fn
 from gdf.src import plotter
+from gdf.src import functions as fn
 
-def inversion_CartSlep(gvdf_tstamp, N):
-    # setting up the inversion process
-    eval_gridx = np.append(-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan)
-    eval_gridy = np.append(gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan)
+def define_supres_cartgrids(gvdf_tstamp, NPTS, plothull=False):
+    # this is super-resolution grid in x
+    gvdf_tstamp.v_perp_all = np.concatenate([-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan])
+    # this is super-resolution grid in y
+    gvdf_tstamp.v_para_all = np.concatenate([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan])
 
     # extracting the convex hull boundary
-    boundary_points = fn.find_convexhull_boundary(gvdf_tstamp.v_para_all,
-                                                  gvdf_tstamp.v_perp_all,
-                                                  plothull=False)
+    supres_gridy_1D, supres_grids, boundary_points, hull_mask =\
+                    fn.find_supres_grid_and_boundary(gvdf_tstamp.v_perp_all, gvdf_tstamp.v_para_all,
+                                                     NPTS, plothull=plothull)
+    
+    # storing these as attributes of the class
+    # to be used in masked moment calculations and generating Cartesian Slepians
+    gvdf_tstamp.super_vpara = supres_gridy_1D * 1.0
+    gvdf_tstamp.grid_points = supres_grids * 1.0
+    gvdf_tstamp.boundary_points = boundary_points
+    gvdf_tstamp.hull_mask = hull_mask
 
+def inversion_CartSlep(gvdf_tstamp):
+    """
+    Computes the coefficients of the Cartesian Slepians from the SPAN-i data grid. Evaluates
+    the low resolution Cartesian Slepians only.
+
+    Parameters
+    ----------
+    gvdf_tstamp : gyrovdf class instance
+        This is the class instance which is setup for the specific timestamp being reconstructed.
+        Should already contain the CartSlep class instance generated as an attribute.
+
+    Returns
+    -------
+    coeffs : array-like of floats
+        The coefficients of the Cartesian Slepians evaluated from the linear inverse problem
+        using the SPAN-i data grid values. These are used for super-resolution.
+    """
     # getting the Slepians on the measurement points
-    CartSlep = eval_Slepians.Slep_2D_Cartesian()
-    CartSlep.gen_Slep_basis(boundary_points, np.double(N), np.array([eval_gridx, eval_gridy]).T)
+    gvdf_tstamp.CartSlep.gen_Slep_basis(gvdf_tstamp.boundary_points, np.double(gvdf_tstamp.N2D_cart),
+                                        np.array([gvdf_tstamp.v_perp_all, gvdf_tstamp.v_para_all]).T)
 
     # clipping off at the Shannon number
-    N2D = None #int(np.sum(CartSlep.V))
-    CartSlep.G = CartSlep.G[:,:N2D]
-    CartSlep.H = CartSlep.H[:,:N2D]
-
-    # removing the odd basis functions
+    gvdf_tstamp.CartSlep.G = gvdf_tstamp.CartSlep.G[:,:None]
+    gvdf_tstamp.CartSlep.H = gvdf_tstamp.CartSlep.H[:,:None]
 
     # the data we intend to fit to
     vdf_data = np.append(gvdf_tstamp.vdfdata, gvdf_tstamp.vdfdata)
 
-    # performing the inversion
-    GTG = CartSlep.G.T @ CartSlep.G
-    coeffs = np.linalg.inv(GTG) @ CartSlep.G.T @ vdf_data
+    # performing the inversion to get the Coefficients
+    GTG = gvdf_tstamp.CartSlep.G.T @ gvdf_tstamp.CartSlep.G
+    GTd = gvdf_tstamp.CartSlep.G.T @ vdf_data
+    # the 'sym' option is used since we know GTG is a symmetric matrix
+    coeffs = solve(GTG, GTd, assume_a='sym')
 
-    return coeffs, CartSlep
+    return coeffs
 
-def super_resolution(coeffs, boundary_points, N, plotSlep=False):
-    # making the grid on which to evaluate the Slepian functions
-    eval_gridx = np.linspace(boundary_points[:,0].min(), boundary_points[:,0].max(), 49)
-    # eval_gridx = np.linspace(0.1, boundary_points[:,0].max(), 49)
-    eval_gridy = np.linspace(boundary_points[:,1].min(), boundary_points[:,1].max(), 49)
-    xx, yy = np.meshgrid(eval_gridx, eval_gridy, indexing='ij')
+def super_resolution(gvdf_tstamp, tidx, NPTS, plotSlep=False):
+    """
+    Uses Cartesian Slepians generated inside the convex hull to super-resolve the GDF
+    for a given timestamp. Optionally plots the Cartesian Slepian basis functions for debugging.
 
-    CartSlep = eval_Slepians.Slep_2D_Cartesian()
-    CartSlep.gen_Slep_basis(boundary_points, np.double(N), np.array([xx.flatten(), yy.flatten()]).T)
+    Parameters
+    ----------
+    gvdf_tstamp : gyrovdf class instance
+        This is the class instance which is setup for the specific timestamp being reconstructed.
+        Should already contain the CartSlep class instance generated as an attribute.
+    
+    tidx : int
+        The time index being super-resolved.
 
-    # clipping off at the Shannon number
-    N2D = None #int(np.sum(CartSlep.V))
+    plotSlep : bool (optional)
+        Flag to optionally plot the Cartsian Slepian basis functions, for diagnostic purposes only.
 
-    # constructing the super-resolved grid
-    vdfrec = coeffs @ CartSlep.H[:,:N2D].T
+    Returns
+    -------
+    vdf_super : array-like of float
+        Super-resolved GDF of shape (gvdf_stamp.nptsx, gvdf_tstamp.nptsy). Domain extent is 
+        automatically determined from the convex hull boundary. 
+    """
+    # setting up grids, boundaries and hull for Cartesian super-resolution
+    define_supres_cartgrids(gvdf_tstamp, NPTS)
 
+    # inferring the coefficients from the data
+    coeffs = inversion_CartSlep(gvdf_tstamp)
+    # reconstruction on the SPAN-i data grid for comparison with vdfdata
+    vdf_rec = coeffs @ gvdf_tstamp.CartSlep.G[:,:None].T
+
+    # getting the Slepians on the super-resolution points
+    gvdf_tstamp.CartSlep.gen_Slep_basis(gvdf_tstamp.boundary_points, np.double(gvdf_tstamp.N2D_cart),
+                                        gvdf_tstamp.grid_points)
+
+    # constructing the super-resolved grid from the coefficients of the data inversion
+    vdf_super = coeffs @ gvdf_tstamp.CartSlep.G[:,:None].T
+
+    # plotting the basis functions for diagnostic purposes
     if(plotSlep):
-        plotter.plot_CartSlep(xx, yy, CartSlep, tidx)
+        xx = np.reshape(gvdf_tstamp.grid_points[:,0], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
+        yy = np.reshape(gvdf_tstamp.grid_points[:,1], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
+        plotter.plot_CartSlep(xx, yy, gvdf_tstamp.CartSlep, tidx)
 
-    return vdfrec, CartSlep, xx, yy
+    return vdf_rec, None, vdf_super, None, None

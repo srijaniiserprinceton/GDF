@@ -10,11 +10,11 @@
 
 config = {
     'global': {
-        'METHOD'          : 'polcap',
+        'METHOD'          : 'cartesian',
         'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'],
         'CLIP'            : True,
         'START_INDEX'     : 0,
-        'NSTEPS'          : 10,
+        'NSTEPS'          : 50,
         'CREDS_PATH'      : None,
         'COUNT_THRESHOLD' : 2,
         'SAVE_FIGS'       : False,
@@ -33,7 +33,7 @@ config = {
         'SPLINE_MINCOUNT' : 7,
     },
     'cartesian': {
-        'N2D_CART'        : 16,
+        'N2D_CART'        : 20,
     },
     'hybrid': {
         'lambda'          : 1e-1,

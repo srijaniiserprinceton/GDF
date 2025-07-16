@@ -65,12 +65,19 @@ class gyrovdf:
         # initializing cartesian slepian parameters (needed for any method which is not 'polcap')
         if(self.method == 'polcap'):
             self.inversion_code = polcap
+            self.plotter_func = plotter.polcap_plotter
         elif(self.method == 'cartesian'):
             self.inversion_code = cartesian
             self.init_cartslep_params(config['cartesian'])
+            # initializing the CartSlep class once; like we do for the polcap Slepians
+            self.CartSlep = eval_Slepians.Slep_2D_Cartesian()
+            self.plotter_func = plotter.cartesian_plotter
+
         elif(self.method == 'hybrid'):
             # self.inversion_code = hybrid
             self.init_cartslep_params(config['cartesian'])
+            # initializing the CartSlep class once; like we do for the polcap Slepians
+            self.CartSlep = eval_Slepians.Slep_2D_Cartesian()
         else:
             print('INVALID CHOICE OF METHOD. CHOOSE BETWEEN polcap, cartesian, hybrid')
 
@@ -118,7 +125,7 @@ class gyrovdf:
         Initializes the parameters of the Cartesian Slepians and stores them as
         attributes of the class.
         """
-        self.N2D_cart = cartslep_params['N2D_CARTSLEP']
+        self.N2D_cart = int(cartslep_params['N2D_CART'])
     
     def setup_timewindow(self, vdf_dict, trange, CREDENTIALS=None, CLIP=False):
         """
@@ -187,7 +194,6 @@ class gyrovdf:
         self.l3_time = data.Epoch.data
         self.l2_time = time
 
-    @profile
     def get_coors(self, u_bulk, tidx):
         r"""
         This function is used to setup the grids in gyrotropic coordinate depending on the 
@@ -290,11 +296,11 @@ class gyrovdf:
         # arranging the knots in an increasing order
         self.knots = np.sort(self.knots)
 
-    @profile
     def inversion(self, u_bulk, vdfdata, tidx):
         """
-        Function that performs the inversion based on the chosen method. It also takes in optional
-        parameters when, and for, performing super-resolution.
+        Function that always performs the polcap inversion. Only used in the 
+        iterative determination of the gyrocentroid. This is NOT used for final
+        super-resolution. This is why the polap.inversion() is hard-coded here.
 
         Parameters
         ----------
@@ -321,11 +327,11 @@ class gyrovdf:
         self.get_coors(u_bulk, tidx)
 
         # performing the inversion and obtaining the reconstructed VDF on the SPAN-i grids
-        vdf_rec, zeromask = self.inversion_code.inversion(self, vdfdata, tidx)
+        vdf_rec, zeromask = polcap.inversion(self, vdfdata, tidx)
 
         return vdf_rec, zeromask
     
-    def super_resolution(self, u_bulk, vdfdata, tidx, NPTS):
+    def super_resolution(self, u_bulk, tidx, NPTS):
         """
         Parameters
         ----------
@@ -367,35 +373,27 @@ class gyrovdf:
             does not use a regularization. Also, this is only returned during super-resolution
             since we do not need a smooth estimate when determining the gyro-symmetry.
             NOTE: This is returned only to be able to make the L-curve plot for diagnostic purposes.
-        
-        knee_idx : float (only for super resolution for polar cap)
-            The knee index of the regularization constant which is used for the polar cap
-            reconstruction. This is determined from the knee detection algorithm performed in 
-            geometric_knee() in functions.py.
         """
         # making the gyrotropic coordinates for the finalized u_bulk and magnetic field at that timestamp
         self.get_coors(u_bulk, tidx)
 
-        vdf_inv, zeromask, vdf_super, data_misfit, model_misfit, knee_idx = self.inversion_code.super_resolution(self, vdfdata, tidx, NPTS)
+        vdf_inv, zeromask, vdf_super, data_misfit, model_misfit = self.inversion_code.super_resolution(self, tidx, NPTS)
 
-        return vdf_inv, zeromask, vdf_super, data_misfit, model_misfit, knee_idx
+        return vdf_inv, zeromask, vdf_super, data_misfit, model_misfit
 
 #---------------ALL FUNCTIONS IN THIS BLOCK ARE USED ONLY TO FIND THE GYROCENTROID--------------#
-@profile
 def log_prior_perpspace(model_params):
     Vperp1, Vperp2 = model_params
     if -100 < Vperp1 < 100 and -100 < Vperp2 < 100:
         return 0.0
     return -np.inf
 
-@profile
 def log_probability_perpspace(model_params, vdfdata, tidx, u_init_scipy, u, v):
     lp = log_prior_perpspace(model_params)
     if not np.isfinite(lp):
         return -np.inf
     return lp + log_likelihood_perpspace(model_params, u_init_scipy, vdfdata, tidx, u, v)
 
-@profile
 def log_likelihood_perpspace(p0_2d, origin, vdfdata, tidx, u, v):
     u_bulk = origin + p0_2d[0]*u + p0_2d[1]*v
     
@@ -431,7 +429,6 @@ def project_uncertainty(Sigma_ab, u, v, coord='y'):
     return np.sqrt(sigma2)
 
 #---------------------------------------------------------------------------------------------#
-@profile
 def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
          MCMC = False, MCMC_WALKERS=6, MCMC_STEPS=200,
          MIN_METHOD='L-BFGS-B', SAVE_FIGS=False, SAVE_PKL=True):
@@ -480,8 +477,8 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         u_corr_scipy = u_corr * 1.0
         
         # computing super-resolution and moments from the scipy corrected bulk velocity
-        vdf_inv, _, vdf_super, data_misfit, model_misfit, knee_idx =\
-                                    gvdf_tstamp.super_resolution(u_corr, vdfdata, tidx, NPTS_SUPER)
+        vdf_inv, _, vdf_super, data_misfit, model_misfit  =\
+                                    gvdf_tstamp.super_resolution(u_corr, tidx, NPTS_SUPER)
         den, vel, Tcomps, Trace = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
         # This tells us how far off our v_parallel is from the defined assumed v_parallel
@@ -515,7 +512,7 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
                 labels = [r"$V_{\perp 1}$", r"$V_{\perp 2}$"]
                 fig = corner.corner(flat_samples, labels=labels, show_titles=True)
                 plt.tight_layout()
-                plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
+                plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.png')
                 plt.close(fig)
 
             # computing the 50th quantile level vales in (vperp1, vperp2) space [along u, v vectors]
@@ -531,7 +528,7 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
             sigma_z = project_uncertainty(vperp_12_covmat, u, v, 'z')
 
             # computing super-resolution and moments from MCMC final correction
-            vdf_inv, _, vdf_super, data_misfit, model_misfit, knee_idx =\
+            vdf_inv, _, vdf_super, data_misfit, model_misfit =\
                                         gvdf_tstamp.super_resolution(u_corr, vdfdata, tidx, NPTS_SUPER)
             den, vel, Tcomps, Trace = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
@@ -543,10 +540,12 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
             u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
             u_adj = np.array([u_xnew, u_ynew, u_znew])
 
-        if SAVE_FIGS:
-            plotter.plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=SAVE_FIGS)
-            plotter.plot_super_resolution(gvdf_tstamp, tidx, vdf_super, gvdf_tstamp.mu_arr[knee_idx], VDFUNITS=True, VSHIFT=vel, SAVE=SAVE_FIGS)
-            plotter.plot_Lcurve_knee(tidx, model_misfit, data_misfit, knee_idx, gvdf_tstamp.mu_arr[knee_idx], SAVE=SAVE_FIGS)
+        # saving this for plotting of the polcap reconstruction
+        gvdf_tstamp.vel = vel
+
+        if(SAVE_FIGS): gvdf_tstamp.plotter_func(gvdf_tstamp, vdf_inv, vdf_super, tidx,
+                                                model_misfit=model_misfit, data_misfit=data_misfit,
+                                                GRID=True, SAVE_FIGS=SAVE_FIGS)
 
         # bundling the post-processed parameters of interest
         bundle = {}
@@ -577,7 +576,6 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         b_label = ts1.strftime('%H%M%S')
         misc_fn.write_pickle(vdf_rec_bundle, f'./Outputs/scipy_vdf_rec_data_{MCMC_WALKERS}_{MCMC_STEPS}_{ymd}_{a_label}_{b_label}')
 
-@profile
 def run(config):
     """
     Primary function to drive the inversion code which simply takes in the config dictionary. This 
