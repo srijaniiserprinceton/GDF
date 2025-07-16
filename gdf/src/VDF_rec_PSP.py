@@ -433,21 +433,17 @@ def project_uncertainty(Sigma_ab, u, v, coord='y'):
 #---------------------------------------------------------------------------------------------#
 @profile
 def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
-         MCMC = False, MCMC_WALKERS=8, MCMC_STEPS=2000,
+         MCMC = False, MCMC_WALKERS=6, MCMC_STEPS=200,
          MIN_METHOD='L-BFGS-B', SAVE_FIGS=False, SAVE_PKL=True):
     """
     All the real computations happen in this function --- loading the data, finding the
     gyrocentroid and finding the final super-resolution. The input parameters are the same
     as those in the config file.
     """
-    # the dictionary elements
-    vperp_12_corr  = {}
-    vperp_12_lower = {}
-    vperp_12_upper = {}
-
     # the dictionary that is finally saved as a .pkl file
     vdf_rec_bundle = {}
 
+    # computes till the last timestamp available if NSTEPS is not specified
     if(NSTEPS is None): NSTEPS = len(psp_vdf.time.data)
 
     # if a scalar is provided for NPTS_SUPER, convert it to a tuple
@@ -457,6 +453,7 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
     # storing the dimensions of super resolution
     gvdf_tstamp.nptsx, gvdf_tstamp.nptsy = NPTS_SUPER
 
+    # the main time loop of GDF reconstruction
     for tidx in tqdm(range(START_INDEX, START_INDEX + NSTEPS)):
         # Check the l2 and l3 times match (to ensure selection of correct magnetic field)
         if gvdf_tstamp.l2_time[tidx] != gvdf_tstamp.l3_time[tidx]:
@@ -467,20 +464,22 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
         gvdf_tstamp.vdfdata = vdfdata * 1.0
 
-        # initializing the Instrument velocity 
+        # initializing the gyrocentroid to the reported SPAN velocity moment
         u_origin = gvdf_tstamp.v_span[tidx,:]
 
+        # the 3D array of grid points in VX, VY, VZ of the SPAN grid
         threeD_points = np.vstack([gvdf_tstamp.vx[tidx][gvdf_tstamp.nanmask[tidx]],
                                    gvdf_tstamp.vy[tidx][gvdf_tstamp.nanmask[tidx]],
                                    gvdf_tstamp.vz[tidx][gvdf_tstamp.nanmask[tidx]]]).T
 
+        # first estimate of correction to the SPAN-moment using scipy.optimize.minimize
         u_corr, __, u, v = find_symmetry_point(threeD_points, vdfdata, gvdf_tstamp.bvec[tidx],
                                                loss_fn_Slepians, tidx, origin=u_origin,
                                                MIN_METHOD=MIN_METHOD)
-
+        # storing this to compare with the MCMC estimate, if needed, No other reason.
         u_corr_scipy = u_corr * 1.0
         
-        # computing super-resolution and moments from scipy correction
+        # computing super-resolution and moments from the scipy corrected bulk velocity
         vdf_inv, _, vdf_super, data_misfit, model_misfit, knee_idx =\
                                     gvdf_tstamp.super_resolution(u_corr, vdfdata, tidx, NPTS_SUPER)
         den, vel, Tcomps, Trace = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
@@ -488,40 +487,42 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         # This tells us how far off our v_parallel is from the defined assumed v_parallel
         delta_v = vel - gvdf_tstamp.vshift
 
-        # get the assume u_parallel, u_perp1, and u_perp2. from the set 
+        # calculate a correction to the bulk velocity to account for the artificial shift (in polcap method)
         u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
         u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
         u_adj = np.array([u_xnew, u_ynew, u_znew])
 
         # if we want to further refine the estimate and obtain error bounds
         if(MCMC):
+            # after the scipy correction, we start assuming (0,0) in the perpendicular phase space
             Vperp1, Vperp2 = 0.0, 0.0
             
-            # performing the mcmc of centroid finder
+            # setting up the MCMC walkers with small perturbations about the initialization point
             nwalkers = MCMC_WALKERS
             Vperp1_pos = np.random.rand(nwalkers) + Vperp1
             Vperp2_pos = np.random.rand(nwalkers) + Vperp2
             pos = np.array([Vperp1_pos, Vperp2_pos]).T
 
+            # TODO: MAY CONVERT TO MULTIPROCESSING SETUP, IF NEEDED.
             sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability_perpspace, args=(vdfdata, tidx, u_adj, u, v))
             sampler.run_mcmc(pos, MCMC_STEPS, progress=False)
             
-            # plotting the results of the emcee
-            labels = [r"$V_{\perp 1}$", r"$V_{\perp 2}$"]
+            # extracting the MCMC chains
             flat_samples = sampler.get_chain(flat=True)
             
+            # plotting the results of the emcee posterior distribution functions
             if SAVE_FIGS:
+                labels = [r"$V_{\perp 1}$", r"$V_{\perp 2}$"]
                 fig = corner.corner(flat_samples, labels=labels, show_titles=True)
                 plt.tight_layout()
                 plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.pdf')
                 plt.close(fig)
 
-            # computing the quantile values
-            vperp_12_corr[tidx] = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
-            vperp_12_lower[tidx] = np.quantile(flat_samples,q=[0.14],axis=0).squeeze()
-            vperp_12_upper[tidx] = np.quantile(flat_samples,q=[0.86],axis=0).squeeze()
+            # computing the 50th quantile level vales in (vperp1, vperp2) space [along u, v vectors]
+            vperp_12_corr = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
 
-            u_corr = u_adj + vperp_12_corr[tidx][0] * u + vperp_12_corr[tidx][1] * v
+            # final MCMC corrected bulk velocity correction to the u_adj from minimize
+            u_corr = u_adj + vperp_12_corr[0] * u + vperp_12_corr[1] * v
 
             # making the uncertainties from the covariance matrix
             vperp_12_covmat = np.cov(flat_samples.T)
@@ -534,21 +535,20 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
                                         gvdf_tstamp.super_resolution(u_corr, vdfdata, tidx, NPTS_SUPER)
             den, vel, Tcomps, Trace = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
-            # This tells us how far off our v_parallel is from the defined assumed v_parallel
+            # This tells us how far off our v_parallel is from the defined/assumed v_parallel
             delta_v = vel - gvdf_tstamp.vshift
 
-            # get the assume u_parallel, u_perp1, and u_perp2. from the set 
+            # calculate a correction to the bulk velocity to account for the artificial shift (in polcap method)
             u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
             u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
             u_adj = np.array([u_xnew, u_ynew, u_znew])
-        
-        gvdf_tstamp.vel = vel * 1.0
 
         if SAVE_FIGS:
             plotter.plot_span_vs_rec_contour(gvdf_tstamp, vdfdata, vdf_inv, GRID=True, tidx=tidx, SAVE=SAVE_FIGS)
             plotter.plot_super_resolution(gvdf_tstamp, tidx, vdf_super, gvdf_tstamp.mu_arr[knee_idx], VDFUNITS=True, VSHIFT=vel, SAVE=SAVE_FIGS)
             plotter.plot_Lcurve_knee(tidx, model_misfit, data_misfit, knee_idx, gvdf_tstamp.mu_arr[knee_idx], SAVE=SAVE_FIGS)
 
+        # bundling the post-processed parameters of interest
         bundle = {}
         bundle['den'] = den
         bundle['time'] = gvdf_tstamp.l2_time[tidx]
@@ -557,6 +557,8 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         bundle['u_final'] = u_adj
         bundle['data_misfit'] = data_misfit
         bundle['model_misfit'] = model_misfit
+
+        # saving additional parameters if MCMC is True
         if(MCMC):
             bundle['u_corr']  = u_corr
             bundle['u_corr_scipy'] = u_corr_scipy
@@ -567,13 +569,12 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
 
         vdf_rec_bundle[tidx] = bundle
 
-    ts0 = datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
-    ts1 = datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX + NSTEPS - 1])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
-    ymd = ts0.strftime('%Y%m%d')
-    a_label = ts0.strftime('%H%M%S')
-    b_label = ts1.strftime('%H%M%S')
-
     if(SAVE_PKL):
+        ts0 = datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
+        ts1 = datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX + NSTEPS - 1])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
+        ymd = ts0.strftime('%Y%m%d')
+        a_label = ts0.strftime('%H%M%S')
+        b_label = ts1.strftime('%H%M%S')
         misc_fn.write_pickle(vdf_rec_bundle, f'./Outputs/scipy_vdf_rec_data_{MCMC_WALKERS}_{MCMC_STEPS}_{ymd}_{a_label}_{b_label}')
 
 @profile
