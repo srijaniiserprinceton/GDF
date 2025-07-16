@@ -9,6 +9,14 @@ from gdf.src import basis_funcs as basis_fn
 
 class Slep_transverse:
     def __init__(self):
+        """
+        Class that contains miscellaneous parameters for the polar cap Slepians.
+
+        * C    : The Slepian tapers (coefficients for SH to generate the Slepian functions)
+        * V    : The Slepian concentrations --- eigenvalues of the localization problem.
+        * norm : The normalization constants for each Slepian functions, used in the D matrix.
+        * eng  : The Matlab engine used to run the .mat codes from inside Python.
+        """
         self.slep_dir = fn.read_config()[0]  
         self.C = None       # Gives us the tapers for 1D Legendre Polynomials
         self.V = None       # Concentration coefficient
@@ -25,6 +33,26 @@ class Slep_transverse:
         self.eng.setenv("IFILES", IFILES_PATH, nargout=0)
     
     def gen_Slep_tapers(self, TH, Lmax, m=0, nth=180):
+        """
+        Generates the Slepian tapers for a given polar cap extent and maximum angular degree resolution.
+
+        Parameters
+        ----------
+        TH : float
+            The polar cap extent in degrees.
+        
+        Lmax : int
+            The maximum angular degree to be used for generating the Slepian functions.
+
+        m : int
+            The azimuthal order of the 2D polar cap Slepians. Here, we are interested only 
+            in the axisymmetric functions and hence choose m = 0 as default. This will not change
+            as long as we are interested in gyrotropic functions.
+
+        nth : int
+            The total number of grid points to be used in the Matlab code for the localization problem.
+            180 seems to be a reasonably good number from trial and error for our purposes.
+        """
         # converting to double type for Matlab code to work
         TH, Lmax, m = np.double(TH), np.double(Lmax), np.double(m)
         #---------------------------------------------------------#
@@ -41,6 +69,13 @@ class Slep_transverse:
         self.th = th
 
     def gen_Slep_norms(self):
+        r"""
+        Generates the normalization constants for each Slepian basis function which is needed
+        for generating the D (regularization) matrix. 
+
+        .. math::
+        \mathcal{N}_{\alpha} = \int S_{\alpha}(\theta) \, S_{\alpha}(\theta) \, \sin(\theta) \, d\theta
+        """
         # creating the theta grid to evaluate the norms
         theta_arr = np.linspace(0, 180, 360)
         S_alpha_theta = basis_fn.get_Slepians_scipy(self.C, theta_arr, self.Lmax)

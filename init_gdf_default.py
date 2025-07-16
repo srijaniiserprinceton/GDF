@@ -1,7 +1,8 @@
 # init_gdf_default.py
 
 # Define the time range to load in from pyspedas
-TRANGE = ['2020-01-26T14:28:00', '2020-01-26T15:30:59']
+TRANGE = ['2020-01-26T14:28:00', '2020-01-26T20:30:59']
+# TRANGE = ['2024-03-30T12:12:00', '2024-03-30T19:30:59']
 
 # path to the <.json> file containing credentials
 CREDS = None
@@ -13,7 +14,7 @@ NSTEPS = 1                  # use None for entire TRANGE interval
 # Core analysis parameters
 TH                = 30
 LMAX              = 12
-N2D               = 3
+N2D               = None #3
 P                 = 3
 SPLINE_MINCOUNT   = 7
 COUNT_MASK        = 2

@@ -1,6 +1,7 @@
 import os
 import sys, json
 import numpy as np
+from numba import njit
 import xarray as xr
 import pyspedas
 import cdflib
@@ -381,8 +382,8 @@ def vdf_moments(gvdf, vdf_super, tidx):
     minval = gvdf.minval[tidx]
     maxval = gvdf.maxval[tidx]
     grids = gvdf.grid_points
-    vx = grids[:,0].reshape(gvdf.npts, gvdf.npts)
-    vy = grids[:,1].reshape(gvdf.npts, gvdf.npts)
+    vx = np.reshape(grids[:,0], (gvdf.nptsx, gvdf.nptsy), 'F')
+    vy = np.reshape(grids[:,1], (gvdf.nptsx, gvdf.nptsy), 'F')
     dx = vx[1,0] - vx[0,0]
     dy = vy[0,1] - vy[0,0]
 
@@ -410,7 +411,26 @@ def vdf_moments(gvdf, vdf_super, tidx):
     return(density, vpara/1e5, T_comp, T_trace)
 
 def norm_eval_theta(S1, S2, theta=np.linspace(0,180,360)):
-    return simps(S1 * S2 * np.sin(np.radians(theta)), x=np.radians(theta))
+    r"""
+    Function to evaluate the inner product norm of two functions :math:`S_1(\theta)` and 
+    :math:`S_2(\theta)` on a custom grid of :math:`\theta`.
+
+    Parameters
+    ----------
+    S1 : array-like
+        Array containing the values of function :math:`S_1(\theta_i)`.
+    S2 : array-like
+        Array containing the values of function :math:`S_2(\theta_i)`.
+    theta : array-like
+        Array containing the values of the :math:`\theta` grid in degrees.
+
+    Returns
+    -------
+    normval : float
+        The scalar normalization value of :math:`\mathcal{N}_{\alpha} = \int S_{\alpha}(\theta) \, S_{\alpha}(\theta) \, \sin(\theta) \, d\theta`.
+    """
+    normval = simps(S1 * S2 * np.sin(np.radians(theta)), x=np.radians(theta))
+    return normval
 
 # testing out different L-curve knee detection algorithms
 def compute_lcurve_corner(norms, residuals):
@@ -435,6 +455,16 @@ def compute_lcurve_corner(norms, residuals):
     return knee_index
 
 def geometric_knee(x, y):
+    """
+    Finding the optimal point using a geometric knee detection algorithm of a trade-off curve.
+    x and y are the respective axes values in the trade-off curve. It is expected one of them
+    is the model-misfit and the other is the data-misfit.
+
+    Returns
+    -------
+    Returns the index corresponding to the knee of the 1D L-curve.
+
+    """
     x, y = np.array(x), np.array(y)
     # Line: from first to last point
     line_vec = np.array([x[-1] - x[0], y[-1] - y[0]])
@@ -446,6 +476,29 @@ def geometric_knee(x, y):
     return np.argmax(distances)
 
 def merge_bins(bin_edges, counts, threshold):
+    """
+    Function to merge bins in log10 space for knots until each bin has atleast the desired
+    threshold of counts.
+
+    Parameters
+    ----------
+    bin_edges : array-like of float
+        The bin edges of length (len(hist)+1).
+
+    counts : array-like of int
+        The histogram count per bin.
+
+    threshold : int
+        The minimum count needed per bin. If a bin has lower than this count, then its merged.
+
+    Returns
+    -------
+    merged_edges : array-like of float
+        The 1D array of bin edges after being merged to have counts at a minimum of threshold.
+
+    merged_counts : array-like of int
+        The 1D array of counts per merged bins. Still in log10 space of knots locations.
+    """
     merged_edges = []
     merged_counts = []
 
@@ -479,8 +532,39 @@ def merge_bins(bin_edges, counts, threshold):
 
     return merged_edges, merged_counts
 
-def find_convexhull_boundary(xpoints, ypoints, plothull=True):
-    points = np.vstack([xpoints, ypoints]).T
+def find_supres_grid_and_boundary(xpoints, ypoints, NPTS, plothull=False):
+    """
+    Parameters
+    ----------
+    xpoints : array-like of floats
+        vperp from the SPAN-i grids with counts above threshold, symmetrized about the vpara axis.
+
+    ypoints : array-like of floats
+        vpara from the SPAN-i grids with counts above threshold, symmetrized about the vpara axis. 
+
+    NPTS : tuple of ints
+        Tuple of grids (NPTSx, NPTSy) which is the shape of the final super-resolved grid.
+
+    plothull : bool (optional)
+        Optional flag to enable plotting the convex hull along with the points, for debugging purposes.
+
+    Returns
+    -------
+    y : array-like of floats
+        1D array containing the regularly spaced grid in vpara.
+
+    supres_grids : array-like of floats
+        2D array of shape (NPTSx x NPTSy, 2) containing all the vperp and vpara points (note the 
+        first axis is flattened).
+
+    boundary_points : array-like of floats
+        This is a (Nboundary_points, 2) shape array containing the coordinates of the boundary grid points.
+
+    hull_mask : array-like of bool
+        This is a (NPTSx, NPTSy) boolean array which serves as a mask when computing moments to ensure
+        that the calculations are only restricted to within the convex hull.
+    """
+    points = np.vstack([ypoints, xpoints]).T
     tri = Delaunay(points)
     idx = np.unique(tri.convex_hull)
     points_idx = np.flip(points[idx], axis=1)
@@ -491,12 +575,25 @@ def find_convexhull_boundary(xpoints, ypoints, plothull=True):
 
     if(plothull):
         plt.figure()
-        plt.scatter(ypoints, xpoints, color='k')
+        plt.scatter(xpoints, ypoints, color='k')
         plt.plot(boundary_points[:,0], boundary_points[:,1], '--r')
         plt.gca().set_aspect('equal')
         plt.xlabel('X', fontweight='bold', fontsize=14)
         plt.ylabel('Y', fontweight='bold', fontsize=14)
         plt.tight_layout()
 
+    # finding the grid for super resolution
+    x = np.linspace(boundary_points[:,0].min(), boundary_points[:,0].max(), NPTS[0])
+    y = np.linspace(boundary_points[:,1].min(), boundary_points[:,1].max(), NPTS[1])
+
+    # find_simplex seems to like this convention (only to find the hull_mask)
+    yy, xx = np.meshgrid(y, x, indexing='ij')
+    supres_grids = np.vstack([yy.flatten(), xx.flatten()]).T
+    hull_mask = tri.find_simplex(supres_grids) >= 0    # a Mask for the points inside the domain!
+
+    # making the shapes compatible with the convention
+    xx, yy = np.meshgrid(x, y, indexing='xy')
+    supres_grids = np.vstack([xx.flatten(), yy.flatten()]).T
+
     # returned points can be simply plotted to give a closed contour circumscribing all points
-    return boundary_points
+    return y, supres_grids, boundary_points, hull_mask

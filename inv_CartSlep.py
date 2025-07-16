@@ -18,9 +18,9 @@ def inversion_CartSlep(gvdf_tstamp, N):
     eval_gridy = np.append(gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan)
 
     # extracting the convex hull boundary
-    boundary_points = fn.find_convexhull_boundary(gvdf_tstamp.v_para_all,
-                                                  gvdf_tstamp.v_perp_all,
-                                                  plothull=False)
+    boundary_points, hull_mask = fn.find_convexhull_boundary(gvdf_tstamp.v_para_all,
+                                                             gvdf_tstamp.v_perp_all,
+                                                             plothull=False)
 
     # getting the Slepians on the measurement points
     CartSlep = eval_Slepians.Slep_2D_Cartesian()
@@ -207,7 +207,7 @@ if __name__=='__main__':
 
 
 
-    # genrating a new suepr resolved grid for the polar cap to match the data points on the Cartesian
+    # genrating a new super resolved grid for the polar cap to match the data points on the Cartesian
     boundary_points = CartSlep_lr.XY * 1.0
     eval_gridx = np.linspace(boundary_points[:,0].min(), boundary_points[:,0].max(), 49)
     # eval_gridx = np.linspace(0.1, boundary_points[:,0].max(), 49)

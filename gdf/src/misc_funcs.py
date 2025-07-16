@@ -1,6 +1,7 @@
 import pickle
 import json
 import numpy as np
+import importlib.util
 
 def load_config(file_path):
     """
@@ -19,6 +20,7 @@ def load_config(file_path):
 def credential_reader(cred_file=None):
     if cred_file:
         credentials = load_config(cred_file)
+        # TODO: Add FIELDS credentials for variance analysis
         creds = [credentials['psp']['sweap']['username'], credentials['psp']['sweap']['password']]
         return creds
     else:
@@ -36,3 +38,9 @@ def read_pickle(fname):
 def norm_array(arr):
     arr = np.asarray(arr)
     return (arr - np.nanmin(arr)) / (np.nanmax(arr) - np.nanmin(arr))
+
+def load_config_new(path):
+    spec = importlib.util.spec_from_file_location('config', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.config

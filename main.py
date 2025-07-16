@@ -1,9 +1,9 @@
 import sys, importlib
-from gdf.src import hybrid_ubulk
 
-# config file
+from gdf.src import VDF_rec_PSP
+from gdf.src import misc_funcs as misc_fn
+
+# importing the config file provided at command line
 config_file = sys.argv[1]
-
-# importing the config file
-config = importlib.import_module(config_file)
-gvdf_tstamp = hybrid_ubulk.run(config)
+config = importlib.import_module(config_file).config
+gvdf_tstamp = VDF_rec_PSP.run(config)

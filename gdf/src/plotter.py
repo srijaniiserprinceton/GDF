@@ -98,7 +98,7 @@ def plot_super_resolution(gvdf, tidx, vdf_super, mu, SAVE=False, VDFUNITS=False,
         cmap = plt.cm.plasma
         norm = colors.BoundaryNorm(lvls, cmap.N)
         if VSHIFT:
-            ax1 = ax.tricontourf(grids[mask,1], grids[mask,0] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
+            ax1 = ax.tricontourf(grids[mask,0], grids[mask,1] - VSHIFT, np.log10(f_super[mask]), levels=lvls, cmap='plasma')
             # ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - gvdf.vshift[tidx], color='k', marker='.', s=3)
             # ax.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - VSHIFT, color='k', marker='.', s=3)
             plt.scatter(gvdf.vperp_nonan, gvdf.vpara_nonan - VSHIFT, c=np.log10(f_data), s=50, cmap='plasma', norm=norm)
@@ -135,7 +135,7 @@ def plot_super_resolution(gvdf, tidx, vdf_super, mu, SAVE=False, VDFUNITS=False,
     ax.set_aspect('equal')
 
     if SAVE:
-        plt.savefig(f'./Figures/super_res/super_resolved_{tidx}_{gvdf.npts}.png')
+        plt.savefig(f'./Figures/super_res/super_resolved_{tidx}_{gvdf.nptsx}_{gvdf.nptsy}.png')
         plt.close(fig)
     else: plt.show()
 
