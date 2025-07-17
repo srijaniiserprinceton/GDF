@@ -176,6 +176,9 @@ def plot_gyrospan(gvdf, tidx, vdfdata, SAVE=False, VDFUNITS=False, VSHIFT=None, 
     ax.set_xlim([-400,400])
     ax.set_aspect('equal')
 
+    if(SAVE):
+        plt.close()
+
 def plot_Lcurve_knee_POLCAP(tidx, model_misfit, data_misfit, knee_idx, mu, ext='png', SAVE=False):
     fig = plt.figure()
     plt.plot(model_misfit, data_misfit, 'b')
@@ -295,3 +298,72 @@ def cartesian_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     f_data = np.power(10, vdf_data) * gvdf_tstamp.minval[tidx]
 
     plot_super_resolution_CARTSLEP(gvdf_tstamp, gvdf_tstamp.CartSlep, xx, yy, f_data, f_supres, tidx, SAVE=SAVE_FIGS)
+
+def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
+                   model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False, ext='png'):
+    vdf_super_polcap, vdf_super_cartesian = vdf_super
+
+    # converting the VDFs to SPAN-i consistent units
+    f_supres_polcap = np.power(10, vdf_super_polcap) * gvdf_tstamp.minval[tidx]
+    f_supres_cartesian = np.power(10, vdf_super_cartesian) * gvdf_tstamp.minval[tidx]
+
+    # reshaping the VDFs correctly
+    f_supres_A = np.reshape(f_supres_polcap, (gvdf_tstamp.nptsx,gvdf_tstamp.nptsy), 'F').T.flatten()
+    f_supres_B = np.reshape(f_supres_cartesian, (gvdf_tstamp.nptsx,gvdf_tstamp.nptsy), 'F').T.flatten()
+
+    # the SPAN data
+    f_data = np.power(10, gvdf_tstamp.vdfdata) * gvdf_tstamp.minval[tidx]
+
+    # the SPAN data grids in FAC
+    span_gridx = np.append(-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan)
+    span_gridy = np.append(gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan)
+    xmagmax = span_gridx.max() * 1.12
+
+    Nspangrids = len(span_gridx)
+    
+    # making the colorbar norm function
+    cmap = plt.cm.plasma
+    lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
+                       int(np.log10(gvdf_tstamp.maxval[tidx]) + 1), 10)
+    norm = colors.BoundaryNorm(lvls, ncolors=cmap.N)
+
+    # reshaping grids for plotting
+    xx = np.reshape(gvdf_tstamp.grid_points[:,0], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
+    yy = np.reshape(gvdf_tstamp.grid_points[:,1], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
+
+    # plotting the points and the boundary
+    fig, ax = plt.subplots(2, 1, figsize=(4.7,7.5), sharey=True)
+    ax[0].plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
+    im = ax[0].tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_A), levels=lvls, cmap='plasma')
+    ax[0].scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
+                  cmap='plasma', norm=norm)
+    ax[0].set_aspect('equal')
+    ax[0].set_xlim([-xmagmax, xmagmax])
+    ax[0].text(0.02, 0.94, "(A)", transform=ax[0].transAxes, fontsize=12, fontweight='bold',
+            bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
+
+    ax[1].plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
+    im = ax[1].tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_B), levels=lvls, cmap='plasma')
+    ax[1].scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
+                  cmap='plasma', norm=norm)
+    ax[1].set_aspect('equal')
+    ax[1].set_xlim([-xmagmax, xmagmax])
+    ax[1].text(0.02, 0.94, "(B)", transform=ax[1].transAxes, fontsize=12, fontweight='bold',
+            bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
+
+    ax[1].set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
+    fig.supylabel(r'$v_{\parallel}$ [km/s]', fontsize=19)
+
+    cax = fig.add_axes([ax[0].get_position().x0 + 0.06, ax[0].get_position().y1+0.05,
+                        ax[0].get_position().x1 - ax[0].get_position().x0, 0.02])
+    cbar = fig.colorbar(im, cax=cax, orientation='horizontal', location='top')
+    cbar.ax.tick_params(labelsize=14)
+    tick_locator = ticker.MaxNLocator(integer=True)
+    cbar.locator = tick_locator
+    cbar.update_ticks()
+
+    plt.subplots_adjust(top=0.92, bottom=0.1, left=0.14, right=1.0, wspace=0.1, hspace=0.15)
+
+    if(SAVE_FIGS):
+        plt.savefig(f'Figures/super_res_hybrid/tidx={tidx}.{ext}')
+        plt.close()

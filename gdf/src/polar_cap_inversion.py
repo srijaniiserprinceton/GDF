@@ -133,12 +133,12 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
     vdf_inv : array-like of floats
         The inferred VDF evaluated on the gyrotropic grids.
     
+    vdf_super : array-like of floats (only for super resolution)
+        The super-resolved VDF.
+
     zeromask : array-like of bools
         A mask which is True where the reconstructed VDF is zero.
         NOTE: I am not sure why we need this anymore.
-    
-    vdf_super : array-like of floats (only for super resolution)
-        The super-resolved VDF.
     
     data_misfit : array-like of float (only for super resolution for polar cap)
         The data misfit array for different levels of regularization. This is only returned 
@@ -219,4 +219,4 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
     # finding the zeros which need to be masked to avoid bad cost functions
     zeromask = vdf_rec == 0
 
-    return vdf_rec, zeromask, vdf_super, data_misfit, model_misfit
+    return vdf_rec, vdf_super, zeromask, data_misfit, model_misfit

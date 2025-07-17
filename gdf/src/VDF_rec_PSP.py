@@ -20,7 +20,7 @@ from gdf.src import misc_funcs as misc_fn
 from gdf.src import plotter
 from gdf.src import polar_cap_inversion as polcap
 from gdf.src import cartesian_inversion as cartesian
-# from gdf.src import hybrid_inversion as hybrid
+from gdf.src import hybrid_inversion as hybrid
 
 NAX = np.newaxis
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
@@ -74,10 +74,12 @@ class gyrovdf:
             self.plotter_func = plotter.cartesian_plotter
 
         elif(self.method == 'hybrid'):
-            # self.inversion_code = hybrid
+            self.inversion_code = hybrid
+            self.lam = config['hybrid']['LAMBDA']
             self.init_cartslep_params(config['cartesian'])
             # initializing the CartSlep class once; like we do for the polcap Slepians
             self.CartSlep = eval_Slepians.Slep_2D_Cartesian()
+            self.plotter_func = plotter.hybrid_plotter
         else:
             print('INVALID CHOICE OF METHOD. CHOOSE BETWEEN polcap, cartesian, hybrid')
 
@@ -377,9 +379,9 @@ class gyrovdf:
         # making the gyrotropic coordinates for the finalized u_bulk and magnetic field at that timestamp
         self.get_coors(u_bulk, tidx)
 
-        vdf_inv, zeromask, vdf_super, data_misfit, model_misfit = self.inversion_code.super_resolution(self, tidx, NPTS)
+        vdf_inv, vdf_super, zeromask, data_misfit, model_misfit = self.inversion_code.super_resolution(self, tidx, NPTS)
 
-        return vdf_inv, zeromask, vdf_super, data_misfit, model_misfit
+        return vdf_inv, vdf_super, zeromask, data_misfit, model_misfit
 
 #---------------ALL FUNCTIONS IN THIS BLOCK ARE USED ONLY TO FIND THE GYROCENTROID--------------#
 def log_prior_perpspace(model_params):
@@ -477,7 +479,7 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         u_corr_scipy = u_corr * 1.0
         
         # computing super-resolution and moments from the scipy corrected bulk velocity
-        vdf_inv, _, vdf_super, data_misfit, model_misfit  =\
+        vdf_inv, vdf_super, __, data_misfit, model_misfit  =\
                                     gvdf_tstamp.super_resolution(u_corr, tidx, NPTS_SUPER)
         den, vel, Tcomps, Trace = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
@@ -528,8 +530,8 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
             sigma_z = project_uncertainty(vperp_12_covmat, u, v, 'z')
 
             # computing super-resolution and moments from MCMC final correction
-            vdf_inv, _, vdf_super, data_misfit, model_misfit =\
-                                        gvdf_tstamp.super_resolution(u_corr, vdfdata, tidx, NPTS_SUPER)
+            vdf_inv, vdf_super, __, data_misfit, model_misfit =\
+                                        gvdf_tstamp.super_resolution(u_corr, tidx, NPTS_SUPER)
             den, vel, Tcomps, Trace = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
             # This tells us how far off our v_parallel is from the defined/assumed v_parallel

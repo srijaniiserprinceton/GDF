@@ -79,9 +79,15 @@ def super_resolution(gvdf_tstamp, tidx, NPTS, plotSlep=False):
 
     Returns
     -------
-    vdf_super : array-like of float
-        Super-resolved GDF of shape (gvdf_stamp.nptsx, gvdf_tstamp.nptsy). Domain extent is 
-        automatically determined from the convex hull boundary. 
+    This returns a total of r parameters but only the first two are valid. This is done to keep with 
+    the same convention as the polcar_cap_inverion.super_resolution().
+
+    vdf_inv : array-like of floats
+        The inferred VDF evaluated on the SPAN data grids.
+    
+    vdf_super : array-like of floats (only for super resolution)
+        The super-resolved  GDF of shape (gvdf_stamp.nptsx, gvdf_tstamp.nptsy). Domain extent is 
+        automatically determined from the convex hull boundary.
     """
     # setting up grids, boundaries and hull for Cartesian super-resolution
     define_supres_cartgrids(gvdf_tstamp, NPTS)
@@ -104,4 +110,4 @@ def super_resolution(gvdf_tstamp, tidx, NPTS, plotSlep=False):
         yy = np.reshape(gvdf_tstamp.grid_points[:,1], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
         plotter.plot_CartSlep(xx, yy, gvdf_tstamp.CartSlep, tidx)
 
-    return vdf_rec, None, vdf_super, None, None
+    return vdf_rec, vdf_super, None, None, None

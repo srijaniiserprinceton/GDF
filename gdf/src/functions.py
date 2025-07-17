@@ -379,6 +379,10 @@ def inverse_rotate_vector_field_aligned(Ax, Ay, Az, Nx, Ny, Nz, Px, Py, Pz, Qx, 
 
 # TODO: MAKE ARBITRARY VDF MOMENT CALCULATOR
 def vdf_moments(gvdf, vdf_super, tidx):
+    # for hybrid when vdf_super is a tuple, choosing the cartesian super-resolution
+    if(isinstance(vdf_super, tuple)):
+        vdf_super = vdf_super[1]
+
     minval = gvdf.minval[tidx]
     maxval = gvdf.maxval[tidx]
     grids = gvdf.grid_points
