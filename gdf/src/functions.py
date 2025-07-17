@@ -381,33 +381,39 @@ def inverse_rotate_vector_field_aligned(Ax, Ay, Az, Nx, Ny, Nz, Px, Py, Pz, Qx, 
 def vdf_moments(gvdf, vdf_super, tidx):
     # for hybrid when vdf_super is a tuple, choosing the cartesian super-resolution
     if(isinstance(vdf_super, tuple)):
-        vdf_super = vdf_super[1]
+        vdf_super = vdf_super[0]
+        # transposing Bf for grid compatibility
+        vdfT = np.reshape(vdf_super, (gvdf.nptsx, gvdf.nptsy))
+        
+        vdf_super = np.transpose(vdfT).flatten()
 
     minval = gvdf.minval[tidx]
     maxval = gvdf.maxval[tidx]
     grids = gvdf.grid_points
-    vx = np.reshape(grids[:,0], (gvdf.nptsx, gvdf.nptsy), 'F')
-    vy = np.reshape(grids[:,1], (gvdf.nptsx, gvdf.nptsy), 'F')
-    dx = vx[1,0] - vx[0,0]
-    dy = vy[0,1] - vy[0,0]
+    vx = np.reshape(grids[:,0], (gvdf.nptsx, gvdf.nptsy))
+    vy = np.reshape(grids[:,1], (gvdf.nptsx, gvdf.nptsy))
+    dx = vx[0,1] - vx[0,0]
+    dy = vy[1,0] - vy[0,0]
+
+    print(dx, dy)
 
     mask = gvdf.hull_mask
-    mask2 = grids[mask,1] >= 0
+    mask2 = grids[mask,0] >= 0
 
     f_super = np.power(10, vdf_super) * minval
 
     f_super[f_super > 5*maxval] = 0.0
 
-    density = 2*np.pi*np.sum(grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)
-    velocity = (2*np.pi*np.sum(grids[mask,0][mask2] * 1e5 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5))
+    density = 2*np.pi*np.sum(grids[mask,0][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)
+    velocity = (2*np.pi*np.sum(grids[mask,1][mask2] * 1e5 * grids[mask,0][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5))
 
     vpara = (velocity/density)
 
     m_p = 1.6726e-24        # g        
     k_b = 1.380649e-16      # erg/K
 
-    T_para = (m_p/k_b)*(2*np.pi*np.sum((grids[mask,0][mask2] * 1e5 - vpara)**2 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)/density)
-    T_perp = (m_p/(2*k_b))*(2*np.pi*np.sum((grids[mask,1][mask2] * 1e5)**2 * grids[mask,1][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)/density)
+    T_para = (m_p/k_b)*(2*np.pi*np.sum((grids[mask,1][mask2] * 1e5 - vpara)**2 * grids[mask,0][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)/density)
+    T_perp = (m_p/(2*k_b))*(2*np.pi*np.sum((grids[mask,0][mask2] * 1e5)**2 * grids[mask,0][mask2]*1e5 * f_super[mask][mask2] * dx*1e5 * dy*1e5)/density)
 
     T_comp = T_para, T_perp
     T_trace = (T_para + 2*T_perp)/3

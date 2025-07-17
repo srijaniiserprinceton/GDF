@@ -14,7 +14,7 @@ config = {
         'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'],
         'CLIP'            : True,
         'START_INDEX'     : 0,
-        'NSTEPS'          : 100,
+        'NSTEPS'          : 1,
         'CREDS_PATH'      : None,
         'COUNT_THRESHOLD' : 2,
         'SAVE_FIGS'       : True,
