@@ -10,14 +10,14 @@
 
 config = {
     'global': {
-        'METHOD'          : 'hybrid',
+        'METHOD'          : 'cartesian',
         'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'],
         'CLIP'            : True,
         'START_INDEX'     : 0,
-        'NSTEPS'          : 1,
+        'NSTEPS'          : 10,
         'CREDS_PATH'      : None,
         'COUNT_THRESHOLD' : 2,
-        'SAVE_FIGS'       : True,
+        'SAVE_FIGS'       : False,
         'SAVE_PKL'        : True,
         'MIN_METHOD'      : 'L-BFGS-B',
         'NPTS_SUPER'      : 49,

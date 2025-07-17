@@ -395,8 +395,6 @@ def vdf_moments(gvdf, vdf_super, tidx):
     dx = vx[0,1] - vx[0,0]
     dy = vy[1,0] - vy[0,0]
 
-    print(dx, dy)
-
     mask = gvdf.hull_mask
     mask2 = grids[mask,0] >= 0
 
