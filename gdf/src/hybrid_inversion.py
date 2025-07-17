@@ -19,9 +19,11 @@ def inversion_hybrid(gvdf_tstamp, hybrid_dict):
 
     Returns
     -------
-    vdf_inv : 
+    m_polar : array-like of floats
+        1D array of coefficients for the polar cap inversion (similarity induced).
 
-    vdf_super : 
+    m_cartesian : array-like of floats
+        1D array of coefficients for the cartesian inversion (similarity induced).
     """
     # creating the G matrix
     G = np.zeros((hybrid_dict['ndata_A'] + hybrid_dict['ndata_B'] + hybrid_dict['nf'],
