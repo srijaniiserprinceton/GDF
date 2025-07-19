@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt; plt.ion()
 NAX = np.newaxis
 
 from gdf.src import functions as fn
-from gdf.src import coordinate_frame_functions as coor_fn
+# from gdf.src import coordinate_frame_functions as coor_fn
 from gdf.src import basis_funcs as basis_fn
 
 class Slep_transverse:
