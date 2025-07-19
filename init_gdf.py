@@ -11,11 +11,11 @@
 config = {
     'global': {
         'METHOD'          : 'cartesian',
-        'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'],
+        'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'], # Define the time range to load in from pyspedas
         'CLIP'            : True,
         'START_INDEX'     : 0,
-        'NSTEPS'          : 10,
-        'CREDS_PATH'      : None,
+        'NSTEPS'          : 10,                                             # use None for entire TRANGE interval
+        'CREDS_PATH'      : None,                                           # path to the <.json> file containing credentials
         'COUNT_THRESHOLD' : 2,
         'SAVE_FIGS'       : False,
         'SAVE_PKL'        : True,
