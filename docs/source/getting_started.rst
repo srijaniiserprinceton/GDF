@@ -58,7 +58,7 @@ Understanding the initialization file
 
 .. literalinclude:: ../../init_gdf_default.py
    :language: python
-   :lines: 1-28
+   :lines: 1-36
 
 The initialization file is supposed to be the primary interface for a standard user. While there are 
 a number of listed parameters, TRANGE, START_INDEX and NTEPS are the three primary
