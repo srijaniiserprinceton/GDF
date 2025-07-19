@@ -131,4 +131,4 @@ are provided in the table below.
      - The Shannon number for the Cartesian Slepian basis.
    * - LAMBDA
      - float
-     - The imposed similarity in the cost function term :math:`\lambda \left(G_1 \, m_1 - G_2 \, m_2 \right)`.
+     - The imposed similarity in the cost function term :math:`\lambda \left(G_1 \, m_1 - G_2 \, m_2 \right)^2`.
