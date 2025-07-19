@@ -110,7 +110,7 @@ class Slep_2D_Cartesian:
         """
         Generates the Cartesian 2D Slepian basis function for a given boundary and Shannon number, on a 
         grid chosen by the user.
-        
+
         Parameters
         ----------
         XY : array-like of floats
@@ -118,7 +118,7 @@ class Slep_2D_Cartesian:
             :math:`v_{||}` = XY[:,1].
 
         N : int
-            The Shannon number for the generates Slepian basis. This effectively controls the fineness
+            The Shannon number for the generated Slepian basis. This effectively controls the fineness
             or granularity of the basis functions. A larger N means more basis functions and finer 
             structure resolvability.
 
