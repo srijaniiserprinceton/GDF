@@ -7,6 +7,22 @@ from gdf.src import plotter
 from gdf.src import functions as fn
 
 def define_supres_cartgrids(gvdf_tstamp, NPTS, plothull=False):
+    """
+    Initializes convex hull attributes such as the boundary points (for generating the
+    Cartesian Slepians), the hull mask for computing the moments and the super-resolution grids.
+
+    Parameters
+    ----------
+    gvdf_tstamp : gyrovdf class instance
+        This is the class instance which is setup for the specific timestamp being reconstructed.
+        Should already contain the CartSlep class instance generated as an attribute.
+    
+    NPTS : tuple of ints
+        The final super-resoluiton will be (NPTS_x, NPTS_y) in shape.
+
+    plotSlep : bool (optional)
+        Flag to optionally plot the convex hull for diagnostic purposes only.
+    """
     # this is super-resolution grid in x
     gvdf_tstamp.v_perp_all = np.concatenate([-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan])
     # this is super-resolution grid in y
@@ -73,6 +89,9 @@ def super_resolution(gvdf_tstamp, tidx, NPTS, plotSlep=False):
     
     tidx : int
         The time index being super-resolved.
+    
+    NPTS : tuple of ints
+        The final super-resoluiton will be (NPTS_x, NPTS_y) in shape.
 
     plotSlep : bool (optional)
         Flag to optionally plot the Cartsian Slepian basis functions, for diagnostic purposes only.

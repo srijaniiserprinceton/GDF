@@ -18,6 +18,14 @@ def load_config(file_path):
     return config
 
 def credential_reader(cred_file=None):
+    """
+    Reads the config.json file containing the credentials and returns it as a list.
+
+    Parameters
+    ----------
+    cred_file : str
+        Path to the config.json file.
+    """
     if cred_file:
         credentials = load_config(cred_file)
         # TODO: Add FIELDS credentials for variance analysis
@@ -27,15 +35,42 @@ def credential_reader(cred_file=None):
         return None
     
 def write_pickle(x, fname):
+    """
+    Write to a pickle file.
+
+    Parameters
+    ----------
+    x : data structure
+        Contains the dictionary or data structure to be saved into the pickle file.
+
+    fname : str
+        Path to the pickle file to be written excluding the .pkl at the end. 
+    """
     with open(f'{fname}.pkl', 'wb') as handle:
         pickle.dump(x, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 def read_pickle(fname):
+    """
+    Read from a pickle file.
+
+    Parameters
+    ----------
+    fname : str
+        Path to the pickle file to be read excluding the .pkl at the end. 
+    """
     with open(f'{fname}.pkl', 'rb') as handle:
         x = pickle.load(handle)
     return x
 
 def norm_array(arr):
+    """
+    Normalizing an input array to range between (0, 1).
+
+    Parameters
+    ----------
+    arr : array-like of floats
+        The array to be normalized.
+    """
     arr = np.asarray(arr)
     return (arr - np.nanmin(arr)) / (np.nanmax(arr) - np.nanmin(arr))
 

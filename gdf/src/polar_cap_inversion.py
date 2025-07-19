@@ -125,7 +125,7 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
     tidx : int
         The time index being reconstructed.
 
-    NPTS : tuple of int
+    NPTS : tuple of ints
         The final super-resoluiton will be (NPTS_x, NPTS_y) in shape.
 
     Returns

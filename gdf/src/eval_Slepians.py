@@ -62,6 +62,11 @@ class Slep_transverse:
         self.Lmax = Lmax
 
     def gen_Slep_basis(self, theta_grid):
+        r"""
+        Generates the Slepian basis functions :math:`S_{\alpha}(\theta)` using the 
+        Spherical Harmonics' localization coefficients computed at the initia;ization of the
+        `Slep_transverse` class instance.
+        """
         [G, th] = self.eng.pl2th(self.C, theta_grid, np.double(1), nargout=2)
         G, th = np.asarray(G).squeeze(), np.asarray(th).squeeze()
 
@@ -88,6 +93,11 @@ class Slep_transverse:
 
 class Slep_2D_Cartesian:
     def __init__(self):
+        """
+        Starts the Matlab engine for generating the Cartesian Slepians. This is initialized only
+        once in the __init__ of the `gyrovdf` class in `VDF_rec_PSP.py`. NOTE: Further speed-up
+        might need us to convert Matlab to Python.
+        """
         self.slep_dir = fn.read_config()[0]  
 
         #--Starting Matlab engine to get the Slepian functions---#
@@ -97,6 +107,25 @@ class Slep_2D_Cartesian:
         self.eng.addpath(s, nargout=0)
     
     def gen_Slep_basis(self, XY, N, XYP):
+        """
+        Generates the Cartesian 2D Slepian basis function for a given boundary and Shannon number, on a 
+        grid chosen by the user.
+        
+        Parameters
+        ----------
+        XY : array-like of floats
+            The boundary points of shape (Npoints_boundary, 2) where :math:`v_{\perp}` = XY[:,0] and 
+            :math:`v_{||}` = XY[:,1].
+
+        N : int
+            The Shannon number for the generates Slepian basis. This effectively controls the fineness
+            or granularity of the basis functions. A larger N means more basis functions and finer 
+            structure resolvability.
+
+        XYP : array-like of floats  
+            Array of all the points where we want to evaluate the generated Cartesian Slepian basis. The
+            shape is (Npoints_eval, 2) where where :math:`v_{\perp}` = XYP[:,0] and :math:`v_{||}` = XYP[:,1].
+        """
         [G,H,V,K,XYP,XY,A] = self.eng.localization2D(XY, N, [], 'GL', [], [], np.array([[10.,10.]]), XYP, nargout=7)
         self.G = np.asarray(G)
         self.H = np.asarray(H)
