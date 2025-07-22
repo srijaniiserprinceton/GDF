@@ -163,7 +163,7 @@ repository directory. Copy the following files into this directory from the ``gd
 
    cp GDF/main.py gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/.
    cp GDF/Makefile gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/.
-   cp GDF/init_gdf_default.py gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/.
+   cp GDF/init_gdf_default.py gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/init_gdf.py
    cp GDF/.config gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/.
    cp GDF/config.json gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/.
 
@@ -184,7 +184,7 @@ At this point, the directory structure should look like this
 
    gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/
    ├── main.py
-   ├── init_gdf_default.py
+   ├── init_gdf.py
    ├── Makefile
    ├── .config
    ├── config.json
@@ -199,5 +199,5 @@ At this point, the directory structure should look like this
        ├── super_res_cartesian/
        └── super_res_hybrid/
 
-Now, you are setup to change ``init_gdf_default.py`` to your own requirements and simply run 
-``python main.py init_gdf_default`` in your newly created gdf run directory.
+Now, you are setup to change ``init_gdf.py`` to your own requirements and simply run 
+``python main.py init_gdf`` in your newly created gdf run directory.
