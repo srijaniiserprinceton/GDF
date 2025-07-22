@@ -41,7 +41,7 @@ Radial knots for cubic B-splines
 The domain is discretized as a function of velocity :math:`v` and polar angle :math:`\theta`. 
 We use cubic B-splines with local supports at knots, which are computed for each timestamp, 
 to render localized support on different velocity shells. The knots are placed 
-logarithmically with a spacing of :math:`\Delta \log_{10}(v)=` 0.0348. 
+logarithmically with a spacing of :math:`\Delta \log_{10}(v)=`. 
 We arrive at this number after investigating the average log spacing 
 between SPAN-i velocity shells as 
 
@@ -51,7 +51,7 @@ between SPAN-i velocity shells as
 The number of knots are calculated based on this logarithmic spacing and the farthest extents of the grids which have a non-zero count.
 
 .. math::
-    N_{\rm{knots}} \simeq \frac{\log_{10}(v_{\rm{max}} - v_{\rm{min}})}{\Delta \log_{10}(v)} \, ,
+    N_{\rm{knots}} \simeq \frac{\log_{10}(v_{\rm{max}}) - \log_{10}(v_{\rm{min}})}{\Delta \log_{10}(v)} \, ,
 
 where, :math:`N_{\rm{knots}}` is rounded down to the closest integer and 
 :math:`(v_{\rm{min}}, v_{\rm{max}})` are the minimum and maximum velocity 

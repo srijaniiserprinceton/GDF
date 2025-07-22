@@ -514,7 +514,7 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
                 labels = [r"$V_{\perp 1}$", r"$V_{\perp 2}$"]
                 fig = corner.corner(flat_samples, labels=labels, show_titles=True)
                 plt.tight_layout()
-                plt.savefig(f'./Figures/mcmc_dists/emcee_ubulk_{tidx}.png')
+                plt.savefig(f'./Figures/mcmc_dists_polcap/emcee_ubulk_{tidx}.png')
                 plt.close(fig)
 
             # computing the 50th quantile level vales in (vperp1, vperp2) space [along u, v vectors]

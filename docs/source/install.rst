@@ -46,7 +46,7 @@ Python environment.
 
 Installing the ``gdf`` repository
 =================================
-The cloned ``GDF`` directory can be installed as a Python package
+The cloned ``gdf`` directory can be installed as a Python package
 in your local environment. Move into the cloned repository 
 directory: ``cd GDF``. In order to install the ``gdf`` Python package simply
 
@@ -84,7 +84,7 @@ clone the repositories as follows
 
 Finally, since we run Matlab from inside our Python codebase by using `matlabengine <https://pypi.org/project/matlabengine/>`_,
 we require a ``.config`` file which contains the absolute path to the ``Slepians`` directory. In order to access the proprietary data,
-the user would need a ``config.json`` file in your ``GDF`` repository. This file should look like
+the user would need a ``config.json`` file in your ``gdf`` repository. This file should look like
 
 .. code-block::
 
@@ -112,7 +112,7 @@ This can be done by executingthe following make file in the ``setup`` mode
    make setup
 
 Once this is run, you should have a directory structure as shown below (assuming you have downloaded a Slepians in a different 
-directory than the ``GDF`` repository).
+directory than the ``gdf`` repository).
 
 Directory structure::
 
@@ -124,7 +124,13 @@ Directory structure::
     ├── Outputs/
     │   └── ...
     └── Figures/
-        └── ...
+        ├── mcmc_dists_polcap/
+        ├── span_rec_polcap/
+        ├── super_res_polcap/
+        ├── kneeL_polcap/
+        ├── cartesian_slepians/
+        ├── super_res_cartesian/
+        └── super_res_hybrid/
 
     Slepians/
     ├── slepian_alpha/
@@ -143,3 +149,55 @@ makefile in the ``testrun`` mode.
    make testrun
 
 If the installation is successful, this should go through without errors. Check the final generated figures in the directory ``Figures``. 
+
+Setting up your own GDF run directory
+=====================================
+
+The section above laid out the installation and test run for a single gdf run on a template initialization file.
+It is recommended to create a separate directory for each GDF time range you are interested in. Let's say that
+you want to run GDF for the interval ``TRANGE = ['2020-01-26T14:28:00', '2020-01-26T20:30:59']``. So, you might
+have a directory called ``gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59`` somewhere outside the actual ``gdf``
+repository directory. Copy the following files into this directory from the ``gdf`` repository 
+
+.. code-block::
+
+   cp GDF/main.py gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/.
+   cp GDF/Makefile gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/.
+   cp GDF/init_gdf_default.py gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/.
+   cp GDF/.config gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/.
+   cp GDF/config.json gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/.
+
+Once you have copied these files, setup the directory structure for storing output pickle files and figures by running
+
+.. code-block::
+
+   cd gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59
+   (your-env) gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59 $ make setup_new_gdfdir
+
+At this point, the directory structure should look like this
+
+.. code-block::
+
+   gdf/
+
+   Slepians/
+
+   gdfrun_2020_01_26T14_28_00__2020_01_26T20_30_59/
+   ├── main.py
+   ├── init_gdf_default.py
+   ├── Makefile
+   ├── .config
+   ├── config.json
+   ├── Outputs/
+   │   └── ...
+   └── Figures/
+       ├── mcmc_dists_polcap/
+       ├── span_rec_polcap/
+       ├── super_res_polcap/
+       ├── kneeL_polcap/
+       ├── cartesian_slepians/
+       ├── super_res_cartesian/
+       └── super_res_hybrid/
+
+Now, you are setup to change ``init_gdf_default.py`` to your own requirements and simply run 
+``python main.py init_gdf_default`` in your newly created gdf run directory.

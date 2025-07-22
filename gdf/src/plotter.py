@@ -79,7 +79,7 @@ def plot_span_vs_rec_contour_POLCAP(gvdf, vdf_data, vdf_rec, tidx, GRID=False, V
         [ax[i].scatter(v_perp_all[len(v_para_all)//2:,], v_para_all[len(v_para_all)//2:,], color='k', marker='.', s=3) for i in range(2)]
 
     if SAVE:
-        plt.savefig(f'./Figures/span_rec_contour/tricontour_plot_{tidx}.{ext}')
+        plt.savefig(f'./Figures/span_rec_polcap/tricontour_plot_{tidx}.{ext}')
         plt.close(fig)
 
     else: plt.show()
@@ -135,7 +135,7 @@ def plot_super_resolution_POLCAP(gvdf, vdf_super, mu, tidx, SAVE=False, VDFUNITS
     ax.set_aspect('equal')
 
     if SAVE:
-        plt.savefig(f'./Figures/super_res/super_resolved_{tidx}_{gvdf.nptsx}_{gvdf.nptsy}.{ext}')
+        plt.savefig(f'./Figures/super_res_polcap/super_resolved_{tidx}_{gvdf.nptsx}_{gvdf.nptsy}.{ext}')
         plt.close(fig)
     else: plt.show()
 
@@ -192,7 +192,7 @@ def plot_Lcurve_knee_POLCAP(tidx, model_misfit, data_misfit, knee_idx, mu, ext='
     plt.ylabel('Data Misfit', fontsize=14, fontweight='bold')
 
     if(SAVE):
-        plt.savefig(f'./Figures/kneeL/kneeL_{tidx}.{ext}')
+        plt.savefig(f'./Figures/kneeL_polcap/kneeL_{tidx}.{ext}')
         plt.close(fig)
 
 def plot_CartSlep(xx, yy, CartSlep, tidx, ext='png', SAVE=False):
@@ -222,7 +222,7 @@ def plot_CartSlep(xx, yy, CartSlep, tidx, ext='png', SAVE=False):
     fig.supylabel(r'$v_{\parallel}$ [km/s]', fontsize=12)
 
     if(SAVE):
-        plt.savefig(f'Figures/CartSlep/basis_tidx={tidx}.{ext}')
+        plt.savefig(f'Figures/cartesian_slepians/basis_tidx={tidx}.{ext}')
         plt.close()
 
 def plot_super_resolution_CARTSLEP(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supres, tidx, ext='png', SAVE=False):
@@ -274,7 +274,7 @@ def plot_super_resolution_CARTSLEP(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supr
     plt.subplots_adjust(top=0.92, bottom=0.1, left=0.14, right=1.0, wspace=0.1, hspace=0.15)
 
     if(SAVE):
-        plt.savefig(f'Figures/super_res_CartSlep/tidx={tidx}.{ext}')
+        plt.savefig(f'Figures/super_res_cartesian/tidx={tidx}.{ext}')
         plt.close()
 
 def polcap_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,

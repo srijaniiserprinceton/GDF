@@ -100,8 +100,8 @@ are provided in the table below.
      - str
      - Minimization method used in the ``scipy.optimize.minimize``. Optimal choice is 'L-BFGS-B'.
    * - NPTS_SUPER
-     - int
-     - Number of super-resolved points in a uniform Cartesian grid of (:math:`v_{\parallel},\, v_{\perp}`).
+     - int or tuple of ints
+     - Number of super-resolved points in a uniform Cartesian grid of (:math:`v_{\perp},\, v_{\parallel}`). This can be a tuple if (NPTSx, NPTSy) where :math:`x` is along :math:`v_{\perp}` and :math:`y` is along :math:`v_{\parallel}`.
    * - MCMC
      - bool
      - Flag to use a MCMC refinement of the gyroaxis, provides error esimtates on the gyro-centroid.
