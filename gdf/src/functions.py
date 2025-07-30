@@ -15,6 +15,11 @@ import matplotlib.pyplot as plt; plt.ion(); plt.rcParams['font.size'] = 16
 from datetime import datetime
 from pathlib import Path
 
+# Constants for integration
+kB = 1.380649e-23  # J/K
+qe = 1.602176634e-19  # Elementary charge [C]
+mass_p_kg = 1.6726219e-27 
+
 """
 Update: Fixed the init routines.
 """
@@ -418,6 +423,118 @@ def vdf_moments(gvdf, vdf_super, tidx):
     T_trace = (T_para + 2*T_perp)/3
 
     return(density, vpara/1e5, T_comp, T_trace)
+
+def compute_vdf_moments(E_eV, theta, phi, f, mass):
+    """
+    Compute the density [cm^-3], bulk velocity [km/s], and temperature [K] 
+    from a given SPAN-i VDF in [s^3/cm^6] on a 3D grid of [energy, theta, phi] 
+    
+    Parameters
+    ----------
+    E_eV : 1D array, shape (nE,)
+        Energy bin centers [J].
+    theta : 1D array, shape (ntheta,)
+        Polar angle bin centers [rad], 0 = +z direction. 
+        NOTE: The angle reported in the SPAN-i CDF is defined from the x-y plane! 
+    phi : 1D array, shape (nphi,)
+        Azimuthal angle bin centers [rad].
+    f : 3D array, shape (nE, ntheta, nphi)
+        VDF values in [s^3/cm^6].
+    mass : float
+        Particle mass [kg].
+
+    Returns
+    -------
+    density : float
+        Number density [cm⁻³].
+    bulk_vel : ndarray, shape (3,)
+        Bulk velocity [km/s].
+    temperature : float
+        Scalar temperature [K].
+    """
+    # Convert E to Joules
+    E = E_eV * qe  # [J]
+
+    # Convert f to SI units: s^3/m^6
+    f_si = f * 1e12  # (1 m = 100 cm --> cm^6 to m^6 = 1e12)
+
+    # Velocity magnitude [m/s]
+    v = np.sqrt(2 * E / mass)
+
+    # Bin edges for integration
+    def edges_from_centers(x):
+        dx = np.diff(x)
+        edge = np.empty(len(x) + 1)
+        edge[1:-1] = x[:-1] + dx/2
+        edge[0]    = x[0]    - dx[0]/2
+        edge[-1]   = x[-1]   + dx[-1]/2
+        return edge
+
+    v_edges     = edges_from_centers(v)
+    theta_edges = edges_from_centers(theta)
+    phi_edges   = edges_from_centers(phi)
+
+    dv     = np.diff(v_edges)
+    dtheta = np.diff(theta_edges)
+    dphi   = np.diff(phi_edges)
+
+    # 3D grids
+    V, TH, PH = np.meshgrid(v, theta, phi, indexing='ij')
+    dV, dTH, dPH = np.meshgrid(dv, dtheta, dphi, indexing='ij')
+
+    # Volume element in velocity space: v² sinθ dv dθ dφ [m³/s³]
+    vol_elem = V**2 * np.sin(TH) * dV * dTH * dPH  # [m³/s³]
+
+
+    # Velocity components [m/s]
+    # vx = V * np.sin(TH) * np.cos(PH)
+    # vy = V * np.sin(TH) * np.sin(PH)
+    # vz = V * np.cos(TH)
+
+
+    v_mid = 0.5 * (v_edges[1:] + v_edges[:-1])
+    theta_mid = 0.5 * (theta_edges[1:] + theta_edges[:-1])
+    phi_mid = 0.5 * (phi_edges[1:] + phi_edges[:-1])
+    V_mid, TH, PH = np.meshgrid(v_mid, theta_mid, phi_mid, indexing='ij')
+
+    # Velocity components [m/s]
+    vx = V_mid * np.sin(TH) * np.cos(PH)
+    vy = V_mid * np.sin(TH) * np.sin(PH)
+    vz = V_mid * np.cos(TH)
+
+    # Zeroth moment: density [m⁻³]
+    density_m3 = np.nansum(f_si * vol_elem)
+
+    # First moment: bulk velocity [m/s]
+    ux = np.nansum(f_si * vx * vol_elem) / density_m3
+    uy = np.nansum(f_si * vy * vol_elem) / density_m3
+    uz = np.nansum(f_si * vz * vol_elem) / density_m3
+    bulk_vel_m_s = np.array([ux, uy, uz])
+
+    # Second moment: temperature [K]
+    dvx = vx - ux
+    dvy = vy - uy
+    dvz = vz - uz
+    v_diff2 = dvx**2 + dvy**2 + dvz**2
+
+
+    txx = mass / (density_m3 * kB) * np.nansum(f_si * dvx**2 * vol_elem)
+    tyy = mass / (density_m3 * kB) * np.nansum(f_si * dvy**2 * vol_elem)
+    tzz = mass / (density_m3 * kB) * np.nansum(f_si * dvz**2 * vol_elem)
+
+    txy = mass / (density_m3 * kB) * np.nansum(f_si * dvx*dvy * vol_elem)
+    txz = mass / (density_m3 * kB) * np.nansum(f_si * dvx*dvz * vol_elem)
+    tyz = mass / (density_m3 * kB) * np.nansum(f_si * dvy*dvz * vol_elem)
+
+    t_tens = np.array([[txx,txy,txz], [txy, tyy, tyz], [txz, tyz, tzz]])
+
+    temp = mass / (3 * density_m3 * kB) * np.nansum(f_si * v_diff2 * vol_elem)
+
+    # Convert outputs
+    density_cm3 = density_m3 * 1e-6       # [cm^-3]
+    bulk_vel_kms = bulk_vel_m_s * 1e-3    # [km/s]
+
+    return density_cm3, bulk_vel_kms, t_tens, temp
 
 def norm_eval_theta(S1, S2, theta=np.linspace(0,180,360)):
     r"""
