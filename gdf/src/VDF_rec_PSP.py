@@ -127,7 +127,8 @@ class gyrovdf:
         Initializes the parameters of the Cartesian Slepians and stores them as
         attributes of the class.
         """
-        self.N2D_cart = int(cartslep_params['N2D_CART'])
+        # storing the user defined N2D_cart if it is not None
+        self.N2D_cart = cartslep_params['N2D_CART']
     
     def setup_timewindow(self, vdf_dict, trange, CREDENTIALS=None, CLIP=False):
         """
@@ -170,9 +171,6 @@ class gyrovdf:
         # constructing the velocity grid from the energy grid
         self.velocity = np.sqrt(2 * q_p * energy / m_p)
 
-        # this is calculated from the mean(log10(v_{i+1}) - log10(v_i)) of SPAN-i grid
-        self.dlnv = 0.0348 #np.nanmean(np.diff(np.log10(self.velocity[0,:,0,0])))
-
         # Define the Cartesian Coordinates
         self.vx = self.velocity * np.cos(np.radians(theta)) * np.cos(np.radians(phi))
         self.vy = self.velocity * np.cos(np.radians(theta)) * np.sin(np.radians(phi))
@@ -195,6 +193,14 @@ class gyrovdf:
         # we want to use the correct magnetic field for its corresponding VDF.
         self.l3_time = data.Epoch.data
         self.l2_time = time
+
+        # finding the N2D length scale for cartesian or hybrid
+        self.kmax_arr = fn.find_kmax_arr(self, vdf_dict, self.Lmax)
+
+        # the array of final TH
+        self.TH_all = np.zeros(len(time))
+        self.vshift_all = np.zeros(len(time))
+        self.N2D_polcap_all = np.zeros(len(time))
 
     def get_coors(self, u_bulk, tidx):
         r"""
@@ -250,6 +256,73 @@ class gyrovdf:
         # making the knots everytime the gyrotropic coordinates are changed
         self.make_knots(tidx)
 
+    def get_coors_supres(self, u_bulk, tidx):
+        r"""
+        This function is used to setup the super-resolution grids in gyrotropic coordinate depending on the 
+        proposed gyrocenter and the induced shift along the :math:`v_{||}` direction
+        (which depends on the polar cap extent). The super-resolution
+        (both in the polar cap and Cartesian frameworks) is performed in the 
+        gyrotropic grid produced from this function.
+
+        Parameters
+        ----------
+        u_bulk : array-like of floats
+            The (3,) array containing the proposed bulk velocity in the instrument's (X,Y,Z) frame.
+
+        tidx : int
+            The time index being reconstructed.
+        """
+        self.vpara, self.vperp1, self.vperp2, self.vperp = None, None, None, None
+        self.ubulk = u_bulk * 1.0
+        
+        # Shift into the plasma frame for the proposed u_bulk (the gyrocentroid)
+        self.ux = self.vx[tidx] - u_bulk[0, NAX, NAX, NAX]
+        self.uy = self.vy[tidx] - u_bulk[1, NAX, NAX, NAX]
+        self.uz = self.vz[tidx] - u_bulk[2, NAX, NAX, NAX]
+
+        # Rotate the plasma frame data into the magnetic field aligned frame.
+        vpara, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(self.ux, self.uy, self.uz,
+                                                                        *fn.field_aligned_coordinates(self.b_span[tidx])))                                                            
+        
+        # converting to the field aligned coordinates here [BEFORE SHIFTING ALONG vpara]
+        self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
+        self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
+
+        # Check angle between flow and magnetic field. 
+        # NOTE: NEED TO CHECK THIS CALCULATION.
+        if (self.theta_bv[tidx] < 90):
+            self.vpara = -1.0 * self.vpara
+            self.theta_sign = -1.0
+        else: self.theta_sign = 1.0
+
+        # Boosting along vpara [this step is crucial for the polar cap method, only]
+        self.vshift = self.velocity[tidx, *self.max_indices[tidx]] + vpara[*self.max_indices[tidx]]
+        self.vpara -= self.vshift
+        self.vshift_all[tidx] = self.vshift * 1.0
+
+        # converting the vpara shifted grid to spherical polar in the field aligned frame
+        r, theta, phi = c2s(self.vperp1, self.vperp2, self.vpara)
+        self.r_fa = r.value
+        self.theta_fa = np.degrees(theta.value) + 90
+
+        # finding the maximum TH (comes from the maximum vperp) for polarcap Slepian generation
+        self.TH = np.max(np.degrees(np.arctan2(self.vperp[self.nanmask[tidx]], -self.vpara[self.nanmask[tidx]])))
+        self.TH_all[tidx] = self.TH * 1.0
+
+        # generating the polcap Slepians for the new TH
+        self.Slep.gen_Slep_tapers(self.TH, self.Lmax)
+
+        # truncating beyond N2D; if None is passed it uses the default Shannon number definition
+        self.N2D_polcap = int(np.sum(self.Slep.V))
+        self.N2D_polcap_all[tidx] = int(np.sum(self.Slep.V))
+
+        # generating the Slepian normalizations to be later used for Bspline regularization (in the D matrix)
+        self.Slep.gen_Slep_norms()
+        self.Slep.norm = self.Slep.norm[:self.N2D_polcap]
+
+        # making the knots everytime the gyrotropic coordinates are changed
+        self.make_knots(tidx)
+
     def make_knots(self, tidx):
         """
         Creates the knots in :math:`r = \sqrt{v_{||}^2 + v_{\perp}}` space. The default 
@@ -276,6 +349,9 @@ class gyrovdf:
         vmin = np.min(self.velocity[tidx, self.nanmask[tidx]])
         vmax = np.max(self.velocity[tidx, self.nanmask[tidx]])
         
+        # this is calculated from the mean(log10(v_{i+1}) - log10(v_i)) of SPAN-i grid
+        self.dlnv = 2 * np.nanmean(np.diff(np.log10(self.velocity[tidx,:,0,0])))
+
         # making the initial estimate of counts per bin and bin edges in log space of knots 
         Nbins = int((np.log10(vmax) - np.log10(vmin)) / self.dlnv)
         counts, bin_edges = np.histogram(np.log10(self.rfac_nonan), bins=Nbins)
@@ -377,7 +453,7 @@ class gyrovdf:
             NOTE: This is returned only to be able to make the L-curve plot for diagnostic purposes.
         """
         # making the gyrotropic coordinates for the finalized u_bulk and magnetic field at that timestamp
-        self.get_coors(u_bulk, tidx)
+        self.get_coors_supres(u_bulk, tidx)
 
         vdf_inv, vdf_super, zeromask, data_misfit, model_misfit = self.inversion_code.super_resolution(self, tidx, NPTS)
 
@@ -504,7 +580,7 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
 
             # TODO: MAY CONVERT TO MULTIPROCESSING SETUP, IF NEEDED.
             sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability_perpspace, args=(vdfdata, tidx, u_adj, u, v))
-            sampler.run_mcmc(pos, MCMC_STEPS, progress=False)
+            sampler.run_mcmc(pos, MCMC_STEPS, progress=True)
             
             # extracting the MCMC chains
             flat_samples = sampler.get_chain(flat=True)

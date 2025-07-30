@@ -21,7 +21,7 @@ config = {
         'MCMC_STEPS'      : 200,
     },
     'polcap': {
-        'TH'              : 30,
+        'TH'              : 60,
         'LMAX'            : 12,
         'N2D_POLCAP'      : None,
         'P'               : 3,

@@ -29,7 +29,7 @@ def define_supres_cartgrids(gvdf_tstamp, NPTS, plothull=False):
     gvdf_tstamp.v_para_all = np.concatenate([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan])
 
     # extracting the convex hull boundary
-    supres_gridy_1D, supres_grids, boundary_points, hull_mask =\
+    supres_gridy_1D, supres_grids, boundary_points, hull_mask, area =\
                     fn.find_supres_grid_and_boundary(gvdf_tstamp.v_perp_all, gvdf_tstamp.v_para_all,
                                                      NPTS, plothull=plothull)
     
@@ -39,6 +39,7 @@ def define_supres_cartgrids(gvdf_tstamp, NPTS, plothull=False):
     gvdf_tstamp.grid_points = supres_grids * 1.0
     gvdf_tstamp.boundary_points = boundary_points
     gvdf_tstamp.hull_mask = hull_mask
+    gvdf_tstamp.hull_area = area
 
 def inversion_CartSlep(gvdf_tstamp):
     """
@@ -110,6 +111,9 @@ def super_resolution(gvdf_tstamp, tidx, NPTS, plotSlep=False):
     """
     # setting up grids, boundaries and hull for Cartesian super-resolution
     define_supres_cartgrids(gvdf_tstamp, NPTS)
+
+    # calculating the N2D for hybrid if it is None (not user-specified)
+    if(gvdf_tstamp.N2D_cart is None): gvdf_tstamp.N2D_cart = fn.find_N2D_cart(gvdf_tstamp, tidx)
 
     # inferring the coefficients from the data
     coeffs = inversion_CartSlep(gvdf_tstamp)

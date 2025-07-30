@@ -9,6 +9,7 @@ import glob
 from scipy.integrate import simpson as simps
 from sklearn.linear_model import LinearRegression
 from scipy.spatial import Delaunay
+from shapely.geometry import Polygon
 import matplotlib.pyplot as plt; plt.ion(); plt.rcParams['font.size'] = 16
 
 from datetime import datetime
@@ -573,13 +574,17 @@ def find_supres_grid_and_boundary(xpoints, ypoints, NPTS, plothull=False):
         that the calculations are only restricted to within the convex hull.
     """
     points = np.vstack([ypoints, xpoints]).T
+    # triangulation
     tri = Delaunay(points)
     idx = np.unique(tri.convex_hull)
     points_idx = np.flip(points[idx], axis=1)
     angles = np.arctan2(points_idx[:,0], points_idx[:,1] - np.mean(points_idx[:,1]))
     sortidx = np.argsort(angles)
+    # final sorted points
     points_sorted = points_idx[sortidx]
     boundary_points = np.vstack([points_sorted, points_sorted[0]])
+    # area inside the patch
+    area = Polygon(boundary_points).area
 
     if(plothull):
         plt.figure()
@@ -604,4 +609,39 @@ def find_supres_grid_and_boundary(xpoints, ypoints, NPTS, plothull=False):
     supres_grids = np.vstack([xx.flatten(), yy.flatten()]).T
 
     # returned points can be simply plotted to give a closed contour circumscribing all points
-    return y, supres_grids, boundary_points, hull_mask
+    return y, supres_grids, boundary_points, hull_mask, area
+
+def find_kmax_arr(gvdf_tstamp, psp_vdf, Lmax=12):
+    data_all = psp_vdf.vdf.data  # shape (N, 32, 8, 8)
+    flat_data = data_all.reshape(data_all.shape[0], -1)  # shape (N, 2048)
+    # Find the flattened indices of the max value ignoring NaNs
+    flat_argmax = np.nanargmax(flat_data, axis=1)  # shape (N,)
+
+    # Convert to 3D indices
+    gvdf_tstamp.max_indices = np.array(np.unravel_index(flat_argmax, (32, 8, 8))).T
+
+    # calculating the energy shells for each of the time stamps
+    maxval_energies = psp_vdf.energy.data[np.arange(len(gvdf_tstamp.max_indices)),
+                                                    gvdf_tstamp.max_indices[:, 0], 
+                                                    gvdf_tstamp.max_indices[:, 1], 
+                                                    gvdf_tstamp.max_indices[:, 2]]
+
+    # generating the corresponding velocities 
+    m_p = 0.010438870    # eV/c^2 where c = 299792 km/s
+    q_p = 1
+    maxval_velocities = np.sqrt(2 * q_p * maxval_energies / m_p)
+
+    # instrument grid resolution
+    gvdf_tstamp.theta_res = 180 // Lmax
+
+    # converting to 15 degrees length-scale [r d\theta]
+    wavelength = maxval_velocities * np.radians(gvdf_tstamp.theta_res)
+
+    # defining the maximum wavenumber
+    kmax = np.pi / (wavelength)
+
+    return kmax
+
+def find_N2D_cart(gvdf_tstamp, tidx):
+    N2D_cart = int(np.floor(gvdf_tstamp.kmax_arr[tidx]**2 * gvdf_tstamp.hull_area / (4*np.pi)))
+    return N2D_cart

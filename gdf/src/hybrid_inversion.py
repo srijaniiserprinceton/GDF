@@ -2,6 +2,43 @@ import numpy as np
 from scipy.linalg import solve
 
 from gdf.src import polar_cap_inversion as polcap_inversion
+from gdf.src import functions as fn
+from gdf.src import basis_funcs as basis_fn
+from gdf.src import misc_funcs as misc_fn
+
+def find_polcap_knee_idx(gvdf_tstamp):
+    #--------- starting the inversion for obtaining the coefficients using B-spline regularization-------#
+    G_g = gvdf_tstamp.G_k_n @ gvdf_tstamp.G_k_n.T
+    
+    # Setup the BSpline regularization
+    D_i_i = basis_fn.get_Bspline_second_derivative(gvdf_tstamp.knots, gvdf_tstamp.p, gvdf_tstamp.super_vpara)
+
+    # Augment the D-matrix
+    gvdf_tstamp.D = np.kron(D_i_i, np.diag(gvdf_tstamp.Slep.norm))
+    I = np.identity(len(G_g))
+
+    # making the data and model misfit arrays
+    data_misfit, model_misfit = [], []
+
+    for mu in gvdf_tstamp.mu_arr:
+        # coeffs = np.linalg.inv(G_g + mu * gvdf_tstamp.D) @ gvdf_tstamp.G_k_n @ vdfdata
+        coeffs = solve(G_g + mu * gvdf_tstamp.D, gvdf_tstamp.G_k_n @ gvdf_tstamp.vdfdata, assume_a='sym')
+
+        # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
+        vdf_rec = coeffs @ gvdf_tstamp.G_k_n
+
+        # computing and appending the data misfit
+        data_misfit.append(np.linalg.norm(vdf_rec - gvdf_tstamp.vdfdata))
+
+        # computing and appending the model misfit
+        model_misfit.append(np.linalg.norm(coeffs @ gvdf_tstamp.D @ coeffs))
+
+    # normalizing the misfit arrays for better knee finding
+    model_misfit = misc_fn.norm_array(model_misfit)
+    data_misfit = misc_fn.norm_array(data_misfit)
+
+    # finding the knee of the L-curve and plotting, if necessary
+    gvdf_tstamp.knee_idx = fn.geometric_knee(model_misfit, data_misfit)
 
 def inversion_hybrid(gvdf_tstamp, hybrid_dict):
     """
@@ -26,7 +63,7 @@ def inversion_hybrid(gvdf_tstamp, hybrid_dict):
         1D array of coefficients for the cartesian inversion (similarity induced).
     """
     # creating the G matrix
-    G = np.zeros((hybrid_dict['ndata_A'] + hybrid_dict['ndata_B'] + hybrid_dict['nf'],
+    G = np.zeros((hybrid_dict['ndata_A'] + hybrid_dict['ndata_B'] + hybrid_dict['nf'] + hybrid_dict['nparams_A'],
                   hybrid_dict['nparams_A'] + hybrid_dict['nparams_B']))
 
     # filling in A responsible for polar cap reconstruction
@@ -35,14 +72,23 @@ def inversion_hybrid(gvdf_tstamp, hybrid_dict):
     G[hybrid_dict['ndata_A']:hybrid_dict['ndata_A']+hybrid_dict['ndata_B'],
       hybrid_dict['nparams_A']:hybrid_dict['nparams_A']+hybrid_dict['nparams_B']] = hybrid_dict['B']
 
-    #filling in the (A(m1) - B(m2)) term ---> to ensure similarity between the two reconstructions
+    # filling in the (A(m1) - B(m2)) term ---> to ensure similarity between the two reconstructions
     G[hybrid_dict['ndata_A']+hybrid_dict['ndata_B']:hybrid_dict['ndata_A']+hybrid_dict['ndata_B']+hybrid_dict['nf'],
       :hybrid_dict['nparams_A']] = np.sqrt(gvdf_tstamp.lam) * hybrid_dict['Af']
     G[hybrid_dict['ndata_A']+hybrid_dict['ndata_B']:hybrid_dict['ndata_A']+hybrid_dict['ndata_B']+hybrid_dict['nf'],
       hybrid_dict['nparams_A']:hybrid_dict['nparams_A']+hybrid_dict['nparams_B']] = -np.sqrt(gvdf_tstamp.lam) * hybrid_dict['Bf']
+    
+    # finding the un-contracted regularization matrix P such that D = P.T @ P
+    eigvals, eigvecs = np.linalg.eigh(gvdf_tstamp.D)
+    sqrt_eigvals = np.sqrt(np.clip(eigvals, 0, None))  # Ensure non-negative
+    P_reg = np.diag(sqrt_eigvals) @ eigvecs.T
+
+    # including the B-spline regularization for polar-cap model
+    G[hybrid_dict['ndata_A']+hybrid_dict['ndata_B']+hybrid_dict['nf']:hybrid_dict['ndata_A']+hybrid_dict['ndata_B']+hybrid_dict['nf']+hybrid_dict['nparams_A'],
+      :hybrid_dict['nparams_A']] = -np.sqrt(gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx]) * P_reg
 
     # creating the augmented data matrix
-    d = np.zeros((hybrid_dict['ndata_A'] + hybrid_dict['ndata_B'] + hybrid_dict['nf']))
+    d = np.zeros((hybrid_dict['ndata_A'] + hybrid_dict['ndata_B'] + hybrid_dict['nf'] + hybrid_dict['nparams_A']))
     d[:hybrid_dict['ndata_A']] = gvdf_tstamp.vdfdata
     # the SPAN-i data to be used
     vdf_data = np.append(gvdf_tstamp.vdfdata, gvdf_tstamp.vdfdata)
@@ -93,11 +139,17 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
     # setting up grids, boundaries and hull for hybrid super-resolution
     polcap_inversion.define_supres_polgrids(gvdf_tstamp, NPTS)
 
+    # calculating the N2D for hybrid if it is None (not user-specified)
+    if(gvdf_tstamp.N2D_cart is None): gvdf_tstamp.N2D_cart = fn.find_N2D_cart(gvdf_tstamp, tidx)
+
     #---------------------------------POLCAP SETUP 1----------------------------------#
     # creating the B-splines, Slepian functions (at new theta grids) and G matrix about the finalized ubulk
     polcap_inversion.get_Bsplines(gvdf_tstamp)
     polcap_inversion.get_Slepians(gvdf_tstamp, tidx)
     polcap_inversion.get_G_matrix(gvdf_tstamp)
+
+    # finding the knee index for implementing B-spline regularization
+    find_polcap_knee_idx(gvdf_tstamp)
 
     #-------------------------------CARTESIAN SETUP 1----------------------------------#
     # getting the Slepians on the measurement points

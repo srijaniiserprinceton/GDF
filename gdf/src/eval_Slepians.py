@@ -18,9 +18,6 @@ class Slep_transverse:
         * eng  : The Matlab engine used to run the .mat codes from inside Python.
         """
         self.slep_dir = fn.read_config()[0]  
-        self.C = None       # Gives us the tapers for 1D Legendre Polynomials
-        self.V = None       # Concentration coefficient
-        self.norm = None    # The norm for the Slepian function
 
         #--Starting Matlab engine to get the Slepian functions---#
         import matlab.engine as matlab
@@ -53,6 +50,9 @@ class Slep_transverse:
             The total number of grid points to be used in the Matlab code for the localization problem.
             180 seems to be a reasonably good number from trial and error for our purposes.
         """
+        self.C = None       # Gives us the tapers for 1D Legendre Polynomials
+        self.V = None       # Concentration coefficient
+
         # converting to double type for Matlab code to work
         TH, Lmax, m = np.double(TH), np.double(Lmax), np.double(m)
         #---------------------------------------------------------#
@@ -81,6 +81,8 @@ class Slep_transverse:
         .. math::
         \mathcal{N}_{\alpha} = \int S_{\alpha}(\theta) \, S_{\alpha}(\theta) \, \sin(\theta) \, d\theta
         """
+        self.norm = None    # The norm for the Slepian function
+        
         # creating the theta grid to evaluate the norms
         theta_arr = np.linspace(0, 180, 360)
         S_alpha_theta = basis_fn.get_Slepians_scipy(self.C, theta_arr, self.Lmax)

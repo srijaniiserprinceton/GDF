@@ -77,7 +77,7 @@ def define_supres_polgrids(gvdf_tstamp, NPTS, plothull=False):
     gvdf_tstamp.v_para_all = np.concatenate([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan])
 
     # extracting the convex hull boundary
-    supres_gridy_1D, supres_grids, boundary_points, hull_mask =\
+    supres_gridy_1D, supres_grids, boundary_points, hull_mask, area =\
                     fn.find_supres_grid_and_boundary(gvdf_tstamp.v_perp_all, gvdf_tstamp.v_para_all,
                                                      NPTS, plothull=plothull)
     
@@ -87,6 +87,7 @@ def define_supres_polgrids(gvdf_tstamp, NPTS, plothull=False):
     gvdf_tstamp.grid_points = supres_grids * 1.0
     gvdf_tstamp.boundary_points = boundary_points
     gvdf_tstamp.hull_mask = hull_mask
+    gvdf_tstamp.hull_area = area
 
     gvdf_tstamp.super_rfac  = np.sqrt(gvdf_tstamp.grid_points[:,0]**2 + gvdf_tstamp.grid_points[:,1]**2) 
     gvdf_tstamp.super_theta = np.degrees(np.arctan2(gvdf_tstamp.grid_points[:,0], gvdf_tstamp.grid_points[:,1])) # stick to convention
@@ -96,7 +97,7 @@ def super_Bsplines(gvdf_tstamp):
 
 def super_Slepians(gvdf_tstamp):
     gvdf_tstamp.super_S_alpha_n = basis_fn.get_Slepians_scipy(gvdf_tstamp.Slep.C, gvdf_tstamp.super_theta, 
-                                                        gvdf_tstamp.Lmax, gvdf_tstamp.N2D_polcap)
+                                                              gvdf_tstamp.Lmax, gvdf_tstamp.N2D_polcap)
 
 def super_G_matrix(gvdf_tstamp):
     gvdf_tstamp.super_G_k_n = None
