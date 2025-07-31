@@ -323,7 +323,7 @@ class gyrovdf:
         self.Slep.gen_Slep_tapers(self.TH, self.Lmax)
 
         # truncating beyond N2D; if None is passed it uses the default Shannon number definition
-        self.N2D_polcap = int(np.sum(self.Slep.V))
+        self.N2D_polcap = np.max([int(np.sum(self.Slep.V)), 2])    # never using just a single Slepian since that overestimates the peak always
         self.N2D_polcap_all[tidx] = int(np.sum(self.Slep.V))
 
         # generating the Slepian normalizations to be later used for Bspline regularization (in the D matrix)

@@ -39,3 +39,4 @@ dependencies:
     - pyspedas
     - cdflib==0.4.9
     - sphinx==8.2.3
+    - shapely==2.1.1
