@@ -108,11 +108,18 @@ class gyrovdf:
         Initializes the parameters of the polar cap Slepians and stores them as
         attributes of the class.
         """
-        self.TH = polcap_params['TH']
         self.Lmax = polcap_params['LMAX']
         self.N2D_polcap = polcap_params['N2D_POLCAP']
         self.p = polcap_params['P']
         self.spline_mincount = polcap_params['SPLINE_MINCOUNT']
+
+        # setting the get_coor_supres function depending on if TH is None or specified to a desired value
+        if(polcap_params['TH'] is None):
+            self.TH = 60   # the default extend of the instrument in instrument field aligned geometry
+            self.get_coors_supres = self.get_coors_update_TH
+        else:
+            self.TH = polcap_params['TH']
+            self.get_coors_supres = self.get_coors
 
         # this is for when we do the polar cap inversion and super-resolution
         self.G_k_n = None
@@ -128,7 +135,9 @@ class gyrovdf:
         attributes of the class.
         """
         # storing the user defined N2D_cart if it is not None
-        self.N2D_cart = cartslep_params['N2D_CART']
+        self.N2D_cart = None
+        self.N2D_cart_max = cartslep_params['N2D_CART_MAX']
+        self.N2D_cart_default = cartslep_params['N2D_CART']
     
     def setup_timewindow(self, vdf_dict, trange, CREDENTIALS=None, CLIP=False):
         """
@@ -150,11 +159,11 @@ class gyrovdf:
         """
         # extracting out all the required variables from the vdf dictionary
         time = vdf_dict.time.data
-        energy = vdf_dict.energy.data
-        theta = vdf_dict.theta.data
-        phi = vdf_dict.phi.data
-        vdf = vdf_dict.vdf.data
-        count = vdf_dict.counts.data
+        energy = vdf_dict.energy.data * 1.0
+        theta = vdf_dict.theta.data * 1.0
+        phi = vdf_dict.phi.data * 1.0
+        vdf = vdf_dict.vdf.data * 1.0
+        count = vdf_dict.counts.data * 1.0
 
         # masking the bins where count is less than COUNT_THRESHOLD
         vdf[count <= self.count_threshold] = np.nan
@@ -162,8 +171,8 @@ class gyrovdf:
         self.nanmask = np.isfinite(vdf)
 
         # store the min and maxvalues rquired for plotting
-        self.minval = np.nanmin(vdf_dict.vdf.data, axis=(1,2,3))
-        self.maxval = np.nanmax(vdf_dict.vdf.data, axis=(1,2,3))
+        self.minval = np.nanmin(vdf, axis=(1,2,3))
+        self.maxval = np.nanmax(vdf, axis=(1,2,3))
 
         m_p = 0.010438870    # eV/c^2 where c = 299792 km/s
         q_p = 1
@@ -201,6 +210,7 @@ class gyrovdf:
         self.TH_all = np.zeros(len(time))
         self.vshift_all = np.zeros(len(time))
         self.N2D_polcap_all = np.zeros(len(time))
+        self.N2D_cart_all = np.zeros(len(time))
 
     def get_coors(self, u_bulk, tidx):
         r"""
@@ -256,7 +266,7 @@ class gyrovdf:
         # making the knots everytime the gyrotropic coordinates are changed
         self.make_knots(tidx)
 
-    def get_coors_supres(self, u_bulk, tidx):
+    def get_coors_update_TH(self, u_bulk, tidx):
         r"""
         This function is used to setup the super-resolution grids in gyrotropic coordinate depending on the 
         proposed gyrocenter and the induced shift along the :math:`v_{||}` direction
@@ -628,6 +638,7 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         # bundling the post-processed parameters of interest
         bundle = {}
         bundle['den'] = den
+        print('Density:', den)
         bundle['time'] = gvdf_tstamp.l2_time[tidx]
         bundle['component_temp'] = Tcomps
         bundle['scalar_temp'] = Trace

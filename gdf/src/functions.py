@@ -729,7 +729,8 @@ def find_supres_grid_and_boundary(xpoints, ypoints, NPTS, plothull=False):
     return y, supres_grids, boundary_points, hull_mask, area
 
 def find_kmax_arr(gvdf_tstamp, psp_vdf, Lmax=12):
-    data_all = psp_vdf.vdf.data  # shape (N, 32, 8, 8)
+    data_all = psp_vdf.vdf.data * 1.0 # shape (N, 32, 8, 8)
+    data_all[~gvdf_tstamp.nanmask] = 0.0 #np.nan
     flat_data = data_all.reshape(data_all.shape[0], -1)  # shape (N, 2048)
     # Find the flattened indices of the max value ignoring NaNs
     flat_argmax = np.nanargmax(flat_data, axis=1)  # shape (N,)

@@ -8,17 +8,24 @@
 # TRANGE = ['2018-11-07T03:30:00', '2018-11-07T03:55:00']
 # TRANGE = ['2024-09-24T12:12:00', '2024-09-24T17:30:59']
 # TRANGE = ['2025-06-19T11:25:00', '2025-06-19T11:45:59']
+# TRANGE = ['2025-03-23T05:32:40', '2025-03-23T05:33:00']
+# TRANGE = ['2025-03-22T22:30:00', '2025-03-22T23:59:59']
+# TRANGE = ['2025-03-23T00:30:00', '2025-03-23T07:30:00']
+# TRANGE = ['2025-03-23T01:29:00', '2025-03-23T01:29:45']
+# TRANGE = ['2025-03-23T01:22:30', '2025-03-23T01:24:00']
+# TRANGE = ['2025-03-23T01:19:00', '2025-03-23T01:20:00']
+# TRANGE = ['2025-03-23T00:30:00', '2025-03-23T00:31:15']
 
 config = {
     'global': {
         'METHOD'          : 'hybrid',
-        'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'], # Define the time range to load in from pyspedas
+        'TRANGE'          : ['2025-06-19T11:00:00', '2025-06-19T11:30:00'], # Define the time range to load in from pyspedas
         'CLIP'            : True,
         'START_INDEX'     : 0,
-        'NSTEPS'          : 200,                                              # use None for entire TRANGE interval
+        'NSTEPS'          : None,                                              # use None for entire TRANGE interval
         'CREDS_PATH'      : './config.json',                                           # path to the <.json> file containing credentials
         'COUNT_THRESHOLD' : 2,
-        'SAVE_FIGS'       : False,
+        'SAVE_FIGS'       : True,
         'SAVE_PKL'        : False,
         'MIN_METHOD'      : 'L-BFGS-B',
         'NPTS_SUPER'      : 49,
@@ -27,7 +34,7 @@ config = {
         'MCMC_STEPS'      : 200,
     },
     'polcap': {
-        'TH'              : 60,
+        'TH'              : None,
         'LMAX'            : 12,
         'N2D_POLCAP'      : None,
         'P'               : 3,
@@ -35,6 +42,7 @@ config = {
     },
     'cartesian': {
         'N2D_CART'        : None,
+        'N2D_CART_MAX'    : 20,
     },
     'hybrid': {
         'LAMBDA'          : 1e-1,

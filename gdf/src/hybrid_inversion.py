@@ -140,7 +140,9 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
     polcap_inversion.define_supres_polgrids(gvdf_tstamp, NPTS)
 
     # calculating the N2D for hybrid if it is None (not user-specified)
-    if(gvdf_tstamp.N2D_cart is None): gvdf_tstamp.N2D_cart = fn.find_N2D_cart(gvdf_tstamp, tidx)
+    if(gvdf_tstamp.N2D_cart is None): 
+        gvdf_tstamp.N2D_cart = np.min([fn.find_N2D_cart(gvdf_tstamp, tidx), gvdf_tstamp.N2D_cart_max])
+        gvdf_tstamp.N2D_cart_all[tidx] = gvdf_tstamp.N2D_cart * 1.0
 
     #---------------------------------POLCAP SETUP 1----------------------------------#
     # creating the B-splines, Slepian functions (at new theta grids) and G matrix about the finalized ubulk

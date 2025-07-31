@@ -79,3 +79,34 @@ def load_config_new(path):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.config
+
+def png_to_mp4_converter(image_dir, destination_dir, frames_per_second=10):
+    import cv2
+    import os
+    from natsort import natsorted
+
+    # Parameters
+    image_folder = image_dir  # folder with PNGs
+    output_video = f'{destination_dir}/output.mp4'
+    fps = frames_per_second  # desired frame rate
+
+    # Get image files
+    images = [img for img in os.listdir(image_folder) if img.endswith(".png")]
+    images = natsorted(images)
+
+    # Read first image to get size
+    frame = cv2.imread(os.path.join(image_folder, images[0]))
+    height, width, _ = frame.shape
+
+    # Set up video writer
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    video = cv2.VideoWriter(output_video, fourcc, fps, (width, height))
+
+    # Write frames
+    for image in images:
+        img_path = os.path.join(image_folder, image)
+        frame = cv2.imread(img_path)
+        video.write(frame)
+
+    video.release()
+
