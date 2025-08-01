@@ -212,6 +212,20 @@ class gyrovdf:
         self.N2D_polcap_all = np.zeros(len(time))
         self.N2D_cart_all = np.zeros(len(time))
 
+        # creating the dictionary with arrays for the reconstructed moments to show in the context plot
+        self.rec_keys = np.array(['dens', 'temp', 'tani', 'vel', 'mag'])
+        self.rec_quants = {}
+
+        # initializing the arrays with zeros (except velocity since it is 3 component)
+        for key in self.rec_keys[:-1]: self.rec_quants[key] = np.zeros((len(time),2)) + np.nan
+        self.rec_quants['vel'] = np.zeros((len(time), 6)) + np.nan
+
+        # adding the span moments
+        self.rec_quants['dens'][:,1] = data['DENS'] * 1.0
+        self.rec_quants['temp'][:,1] = data['TEMP'] * 1.0 / 8.617e-5 / 1e6 # converting from eV to MK
+        self.rec_quants['vel'][:,3:] = data.VEL_INST.data * 1.0
+        self.rec_quants['mag'] = data.MAGF_INST.data * 1.0
+
     def get_coors(self, u_bulk, tidx):
         r"""
         This function is used to setup the grids in gyrotropic coordinate depending on the 
@@ -631,6 +645,12 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         # saving this for plotting of the polcap reconstruction
         gvdf_tstamp.vel = vel
 
+        # saving the different moments
+        gvdf_tstamp.rec_quants['dens'][tidx,0] = den
+        gvdf_tstamp.rec_quants['vel'][tidx,:3]  = u_adj
+        gvdf_tstamp.rec_quants['temp'][tidx,0] = Trace / 1e6   #converting to MK
+        gvdf_tstamp.rec_quants['tani'][tidx,0] = (Tcomps[1] / Tcomps[0])
+
         if(SAVE_FIGS): gvdf_tstamp.plotter_func(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                                                 model_misfit=model_misfit, data_misfit=data_misfit,
                                                 GRID=True, SAVE_FIGS=SAVE_FIGS)
@@ -638,7 +658,6 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         # bundling the post-processed parameters of interest
         bundle = {}
         bundle['den'] = den
-        print('Density:', den)
         bundle['time'] = gvdf_tstamp.l2_time[tidx]
         bundle['component_temp'] = Tcomps
         bundle['scalar_temp'] = Trace

@@ -1,12 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import matplotlib.colors as colors
 import plasmapy.formulary as form
 import astropy.constants as c
 import astropy.units as u
 from matplotlib import ticker
 plt.rcParams['font.size'] = 16
-plt.ion()
 
 def plot_span_vs_rec_scatter(tidx, gvdf, vdf_data, vdf_rec):
     # These are for plotting with the tricontourf routine.
@@ -325,7 +326,7 @@ def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     cmap = plt.cm.plasma
     # lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
     #                    int(np.log10(gvdf_tstamp.maxval[tidx]) + 1), 10)
-    lvls = np.linspace(-23, -18, 10)
+    lvls = np.linspace(-22, -15, 10)
     norm = colors.BoundaryNorm(lvls, ncolors=cmap.N)
 
     # reshaping grids for plotting
@@ -333,45 +334,109 @@ def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     yy = np.reshape(gvdf_tstamp.grid_points[:,1], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
 
     # plotting the points and the boundary
-    fig, ax = plt.subplots(2, 1, figsize=(4.7,9.5), sharey=True)
-    ax[0].plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
-    im = ax[0].tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_A), levels=lvls, cmap='plasma')
-    ax[0].scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
+    fig = plt.figure(figsize=(10,9.5))
+    gs = gridspec.GridSpec(2, 2, width_ratios=[1, 1])
+
+    # Left column: VDF plots
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[1, 0], sharey=ax1)
+
+    # Right column: Context plots
+    ax3 = fig.add_subplot(gs[:, 1])
+    ax3.axis('off')    # hides background axis ticks and frame
+
+    ax1.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
+    im = ax1.tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_A), levels=lvls, cmap='plasma')
+    ax1.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
                   cmap='plasma', norm=norm, edgecolor='k', linewidths=0.5)
-    ax[0].set_aspect('equal')
-    ax[0].set_xlim([-xmagmax, xmagmax])
-    ax[0].text(0.02, 0.94, "(A)", transform=ax[0].transAxes, fontsize=12, fontweight='bold',
+    ax1.set_aspect('equal')
+    ax1.set_xlim([-xmagmax, xmagmax])
+    ax1.text(0.02, 0.94, "(A)", transform=ax1.transAxes, fontsize=12, fontweight='bold',
             bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
 
-    ax[1].plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
-    im = ax[1].tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_B), levels=lvls, cmap='plasma')
-    ax[1].scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
+    ax2.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
+    im = ax2.tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_B), levels=lvls, cmap='plasma')
+    ax2.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
                   cmap='plasma', norm=norm, edgecolor='k', linewidths=0.5)
-    ax[1].set_aspect('equal')
-    ax[1].set_xlim([-xmagmax, xmagmax])
-    ax[1].text(0.02, 0.94, "(B)", transform=ax[1].transAxes, fontsize=12, fontweight='bold',
+    ax2.set_aspect('equal')
+    ax2.set_xlim([-xmagmax, xmagmax])
+    ax2.text(0.02, 0.94, "(B)", transform=ax2.transAxes, fontsize=12, fontweight='bold',
             bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
 
-    ax[1].set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
+    ax2.set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
     fig.supylabel(r'$v_{\parallel}$ [km/s]', fontsize=19)
 
-    ax[0].set_xlim([-230, 230])
-    ax[1].set_xlim([-230, 230])
-    ax[0].set_ylim([200, 650])
-    ax[1].set_ylim([200, 650])
+    ax1.set_xlim([-230, 230])
+    ax2.set_xlim([-230, 230])
+    ax1.set_ylim([60, 650])
+    ax2.set_ylim([60, 650])
 
-    cax = fig.add_axes([ax[0].get_position().x0 + 0.06, ax[0].get_position().y1+0.05,
-                        ax[0].get_position().x1 - ax[0].get_position().x0, 0.02])
+    cax = fig.add_axes([ax1.get_position().x0 + 0.06, ax1.get_position().y1+0.05,
+                        ax1.get_position().x1 - ax1.get_position().x0, 0.02])
     cbar = fig.colorbar(im, cax=cax, orientation='horizontal', location='top')
     cbar.ax.tick_params(labelsize=14)
     tick_locator = ticker.MaxNLocator(integer=True)
     cbar.locator = tick_locator
     cbar.update_ticks()
 
-    ax[0].set_title(f'{str(gvdf_tstamp.l2_time[tidx])[:19]}', fontsize=19)
+    context_axis_plot(ax3, gvdf_tstamp, tidx)
 
-    plt.subplots_adjust(top=0.87, bottom=0.1, left=0.14, right=1.0, wspace=0.1, hspace=0.15)
+    ax1.set_title(f'{str(gvdf_tstamp.l2_time[tidx])[:19]}', fontsize=19)
+
+    plt.subplots_adjust(top=0.87, bottom=0.1, left=0.14, right=0.95, wspace=0.15, hspace=0.15)
 
     if(SAVE_FIGS):
         plt.savefig(f'Figures/super_res_hybrid/tidx={tidx}.{ext}')
         plt.close()
+
+def context_axis_plot(ax3, gvdf_tstamp, tidx):
+    # the total number of rows we need
+    N = len(gvdf_tstamp.rec_keys)
+    heights = np.linspace(0, 1, N + 1)
+
+    # making the inset axes
+    inset_axes_list = []
+    for i in range(N):
+        bottom = 1 - heights[i+1]
+        height = heights[i+1] - heights[i]
+        ax_inset = inset_axes(ax3, width="100%", height="100%", loc='lower left',
+                            bbox_to_anchor=(0, bottom, 1, height),
+                            bbox_transform=ax3.transAxes)
+        inset_axes_list.append(ax_inset)
+
+    # Share x-axis
+    for ax in inset_axes_list[1:]:
+        ax.sharex(inset_axes_list[0])
+
+    # Plot into each inset
+    colors = ['black', 'red', 'green']
+
+    for i, key in enumerate(gvdf_tstamp.rec_keys[:-1]):
+        ax = inset_axes_list[i]
+        for j in range(gvdf_tstamp.rec_quants[key].shape[1]):
+            ax.plot(gvdf_tstamp.l3_time, gvdf_tstamp.rec_quants[key][:,j], 
+                    color=colors[j%3], alpha=(1 - 0.3 * j/(gvdf_tstamp.rec_quants[key].shape[1]/2.)))
+        
+        ax.tick_params(axis='x', which='both', labelbottom=False)
+        ax.xaxis.set_visible(False)
+
+    # plotting the magnetic field
+    ax = inset_axes_list[-1]
+    for j in range(3):
+        ax.plot(gvdf_tstamp.l3_time, gvdf_tstamp.rec_quants['mag'][:,j], color=colors[j%3])
+
+    # marking the location of the current VDF
+    for ax in inset_axes_list:
+        ax.axvline(x=gvdf_tstamp.l3_time[tidx], color='k', linestyle='--', linewidth=1)
+
+    # Only show x-axis ticks for the bottom panel
+    inset_axes_list[-1].tick_params(labelbottom=True)
+    inset_axes_list[-1].set_xlabel("Time")
+
+    labels = ["n [cc]", "$T$ [MK]", r"$T_{\mathrm{ani}}$", r"$\mathbf{v}$ [km/s]", r"$\mathbf{B}$ [nT]"]
+
+    # setting the labels
+    for ax, label in zip(inset_axes_list, labels):
+        ax.yaxis.set_label_position("right")  # move label to right
+        ax.set_ylabel(label) 
+        
