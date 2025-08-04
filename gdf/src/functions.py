@@ -485,13 +485,6 @@ def compute_vdf_moments(E_eV, theta, phi, f, mass):
     # Volume element in velocity space: v² sinθ dv dθ dφ [m³/s³]
     vol_elem = V**2 * np.sin(TH) * dV * dTH * dPH  # [m³/s³]
 
-
-    # Velocity components [m/s]
-    # vx = V * np.sin(TH) * np.cos(PH)
-    # vy = V * np.sin(TH) * np.sin(PH)
-    # vz = V * np.cos(TH)
-
-
     v_mid = 0.5 * (v_edges[1:] + v_edges[:-1])
     theta_mid = 0.5 * (theta_edges[1:] + theta_edges[:-1])
     phi_mid = 0.5 * (phi_edges[1:] + phi_edges[:-1])

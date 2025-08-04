@@ -1,4 +1,4 @@
-name: gdf
+name: pyspedas
 channels:
   - defaults
   - conda-forge
