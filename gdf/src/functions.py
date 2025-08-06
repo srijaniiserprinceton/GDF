@@ -8,6 +8,7 @@ import cdflib
 import glob
 from scipy.integrate import simpson as simps
 from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import NearestNeighbors
 from scipy.spatial import Delaunay
 from shapely.geometry import Polygon
 import matplotlib.pyplot as plt; plt.ion(); plt.rcParams['font.size'] = 16
@@ -721,9 +722,38 @@ def find_supres_grid_and_boundary(xpoints, ypoints, NPTS, plothull=False):
     # returned points can be simply plotted to give a closed contour circumscribing all points
     return y, supres_grids, boundary_points, hull_mask, area
 
-def find_kmax_arr(gvdf_tstamp, psp_vdf, Lmax=12):
+def find_kmax_from_maxvel(gvdf_tstamp, psp_vdf, Lmax=12):
+    r"""
+    Function to calculate the maximum resolvable wavenumber using Cartesian Slepian basis
+    using the location of the peak VDF value in the instrument frame velocity coordinates.
+    The idea is that if the peak in VDF is at :math:`v_{\mathrm{maxval}}`, then the maximum
+    resolution in velocity space would be :math:`v_{\mathrm{maxval}} \, \delta \theta` where
+    :math:`\delta \theta = \pi / L_{\mathrm{max}}`.
+
+    Parameters
+    ----------
+    gvdf_tstamp : gyrovdf class instance
+        This is the class instance which is setup for the specific timestamp being reconstructed.
+        Should already contain the vpara and vperp grids for that particular timestamp.
+
+    psp_vdf : dicitonary
+        Dictionary containing the VDF information created using init_psp_vdf() in functions.py
+
+    Lmax : int (optional)
+        The maximum angular degree of the Slepian functions. This is derived from the Nyquist limit
+        of the instrument.
+
+    Returns
+    -------
+    kmax : array-like of floats
+        The array containing all the maximum resolvabke wavenumbers for each timestamp based on the
+        consideration of the velocity shell for the peak value of the VDF.
+    """
+    # reading the VDF data for all timestamps loaded
     data_all = psp_vdf.vdf.data * 1.0 # shape (N, 32, 8, 8)
+    # setting all the invalid entries (such as those with counts lower than count threshold) to zero
     data_all[~gvdf_tstamp.nanmask] = 0.0 #np.nan
+    # reshaping the data to flatten the spatial dimension to make it easy to find the maximum value at each time
     flat_data = data_all.reshape(data_all.shape[0], -1)  # shape (N, 2048)
     # Find the flattened indices of the max value ignoring NaNs
     flat_argmax = np.nanargmax(flat_data, axis=1)  # shape (N,)
@@ -753,6 +783,55 @@ def find_kmax_arr(gvdf_tstamp, psp_vdf, Lmax=12):
 
     return kmax
 
+def find_kmax_NN(gvdf_tstamp, tidx, NN=6):
+    r"""
+    Calculating the maximum resolvable wavenumber based on nearest neighbours from the 
+    :math:`(v_{\parallel, \mathrm{maxvel}}, 0)` location. Currently the default is to choose from the
+    six nearest neighbours.
+
+    Parameters
+    ----------
+    gvdf_tstamp : gyrovdf class instance
+        This is the class instance which is setup for the specific timestamp being reconstructed.
+        Should already contain the vpara and vperp grids for that particular timestamp.
+
+    tidx : int
+        The integer indicating the timestamp being evaluated.
+
+    NN : int (optional)
+        The number of nearest neighbours to consider when determining the :math:`k_{\mathrm{max, NN}}`.
+    """
+    cluster_points = np.vstack([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vperp_nonan]).T  # blue points
+    query_point = np.array([[np.abs(gvdf_tstamp.vpara[*gvdf_tstamp.max_indices[tidx]]), 0]])  # the orange point
+    # Fit nearest neighbors
+    nn = NearestNeighbors(n_neighbors=NN)
+    nn.fit(cluster_points)
+    # Find 10 nearest neighbors to the orange point
+    distances, indices = nn.kneighbors(query_point)
+    # Get the neighbor points
+    nearest_points = cluster_points[indices[0]]
+    # getting vperp max
+    vperp_argmax = np.argmax(nearest_points[:,1])
+    vperp_max = nearest_points[vperp_argmax, 1]
+    return np.pi / (2*vperp_max)
+
 def find_N2D_cart(gvdf_tstamp, tidx):
-    N2D_cart = int(np.floor(gvdf_tstamp.kmax_arr[tidx]**2 * gvdf_tstamp.hull_area / (4*np.pi)))
+    """
+    Evaluating the Cartesian Shannon number using the equation
+    
+    .. math::
+        N2D_{\mathrm{cart}} = k^2 \, A / 4\pi
+
+    Parameters
+    ----------
+    gvdf_tstamp : gyrovdf class instance
+        This is the class instance which is setup for the specific timestamp being reconstructed.
+        Should already contain the vpara and vperp grids for that particular timestamp.
+
+    tidx : int
+        The integer indicating the timestamp being evaluated.
+    """
+    kmax_NN = find_kmax_NN(gvdf_tstamp, tidx)
+    gvdf_tstamp.kmax_arr_adjusted[tidx] = np.min([gvdf_tstamp.kmax_arr[tidx], kmax_NN])
+    N2D_cart = int(np.floor(gvdf_tstamp.kmax_arr_adjusted[tidx]**2 * gvdf_tstamp.hull_area / (4*np.pi)))
     return N2D_cart

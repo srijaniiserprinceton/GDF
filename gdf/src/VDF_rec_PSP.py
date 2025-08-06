@@ -204,7 +204,8 @@ class gyrovdf:
         self.l2_time = time
 
         # finding the N2D length scale for cartesian or hybrid
-        self.kmax_arr = fn.find_kmax_arr(self, vdf_dict, self.Lmax)
+        self.kmax_arr = fn.find_kmax_from_maxvel(self, vdf_dict, self.Lmax)
+        self.kmax_arr_adjusted = np.zeros_like(self.kmax_arr)
 
         # the array of final TH
         self.TH_all = np.zeros(len(time))
