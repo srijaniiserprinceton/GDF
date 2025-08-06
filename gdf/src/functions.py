@@ -296,6 +296,35 @@ def init_psp_moms(trange, CREDENTIALS=None, CLIP=False):
     
     return(xr_data)
 
+def init_qtn_data(trange, CREDENTIALS=None, CLIP=True):
+    if CREDENTIALS:
+        psp_sqtn = pyspedas.psp.fields(trange, 
+                                       datatype='sqtn_rfs_V1V2', 
+                                       level='l3',
+                                       notplot=True,
+                                       time_clip=True,
+                                       downloadonly=True,
+                                       last_version=True,
+                                       get_support_data=True,
+                                       username=CREDENTIALS[0],
+                                       password=CREDENTIALS[1])
+    else:
+        psp_sqtn = pyspedas.psp.fields(trange, 
+                                       datatype='sqtn_rfs_V1V2', 
+                                       level='l3',
+                                       notplot=True,
+                                       time_clip=True,
+                                       downloadonly=True,
+                                       last_version=True,
+                                       get_support_data=True)
+    
+    cdf_qtn = cdflib.cdf_to_xarray(psp_sqtn[0], to_datetime=True, fillval_to_nan=True)
+
+    if CLIP:
+        cdf_qtn = cdf_qtn.sel(Epoch=slice(trange[0], trange[-1]))
+
+    return(cdf_qtn)
+
 def field_aligned_coordinates(B_vec):
     if B_vec.shape[0] > 3:
         Bmag = np.nanmean(np.linalg.norm(B_vec, axis=1))

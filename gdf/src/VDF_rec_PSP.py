@@ -192,6 +192,12 @@ class gyrovdf:
         self.b_span = data.MAGF_INST.data
         self.v_span = data.VEL_INST.data
 
+        # getting the QTN densities if available
+        try:
+            self.qtn_data = fn.init_qtn_data(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
+        except:
+            self.qtn_data = None
+
         # Get the b-unit vector
         self.bvec = self.b_span/np.linalg.norm(self.b_span, axis=1)[:,NAX]
 

@@ -35,9 +35,6 @@ def plot_span_vs_rec_scatter(tidx, gvdf, vdf_data, vdf_rec):
     ax[1].set_aspect('equal')
     plt.colorbar(ax1)
 
-
-    plt.show()
-
 def plot_span_vs_rec_contour_POLCAP(gvdf, vdf_data, vdf_rec, tidx, GRID=False, VA=None, SAVE=False, ext='png'):
     if VA:
         v_para_all = np.concatenate([gvdf.vpara_nonan, gvdf.vpara_nonan])/VA
@@ -411,6 +408,11 @@ def context_axis_plot(ax3, gvdf_tstamp, tidx):
     # Plot into each inset
     colors = ['black', 'red', 'green']
 
+    # plotting the QTN densities if available
+    if(gvdf_tstamp.qtn_data is not None):
+        inset_axes_list[0].plot(gvdf_tstamp.qtn_data['Epoch'].values,
+                                gvdf_tstamp.qtn_data['electron_density'].values, 'xb', alpha=0.5)
+
     for i, key in enumerate(gvdf_tstamp.rec_keys[:-1]):
         ax = inset_axes_list[i]
         for j in range(gvdf_tstamp.rec_quants[key].shape[1]):
@@ -428,6 +430,7 @@ def context_axis_plot(ax3, gvdf_tstamp, tidx):
     # marking the location of the current VDF
     for ax in inset_axes_list:
         ax.axvline(x=gvdf_tstamp.l3_time[tidx], color='k', linestyle='--', linewidth=1)
+        ax.grid(True)
 
     # Only show x-axis ticks for the bottom panel
     inset_axes_list[-1].tick_params(labelbottom=True)
