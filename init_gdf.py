@@ -22,8 +22,8 @@ config = {
         'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T14:40:59'], # Define the time range to load in from pyspedas
         'CLIP'            : True,
         'START_INDEX'     : 0,
-        'NSTEPS'          : None,                                              # use None for entire TRANGE interval
-        'CREDS_PATH'      : './config.json',                                           # path to the <.json> file containing credentials
+        'NSTEPS'          : 1,                                              # use None for entire TRANGE interval
+        'CREDS_PATH'      : './config.json',                                # path to the <.json> file containing credentials
         'COUNT_THRESHOLD' : 1,
         'SAVE_FIGS'       : True,
         'SAVE_PKL'        : False,

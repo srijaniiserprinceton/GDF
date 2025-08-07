@@ -316,7 +316,7 @@ class gyrovdf:
                                                                         *fn.field_aligned_coordinates(self.b_span[tidx])))                                                            
         
         # converting to the field aligned coordinates here [BEFORE SHIFTING ALONG vpara]
-        self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
+        self.vpara, self.vperp1, self.vperp2 = vpara * 1.0, vperp1 * 1.0, vperp2 * 1.0
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
 
         # Check angle between flow and magnetic field. 
