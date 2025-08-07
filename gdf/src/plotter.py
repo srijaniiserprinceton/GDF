@@ -323,7 +323,7 @@ def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     cmap = plt.cm.plasma
     # lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
     #                    int(np.log10(gvdf_tstamp.maxval[tidx]) + 1), 10)
-    lvls = np.linspace(-22, -15, 10)
+    lvls = np.linspace(-23, -19, 10)
     norm = colors.BoundaryNorm(lvls, ncolors=cmap.N)
 
     # reshaping grids for plotting
@@ -363,10 +363,10 @@ def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     ax2.set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
     fig.supylabel(r'$v_{\parallel}$ [km/s]', fontsize=19)
 
-    ax1.set_xlim([-230, 230])
-    ax2.set_xlim([-230, 230])
-    ax1.set_ylim([60, 650])
-    ax2.set_ylim([60, 650])
+    ax1.set_xlim([-250, 250])
+    ax2.set_xlim([-250, 250])
+    ax1.set_ylim([200, 800])
+    ax2.set_ylim([200, 800])
 
     cax = fig.add_axes([ax1.get_position().x0 + 0.06, ax1.get_position().y1+0.05,
                         ax1.get_position().x1 - ax1.get_position().x0, 0.02])
