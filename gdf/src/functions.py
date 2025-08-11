@@ -417,7 +417,7 @@ def inverse_rotate_vector_field_aligned(Ax, Ay, Az, Nx, Ny, Nz, Px, Py, Pz, Qx, 
 def vdf_moments(gvdf, vdf_super, tidx):
     # for hybrid when vdf_super is a tuple, choosing the cartesian super-resolution
     if(isinstance(vdf_super, tuple)):
-        vdf_super = vdf_super[0]
+        vdf_super = vdf_super[1]
         # transposing Bf for grid compatibility
         vdfT = np.reshape(vdf_super, (gvdf.nptsx, gvdf.nptsy))
         
@@ -840,8 +840,12 @@ def find_kmax_NN(gvdf_tstamp, tidx, NN=6):
     # Get the neighbor points
     nearest_points = cluster_points[indices[0]]
     # getting vperp max
-    vperp_argmax = np.argmax(nearest_points[:,1])
-    vperp_max = nearest_points[vperp_argmax, 1]
+    # vperp_argmax = np.argmax(nearest_points[:,1])
+    # vperp_max = nearest_points[vperp_argmax, 1]
+    
+    # Getting the mean value of the vperps
+    vperp_max = np.max(nearest_points[:,1])
+
     return np.pi / (2*vperp_max)
 
 def find_N2D_cart(gvdf_tstamp, tidx):

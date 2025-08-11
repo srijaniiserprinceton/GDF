@@ -170,7 +170,7 @@ def bvector_rotation_matrix(B_vec):
     return np.array([[Nx, Ny, Nz], [Px, Py, Pz], [Qx, Qy, Qz]])
 
 # Load in the hybrid and synthetic test cases
-CASE = '1'
+CASE = '2'
 
 if CASE == '1':
     ds = cdflib.cdf_to_xarray('bimax_vdf_500_bhat_clockwise_field_rotation_pi_8_to_neg_pi_2_hires.cdf')
@@ -196,9 +196,9 @@ if CASE == '1':
     res_cart = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/TEST1_vdf_rec_dataA_cartesian_3_200_bimax_test_case')
     res_hybrid = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/TEST1_vdf_rec_dataA_hybrid_3_200_bimax_test_case')
 if CASE == '2':
-    res_polcap = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/test2_vdf_rec_data_polcap_3_200_bimax_test_case')
-    res_cart = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/test2_vdf_rec_data_cartesian_3_200_bimax_test_case')
-    res_hybrid = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/test2_vdf_rec_data_hybrid_3_200_bimax_test_case')
+    res_polcap = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/TEST2_vdf_rec_dataA_polcap_3_200_bimax_test_case')
+    res_cart = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/TEST2_vdf_rec_dataA_cartesian_3_200_bimax_test_case')
+    res_hybrid = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/TEST2_vdf_rec_dataA_hybrid_3_200_bimax_test_case')
 
 den_polcap = np.array([res_polcap[i]['den'] for i in res_polcap.keys()])
 den_cart = np.array([res_cart[i]['den'] for i in res_cart.keys()])
@@ -218,7 +218,7 @@ tpara = ts_fa[:,0,0]
 tperp = (ts_fa[:,1,1] + ts_fa[:,2,2])/2
 
 # Create figure with constrained layout
-fig = plt.figure(constrained_layout=True, figsize=(6, 10), dpi=250)
+fig = plt.figure(constrained_layout=True, figsize=(6, 10))
 
 # Define height ratios: top 3 panels = 1 unit each, bottom 3 = 2 units each
 height_ratios = [1, 1, 1, 2, 2, 2]
