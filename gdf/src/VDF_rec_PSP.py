@@ -228,6 +228,8 @@ class gyrovdf:
         self.vshift_all = np.zeros(len(time))
         self.N2D_polcap_all = np.zeros(len(time))
         self.N2D_cart_all = np.zeros(len(time))
+        self.lambda_all = np.zeros(len(time))
+        self.u_origin_independent = np.zeros_like(self.v_span)
 
         # creating the dictionary with arrays for the reconstructed moments to show in the context plot
         self.rec_keys = np.array(['dens', 'temp', 'tani', 'vel', 'mag'])
@@ -582,12 +584,18 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
 
         # the 3D array of grid points in VX, VY, VZ of the SPAN grid
         threeD_points = np.vstack([gvdf_tstamp.vx[tidx][gvdf_tstamp.nanmask[tidx]],
-                                gvdf_tstamp.vy[tidx][gvdf_tstamp.nanmask[tidx]],
-                                gvdf_tstamp.vz[tidx][gvdf_tstamp.nanmask[tidx]]]).T
+                                   gvdf_tstamp.vy[tidx][gvdf_tstamp.nanmask[tidx]],
+                                   gvdf_tstamp.vz[tidx][gvdf_tstamp.nanmask[tidx]]]).T
+
+        # getting an independent estimate from fitting a 1D radially symmetric profile to the linear function
+        gvdf_tstamp.u_origin_independent[tidx] = fn.find_spherical_center(threeD_points, np.power(10,vdfdata))
+
+        continue
 
         # initializing the starting location of ubulk for the minimization
-        u_origin = np.mean(gvdf_tstamp.v_span, axis=0) * 1.0
-        u_origin[0] = gvdf_tstamp.v_span[tidx,0]
+        # u_origin = np.mean(gvdf_tstamp.v_span, axis=0) * 1.0
+        # u_origin[0] = gvdf_tstamp.v_span[tidx,0]
+        u_origin = gvdf_tstamp.v_span[tidx] * 1.0
 
         # first estimate of correction to the SPAN-moment using scipy.optimize.minimize
         u_corr, __, u, v = find_symmetry_point(threeD_points, vdfdata, gvdf_tstamp.bvec[tidx],

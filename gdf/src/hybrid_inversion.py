@@ -279,6 +279,9 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
     # calculating the coefficients
     m_polcap, m_cartesian, data_misfit, model_misfit = inversion_hybrid(gvdf_tstamp, hybrid_dict)
 
+    # saving the lambda for this time stamp
+    gvdf_tstamp.lambda_all[tidx] = gvdf_tstamp.lambda_knee
+
     # reconstructing the two models on the data grids
     vdf_inv_polcap = hybrid_dict['A'] @ m_polcap
     vdf_inv_cartesian = hybrid_dict['B'] @ m_cartesian

@@ -9,6 +9,8 @@ import glob
 from scipy.integrate import simpson as simps
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import NearestNeighbors
+from scipy.optimize import minimize
+from scipy.interpolate import UnivariateSpline
 from scipy.spatial import Delaunay
 from shapely.geometry import Polygon
 import matplotlib.pyplot as plt; plt.ion(); plt.rcParams['font.size'] = 16
@@ -870,3 +872,49 @@ def find_N2D_cart(gvdf_tstamp, tidx):
     gvdf_tstamp.kmax_arr_adjusted[tidx] = np.min([gvdf_tstamp.kmax_arr[tidx], kmax_NN])
     N2D_cart = int(np.floor(gvdf_tstamp.kmax_arr_adjusted[tidx]**2 * gvdf_tstamp.hull_area / (4*np.pi)))
     return N2D_cart
+
+def find_spherical_center(points, data, smoothing=0.1):
+    """
+    Estimate the center of spherical symmetry in 3D.
+    
+    Parameters:
+    -----------
+    points : ndarray of shape (N, 3)
+        3D coordinates of the data points.
+    data : ndarray of shape (N,)
+        Corresponding scalar data values at the points.
+    smoothing : float
+        Smoothing factor for the spline interpolator.
+    
+    Returns:
+    --------
+    center : ndarray of shape (3,)
+        Estimated center of symmetry.
+    """
+
+    def objective(c):
+        # Shift points by candidate center
+        shifted = points - c
+        r = np.linalg.norm(shifted, axis=1)
+
+        # Sort by radius
+        sorted_idx = np.argsort(r)
+        r_sorted = r[sorted_idx]
+        d_sorted = data[sorted_idx]
+
+        # Fit a smoothed spline (or interpolation) to data vs radius
+        spline = UnivariateSpline(r_sorted, d_sorted, s=smoothing * len(r_sorted))
+
+        # Predict from smoothed radial function
+        d_fit = spline(r)
+
+        # Return sum of squared residuals
+        return np.sum((data - d_fit) ** 2)
+
+    # Use the centroid as initial guess
+    center0 = np.mean(points, axis=0)
+
+    # Optimize
+    result = minimize(objective, center0, method='Powell')  # Powell is robust for this
+
+    return result.x
