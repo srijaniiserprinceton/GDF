@@ -130,7 +130,7 @@ def super_resolution(gvdf_tstamp, tidx, NPTS, plotSlep=False):
                                         gvdf_tstamp.grid_points)
 
     # constructing the super-resolved grid from the coefficients of the data inversion
-    vdf_super = coeffs @ gvdf_tstamp.CartSlep.G[:,:None].T
+    vdf_super = coeffs @ gvdf_tstamp.CartSlep.H[:,:None].T
 
     # plotting the basis functions for diagnostic purposes
     if(plotSlep):

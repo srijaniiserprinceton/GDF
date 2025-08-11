@@ -305,6 +305,7 @@ def init_qtn_data(trange, CREDENTIALS=None, CLIP=True):
                                        time_clip=True,
                                        downloadonly=True,
                                        last_version=True,
+                                       no_update=True,
                                        get_support_data=True,
                                        username=CREDENTIALS[0],
                                        password=CREDENTIALS[1])
@@ -316,6 +317,7 @@ def init_qtn_data(trange, CREDENTIALS=None, CLIP=True):
                                        time_clip=True,
                                        downloadonly=True,
                                        last_version=True,
+                                       no_update=True,
                                        get_support_data=True)
     
     cdf_qtn = cdflib.cdf_to_xarray(psp_sqtn[0], to_datetime=True, fillval_to_nan=True)
@@ -841,7 +843,8 @@ def find_kmax_NN(gvdf_tstamp, tidx, NN=6):
     nearest_points = cluster_points[indices[0]]
     # getting vperp max
     vperp_argmax = np.argmax(nearest_points[:,1])
-    vperp_max = nearest_points[vperp_argmax, 1]
+    # vperp_max = nearest_points[vperp_argmax, 1]
+    vperp_max = np.mean(nearest_points, axis=0)[1]
     return np.pi / (2*vperp_max)
 
 def find_N2D_cart(gvdf_tstamp, tidx):
