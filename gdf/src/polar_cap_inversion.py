@@ -194,10 +194,10 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
         vdf_rec = coeffs @ gvdf_tstamp.G_k_n
 
         # computing and appending the data misfit
-        data_misfit.append(np.linalg.norm(vdf_rec - gvdf_tstamp.vdfdata))
+        data_misfit.append(np.linalg.norm(vdf_rec - gvdf_tstamp.vdfdata)**2)
 
         # computing and appending the model misfit
-        model_misfit.append(np.linalg.norm(coeffs @ gvdf_tstamp.D @ coeffs))
+        model_misfit.append(np.linalg.norm(coeffs @ gvdf_tstamp.D @ coeffs)**2)
 
     # normalizing the misfit arrays for better knee finding
     model_misfit = misc_fn.norm_array(model_misfit)

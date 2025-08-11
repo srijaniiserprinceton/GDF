@@ -80,6 +80,16 @@ class gyrovdf:
             # initializing the CartSlep class once; like we do for the polcap Slepians
             self.CartSlep = eval_Slepians.Slep_2D_Cartesian()
             self.plotter_func = plotter.hybrid_plotter
+
+            # the array for finding the similarity index
+            if(self.lam is None):
+                self.lambda_arr = np.logspace(-5, 1, 20)
+                self.lambda_knee_idx = None
+            else:
+                self.lambda_arr = None 
+
+            self.lambda_knee = None
+
         else:
             print('INVALID CHOICE OF METHOD. CHOOSE BETWEEN polcap, cartesian, hybrid')
 

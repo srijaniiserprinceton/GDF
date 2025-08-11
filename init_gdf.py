@@ -18,7 +18,7 @@
 
 config = {
     'global': {
-        'METHOD'          : 'cartesian',
+        'METHOD'          : 'hybrid',
         'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'], # Define the time range to load in from pyspedas
         'CLIP'            : True,
         'START_INDEX'     : 19,
@@ -29,7 +29,7 @@ config = {
         'SAVE_PKL'        : False,
         'MIN_METHOD'      : 'L-BFGS-B',
         'NPTS_SUPER'      : 49,
-        'MCMC'            : True,
+        'MCMC'            : False,
         'MCMC_WALKERS'    : 8,
         'MCMC_STEPS'      : 2000,
     },
@@ -45,6 +45,6 @@ config = {
         'N2D_CART_MAX'    : 50,
     },
     'hybrid': {
-        'LAMBDA'          : 1e-1,
+        'LAMBDA'          : None,
     }
 }
