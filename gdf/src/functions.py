@@ -846,7 +846,7 @@ def find_kmax_NN(gvdf_tstamp, tidx, NN=6):
     # vperp_max = nearest_points[vperp_argmax, 1]
     
     # Getting the mean value of the vperps
-    vperp_max = np.max(nearest_points[:,1])
+    vperp_max = np.median(nearest_points[:,1])
 
     return np.pi / (2*vperp_max)
 

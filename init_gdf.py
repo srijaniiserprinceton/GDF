@@ -21,8 +21,8 @@ config = {
         'METHOD'          : 'hybrid',
         'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'], # Define the time range to load in from pyspedas
         'CLIP'            : True,
-        'START_INDEX'     : 19,
-        'NSTEPS'          : 1,                                              # use None for entire TRANGE interval
+        'START_INDEX'     : 0,
+        'NSTEPS'          : 100,                                              # use None for entire TRANGE interval
         'CREDS_PATH'      : './config.json',                                # path to the <.json> file containing credentials
         'COUNT_THRESHOLD' : 2,
         'SAVE_FIGS'       : True,
