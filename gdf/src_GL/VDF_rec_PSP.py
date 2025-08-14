@@ -14,13 +14,14 @@ from tqdm import tqdm
 import pickle
 import warnings
 
-from gdf.src import eval_Slepians
-from gdf.src import functions as fn
-from gdf.src import misc_funcs as misc_fn
-from gdf.src import plotter
-from gdf.src import polar_cap_inversion as polcap
-from gdf.src import cartesian_inversion as cartesian
-from gdf.src import hybrid_inversion as hybrid
+from gdf.src_GL import eval_Slepians
+from gdf.src_GL import functions as fn
+from gdf.src_GL import misc_funcs as misc_fn
+from gdf.src_GL import plotter
+from gdf.src_GL import polar_cap_inversion as polcap
+from gdf.src_GL import cartesian_inversion as cartesian
+from gdf.src_GL import hybrid_inversion as hybrid
+from gdf.src_GL import quadrature
 
 NAX = np.newaxis
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
@@ -112,6 +113,9 @@ class gyrovdf:
         # this is updated everytime ---> contains the log10 values of the VDF after purging 
         # any of the grids which are below the count threshold.
         self.vdfdata = None
+
+        # storing the number of GL quadrature points
+        self.NQ_V, self.NQ_T, self.NQ_P = config['quadrature']['NQ_V'], config['quadrature']['NQ_T'], config['quadrature']['NQ_P']
     
     def init_polcap_params(self, polcap_params):
         """
@@ -123,13 +127,14 @@ class gyrovdf:
         self.p = polcap_params['P']
         self.spline_mincount = polcap_params['SPLINE_MINCOUNT']
 
+        # the provided TH
+        self.TH_input = polcap_params['TH']
+
         # setting the get_coor_supres function depending on if TH is None or specified to a desired value
         if(polcap_params['TH'] is None):
             self.TH = 60   # the default extend of the instrument in instrument field aligned geometry
-            self.get_coors_supres = self.get_coors_update_TH
         else:
             self.TH = polcap_params['TH']
-            self.get_coors_supres = self.get_coors
 
         # this is for when we do the polar cap inversion and super-resolution
         self.G_k_n = None
@@ -169,9 +174,9 @@ class gyrovdf:
         """
         # extracting out all the required variables from the vdf dictionary
         time = vdf_dict.time.data
-        energy = vdf_dict.energy.data * 1.0
-        theta = vdf_dict.theta.data * 1.0
-        phi = vdf_dict.phi.data * 1.0
+        self.energy = vdf_dict.energy.data * 1.0
+        self.theta = vdf_dict.theta.data * 1.0
+        self.phi = vdf_dict.phi.data * 1.0
         vdf = vdf_dict.vdf.data * 1.0
         count = vdf_dict.counts.data * 1.0
 
@@ -188,12 +193,18 @@ class gyrovdf:
         q_p = 1
 
         # constructing the velocity grid from the energy grid
-        self.velocity = np.sqrt(2 * q_p * energy / m_p)
+        self.velocity = np.sqrt(2 * q_p * self.energy / m_p)
 
-        # Define the Cartesian Coordinates
-        self.vx = self.velocity * np.cos(np.radians(theta)) * np.cos(np.radians(phi))
-        self.vy = self.velocity * np.cos(np.radians(theta)) * np.sin(np.radians(phi))
-        self.vz = self.velocity * np.sin(np.radians(theta))
+        # Define the Cartesian Coordinates for the instrument (this is NOT the quadrature points). Shape (32, 8, 8)
+        self.vy_inst = self.velocity * np.cos(np.radians(self.theta)) * np.sin(np.radians(self.phi))
+        self.vz_inst = self.velocity * np.sin(np.radians(self.theta))
+        self.vx_inst = self.velocity * np.cos(np.radians(self.theta)) * np.cos(np.radians(self.phi))
+
+        # This is the grid to contain the quadrature points. Shape (32, 8, 8, 4)
+        self.vx_GL, self.vy_GL, self.vz_GL = None, None, None
+
+        # this is for storing the GL grids and weights which is updated for each timestamp
+        self.GL = None
 
         # obtaining the L3 data which contains the magnetic field and partial moments
         data = fn.init_psp_moms(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
@@ -262,42 +273,39 @@ class gyrovdf:
         tidx : int
             The time index being reconstructed.
         """
-        self.vpara, self.vperp1, self.vperp2, self.vperp = None, None, None, None
+        self.vpara_inst, self.vperp1_inst, self.vperp2_inst, self.vperp_inst = None, None, None, None
         self.ubulk = u_bulk * 1.0
         
         # Shift into the plasma frame for the proposed u_bulk (the gyrocentroid)
-        self.ux = self.vx[tidx] - u_bulk[0, NAX, NAX, NAX]
-        self.uy = self.vy[tidx] - u_bulk[1, NAX, NAX, NAX]
-        self.uz = self.vz[tidx] - u_bulk[2, NAX, NAX, NAX]
+        ux_inst = self.vx_inst[tidx] - u_bulk[0]
+        uy_inst = self.vy_inst[tidx] - u_bulk[1]
+        uz_inst = self.vz_inst[tidx] - u_bulk[2]
 
         # Rotate the plasma frame data into the magnetic field aligned frame.
-        vpara, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(self.ux, self.uy, self.uz,
-                                                                        *fn.field_aligned_coordinates(self.b_span[tidx])))                                                            
+        vpara_inst, vperp1_inst, vperp2_inst = np.array(fn.rotate_vector_field_aligned(ux_inst, uy_inst, uz_inst,
+                                                                                      *fn.field_aligned_coordinates(self.b_span[tidx])))                                                            
         
         # converting to the field aligned coordinates here [BEFORE SHIFTING ALONG vpara]
-        self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
-        self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
+        self.vpara_inst, self.vperp1_inst, self.vperp2_inst = vpara_inst, vperp1_inst, vperp2_inst
+        self.vperp_inst = np.sqrt(self.vperp1_inst**2 + self.vperp2_inst**2)
 
         # Check angle between flow and magnetic field. 
         # NOTE: NEED TO CHECK THIS CALCULATION.
         if (self.theta_bv[tidx] < 90):
-            self.vpara = -1.0 * self.vpara
+            self.vpara_inst = -1.0 * self.vpara_inst
             self.theta_sign = -1.0
         else: self.theta_sign = 1.0
 
         # Boosting along vpara [this step is crucial for the polar cap method, only]
-        vpara1 = self.vpara - np.nanmax(self.vpara)
-        max_r = np.nanmax(self.vperp[self.nanmask[tidx]]/np.tan(np.radians(self.TH)) + (vpara1[self.nanmask[tidx]]))
-        self.vshift = max_r + np.nanmax(self.vpara)
-        self.vpara -= self.vshift
+        vpara1_inst = self.vpara_inst - np.nanmax(self.vpara_inst)
+        max_r = np.nanmax(self.vperp_inst[self.nanmask[tidx]]/np.tan(np.radians(self.TH)) + (vpara1_inst[self.nanmask[tidx]]))
+        self.vshift = max_r + np.nanmax(self.vpara_inst)
+        self.vpara_inst -= self.vshift
 
         # converting the grid to spherical polar in the field aligned frame
-        r, theta, phi = c2s(self.vperp1, self.vperp2, self.vpara)
-        self.r_fa = r.value
-        self.theta_fa = np.degrees(theta.value) + 90
-
-        # making the knots everytime the gyrotropic coordinates are changed
-        self.make_knots(tidx)
+        r_inst, theta_inst, phi_inst = c2s(self.vperp1_inst, self.vperp2_inst, self.vpara_inst)
+        self.r_fa_inst = r_inst.value
+        self.theta_fa_inst = np.degrees(theta_inst.value) + 90
 
     def get_coors_update_TH(self, u_bulk, tidx):
         r"""
@@ -315,42 +323,75 @@ class gyrovdf:
         tidx : int
             The time index being reconstructed.
         """
-        self.vpara, self.vperp1, self.vperp2, self.vperp = None, None, None, None
+        self.vpara_GL, self.vperp1_GL, self.vperp2_GL, self.vperp_GL = None, None, None, None
         self.ubulk = u_bulk * 1.0
         
-        # Shift into the plasma frame for the proposed u_bulk (the gyrocentroid)
-        self.ux = self.vx[tidx] - u_bulk[0, NAX, NAX, NAX]
-        self.uy = self.vy[tidx] - u_bulk[1, NAX, NAX, NAX]
-        self.uz = self.vz[tidx] - u_bulk[2, NAX, NAX, NAX]
+        # Shift into the plasma frame for the proposed u_bulk (the gyrocentroid) for the instrument grids
+        ux_inst = self.vx_inst[tidx] - u_bulk[0]
+        uy_inst = self.vy_inst[tidx] - u_bulk[1]
+        uz_inst = self.vz_inst[tidx] - u_bulk[2]
 
         # Rotate the plasma frame data into the magnetic field aligned frame.
-        vpara, vperp1, vperp2 = np.array(fn.rotate_vector_field_aligned(self.ux, self.uy, self.uz,
-                                                                        *fn.field_aligned_coordinates(self.b_span[tidx])))                                                            
-        
+        vpara_inst, vperp1_inst, vperp2_inst = np.array(fn.rotate_vector_field_aligned(ux_inst, uy_inst, uz_inst,
+                                                                                       *fn.field_aligned_coordinates(self.b_span[tidx]))) 
+
         # converting to the field aligned coordinates here [BEFORE SHIFTING ALONG vpara]
-        self.vpara, self.vperp1, self.vperp2 = vpara * 1.0, vperp1 * 1.0, vperp2 * 1.0
-        self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
+        self.vpara_inst, self.vperp1_inst, self.vperp2_inst = vpara_inst * 1.0, vperp1_inst * 1.0, vperp2_inst * 1.0
+        self.vperp_inst = np.sqrt(self.vperp1_inst**2 + self.vperp2_inst**2)
 
         # Check angle between flow and magnetic field. 
         # NOTE: NEED TO CHECK THIS CALCULATION.
         if (self.theta_bv[tidx] < 90):
-            self.vpara = -1.0 * self.vpara
+            self.vpara_inst = -1.0 * vpara_inst
             self.theta_sign = -1.0
-        else: self.theta_sign = 1.0
+        else: self.theta_sign = 1.0   
 
-        # Boosting along vpara [this step is crucial for the polar cap method, only]
-        self.vshift = self.velocity[tidx, *self.max_indices[tidx]] + vpara[*self.max_indices[tidx]]
-        self.vpara -= self.vshift
+        # Shift into the plasma frame for the proposed u_bulk (the gyrocentroid) for the GL quadrature grids
+        ux_GL = self.vx_GL - u_bulk[0]
+        uy_GL = self.vy_GL - u_bulk[1]
+        uz_GL = self.vz_GL - u_bulk[2]
+
+        # Rotate the plasma frame data into the magnetic field aligned frame.
+        vpara_GL, vperp1_GL, vperp2_GL = np.array(fn.rotate_vector_field_aligned(ux_GL, uy_GL, uz_GL,
+                                                                                 *fn.field_aligned_coordinates(self.b_span[tidx])))                                                       
+        
+        # converting to the field aligned coordinates here [BEFORE SHIFTING ALONG vpara]
+        self.vpara_GL, self.vperp1_GL, self.vperp2_GL = vpara_GL * 1.0, vperp1_GL * 1.0, vperp2_GL * 1.0
+        self.vperp_GL = np.sqrt(self.vperp1_GL**2 + self.vperp2_GL**2)
+
+        # regenerating TH or not depending on if input TH was provided
+        if(self.TH_input):
+            # Boosting along vpara [this step is crucial for the polar cap method, only]
+            vpara1_inst = self.vpara_inst - np.nanmax(self.vpara_inst)
+            max_r = np.nanmax(self.vperp_inst[self.nanmask[tidx]]/np.tan(np.radians(self.TH)) + (vpara1_inst[self.nanmask[tidx]]))
+            self.vshift = max_r + np.nanmax(self.vpara_inst)
+            self.TH = self.TH_input * 1.0
+
+            self.vpara_GL = self.vpara_GL - self.vshift
+            self.vpara_inst = self.vpara_inst - self.vshift
+
+        else:
+            self.vshift = self.velocity[tidx, *self.max_indices[tidx]] + self.vpara_inst[*self.max_indices[tidx]]
+
+            self.vpara_GL = self.vpara_GL - self.vshift
+            self.vpara_inst = self.vpara_inst - self.vshift
+
+            # finding the maximum TH (comes from the maximum vperp) for polarcap Slepian generation
+            self.TH = np.max(np.degrees(np.arctan2(self.vperp_inst[self.nanmask[tidx]], -self.vpara_inst[self.nanmask[tidx]])))
+
+        # storing the vshift and TH for this timeindex
         self.vshift_all[tidx] = self.vshift * 1.0
-
-        # converting the vpara shifted grid to spherical polar in the field aligned frame
-        r, theta, phi = c2s(self.vperp1, self.vperp2, self.vpara)
-        self.r_fa = r.value
-        self.theta_fa = np.degrees(theta.value) + 90
-
-        # finding the maximum TH (comes from the maximum vperp) for polarcap Slepian generation
-        self.TH = np.max(np.degrees(np.arctan2(self.vperp[self.nanmask[tidx]], -self.vpara[self.nanmask[tidx]])))
         self.TH_all[tidx] = self.TH * 1.0
+
+        # converting the vpara shifted grid to spherical polar in the field aligned frame [the quadrature points]
+        r_GL, theta_GL, phi_GL = c2s(self.vperp1_GL, self.vperp2_GL, self.vpara_GL)
+        self.r_fa_GL = r_GL.value
+        self.theta_fa_GL = np.degrees(theta_GL.value) + 90
+
+        # converting the grid to spherical polar in the field aligned frame [the instrument points on the final adjusted vshift]
+        r_inst, theta_inst, phi_inst = c2s(self.vperp1_inst, self.vperp2_inst, self.vpara_inst)
+        self.r_fa_inst = r_inst.value
+        self.theta_fa_inst = np.degrees(theta_inst.value) + 90
 
         # generating the polcap Slepians for the new TH
         self.Slep.gen_Slep_tapers(self.TH, self.Lmax)
@@ -363,10 +404,7 @@ class gyrovdf:
         self.Slep.gen_Slep_norms()
         self.Slep.norm = self.Slep.norm[:self.N2D_polcap]
 
-        # making the knots everytime the gyrotropic coordinates are changed
-        self.make_knots(tidx)
-
-    def make_knots(self, tidx):
+    def make_knots_inst(self, tidx):
         """
         Creates the knots in :math:`r = \sqrt{v_{||}^2 + v_{\perp}}` space. The default 
         spacing of the knots are assumed to be uniform in log-space. This is altered to
@@ -379,14 +417,21 @@ class gyrovdf:
         tidx : int
             The time index for which we generate the knots.
         """
-        self.knots, self.vpara_nonan = None, None
+        self.knots_inst, self.vpara_nonan_inst, self.vperp_nonan_inst, self.rfac_nonan_inst, self.theta_nonan_inst = None, None, None, None, None
 
         # the gyrotropic grids filtered by count threshold
-        self.vpara_nonan = self.r_fa[self.nanmask[tidx]] * np.cos(np.radians(self.theta_fa[self.nanmask[tidx]]))
-        self.vperp_nonan = self.r_fa[self.nanmask[tidx]] * np.sin(np.radians(self.theta_fa[self.nanmask[tidx]]))
-        
+        vpara_nonan_2D = self.r_fa_inst[self.nanmask[tidx]] * np.cos(np.radians(self.theta_fa_inst[self.nanmask[tidx]]))
+        vperp_nonan_2D = self.r_fa_inst[self.nanmask[tidx]] * np.sin(np.radians(self.theta_fa_inst[self.nanmask[tidx]]))
+
         # this is used to create the knots for B-splines
-        self.rfac_nonan = self.r_fa[self.nanmask[tidx]]
+        rfac_nonan_2D = self.r_fa_inst[self.nanmask[tidx]]
+        theta_nonan_2D = self.theta_fa_inst[self.nanmask[tidx]]
+
+        # flattening from (Nvalid_grids, Nq) ---> (Nvalid_grids * Nq,)
+        self.vpara_nonan_inst = vpara_nonan_2D * 1.0
+        self.vperp_nonan_inst = vperp_nonan_2D * 1.0
+        self.rfac_nonan_inst  = rfac_nonan_2D * 1.0
+        self.theta_nonan_inst = theta_nonan_2D * 1.0
 
         # finding the minimum and maximum velocities with counts to find the knot locations
         vmin = np.min(self.velocity[tidx, self.nanmask[tidx]])
@@ -397,11 +442,11 @@ class gyrovdf:
 
         # making the initial estimate of counts per bin and bin edges in log space of knots 
         Nbins = int((np.log10(vmax) - np.log10(vmin)) / self.dlnv)
-        counts, bin_edges = np.histogram(np.log10(self.rfac_nonan), bins=Nbins)
+        counts, bin_edges = np.histogram(np.log10(self.rfac_nonan_inst), bins=Nbins)
         
         # NOTE: ARE THESE TWO LINES NECESSARY? WHERE ARE THESE ATTRIBUTES BEING USED?
-        gvdf_tstamp.hist_counts = counts
-        gvdf_tstamp.bins = (bin_edges[0:-1] + bin_edges[1:])/2
+        self.hist_counts_inst = counts
+        self.bins_inst = (bin_edges[0:-1] + bin_edges[1:])/2
 
         # merging bins to have spline_mincount number of counts per bin of knots
         new_edges, _ = fn.merge_bins(bin_edges, counts, self.spline_mincount)
@@ -412,10 +457,68 @@ class gyrovdf:
         log_knots = np.append(log_knots, new_edges[-1][-1] + self.dlnv/2.)
 
         # converting to [km/s] units for the knot locations in velocity phase space
-        self.knots = np.power(10, log_knots)
+        self.knots_inst = np.power(10, log_knots)
 
         # arranging the knots in an increasing order
-        self.knots = np.sort(self.knots)
+        self.knots_inst = np.sort(self.knots_inst)
+
+    def make_knots_GL(self, tidx):
+        """
+        Creates the knots in :math:`r = \sqrt{v_{||}^2 + v_{\perp}}` space. The default 
+        spacing of the knots are assumed to be uniform in log-space. This is altered to
+        accomodate a SPLINE_MINCOUNT number of grids for each knot (bspline). The final
+        generated knots are in [km/s] space. This function is called everytime the gyro
+        coordinates are changed due to a new proposed bulk velocity.
+
+        Parameters
+        ----------
+        tidx : int
+            The time index for which we generate the knots.
+        """
+        self.knots_GL, self.vpara_nonan_GL, self.vperp_nonan_GL, self.rfac_nonan_GL, self.theta_nonan_GL = None, None, None, None, None
+
+        # the gyrotropic grids filtered by count threshold
+        vpara_nonan_2D = self.r_fa_GL[self.nanmask[tidx]] * np.cos(np.radians(self.theta_fa_GL[self.nanmask[tidx]]))
+        vperp_nonan_2D = self.r_fa_GL[self.nanmask[tidx]] * np.sin(np.radians(self.theta_fa_GL[self.nanmask[tidx]]))
+
+        # this is used to create the knots for B-splines
+        rfac_nonan_2D = self.r_fa_GL[self.nanmask[tidx]]
+        theta_nonan_2D = self.theta_fa_GL[self.nanmask[tidx]]
+
+        # flattening from (Nvalid_grids, Nq) ---> (Nvalid_grids * Nq,)
+        self.vpara_nonan_GL = np.reshape(vpara_nonan_2D, (-1), 'F')
+        self.vperp_nonan_GL = np.reshape(vperp_nonan_2D, (-1), 'F')
+        self.rfac_nonan_GL  = np.reshape(rfac_nonan_2D, (-1), 'F')
+        self.theta_nonan_GL = np.reshape(theta_nonan_2D, (-1), 'F')
+
+        # finding the minimum and maximum velocities with counts to find the knot locations
+        vmin = np.min(self.velocity[tidx, self.nanmask[tidx]])
+        vmax = np.max(self.velocity[tidx, self.nanmask[tidx]])
+        
+        # this is calculated from the mean(log10(v_{i+1}) - log10(v_i)) of SPAN-i grid
+        self.dlnv = 2 * np.nanmean(np.diff(np.log10(self.velocity[tidx,:,0,0])))
+
+        # making the initial estimate of counts per bin and bin edges in log space of knots 
+        Nbins = int((np.log10(vmax) - np.log10(vmin)) / self.dlnv)
+        counts, bin_edges = np.histogram(np.log10(self.rfac_nonan_GL), bins=Nbins)
+        
+        # NOTE: ARE THESE TWO LINES NECESSARY? WHERE ARE THESE ATTRIBUTES BEING USED?
+        self.hist_counts_GL = counts
+        self.bins_GL = (bin_edges[0:-1] + bin_edges[1:])/2
+
+        # merging bins to have spline_mincount number of counts per bin of knots
+        new_edges, _ = fn.merge_bins(bin_edges, counts, self.spline_mincount)
+        log_knots = np.sum(new_edges, axis=1)/2
+
+        # adding the first and last points as knots
+        log_knots = np.append(new_edges[0][0] - self.dlnv/2., log_knots)
+        log_knots = np.append(log_knots, new_edges[-1][-1] + self.dlnv/2.)
+
+        # converting to [km/s] units for the knot locations in velocity phase space
+        self.knots_GL = np.power(10, log_knots)
+
+        # arranging the knots in an increasing order
+        self.knots_GL = np.sort(self.knots_GL)
 
     def inversion(self, u_bulk, vdfdata, tidx):
         """
@@ -447,8 +550,11 @@ class gyrovdf:
         # making the gyrotropic coordinates for the given u_bulk and magnetic field at that timestamp
         self.get_coors(u_bulk, tidx)
 
+        # making the instantaneous knots for gyrocentroid finder minimization
+        self.make_knots_inst(tidx)
+
         # performing the inversion and obtaining the reconstructed VDF on the SPAN-i grids
-        vdf_rec, zeromask = polcap.inversion(self, vdfdata, tidx)
+        vdf_rec, zeromask = polcap.inversion_inst(self, vdfdata, tidx)
 
         return vdf_rec, zeromask
     
@@ -496,7 +602,11 @@ class gyrovdf:
             NOTE: This is returned only to be able to make the L-curve plot for diagnostic purposes.
         """
         # making the gyrotropic coordinates for the finalized u_bulk and magnetic field at that timestamp
-        self.get_coors_supres(u_bulk, tidx)
+        self.get_coors_update_TH(u_bulk, tidx)
+
+        # making the final knots using the finalized estimate for u_bulk
+        self.make_knots_inst(tidx)
+        self.make_knots_GL(tidx)
 
         vdf_inv, vdf_super, zeromask, data_misfit, model_misfit = self.inversion_code.super_resolution(self, tidx, NPTS)
 
@@ -583,20 +693,37 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         gvdf_tstamp.vdfdata = vdfdata * 1.0
 
         # the 3D array of grid points in VX, VY, VZ of the SPAN grid
-        threeD_points = np.vstack([gvdf_tstamp.vx[tidx][gvdf_tstamp.nanmask[tidx]],
-                                   gvdf_tstamp.vy[tidx][gvdf_tstamp.nanmask[tidx]],
-                                   gvdf_tstamp.vz[tidx][gvdf_tstamp.nanmask[tidx]]]).T
+        threeD_points = np.vstack([gvdf_tstamp.vx_inst[tidx][gvdf_tstamp.nanmask[tidx]],
+                                   gvdf_tstamp.vy_inst[tidx][gvdf_tstamp.nanmask[tidx]],
+                                   gvdf_tstamp.vz_inst[tidx][gvdf_tstamp.nanmask[tidx]]]).T
 
         # initializing the starting location of ubulk for the minimization
         u_origin = gvdf_tstamp.v_span[tidx] * 1.0
 
         # first estimate of correction to the SPAN-moment using scipy.optimize.minimize
         u_corr, __, u, v = find_symmetry_point(threeD_points, vdfdata, gvdf_tstamp.bvec[tidx],
-                                            loss_fn_Slepians, tidx, origin=u_origin,
-                                            MIN_METHOD=MIN_METHOD)
+                                               loss_fn_Slepians, tidx, origin=u_origin,
+                                               MIN_METHOD=MIN_METHOD)
         # storing this to compare with the MCMC estimate, if needed, No other reason.
         u_corr_scipy = u_corr * 1.0
         
+        # generating the quadrature from the grid edges, only generated once for the entire (32,8,8) SPAN grid and held fixed for all timestamps
+        # this is used to generate the Slepian functions prior to evaluating the volume integral using GL quadrature rule
+        # computing the edges
+        V_edges, T_edges, P_edges = quadrature.generate_grid_edges(psp_vdf, tidx)
+        gvdf_tstamp.GL = quadrature.build_cell_quadrature(V_edges, T_edges, P_edges,
+                                                          n_v=gvdf_tstamp.NQ_V, n_mu=gvdf_tstamp.NQ_T, n_phi=gvdf_tstamp.NQ_P, phi_rule="midpoint")
+        # extracting the nonan flattened grids of shape (N_nonan, Nquadrature)
+        gvdf_tstamp.v_nonan_GL, gvdf_tstamp.theta_nonan_GL, gvdf_tstamp.phi_nonan_GL, gvdf_tstamp.w_nonan_GL = gvdf_tstamp.GL["v"][gvdf_tstamp.nanmask[tidx]],\
+                                                                                                               gvdf_tstamp.GL["theta"][gvdf_tstamp.nanmask[tidx]],\
+                                                                                                               gvdf_tstamp.GL["phi"][gvdf_tstamp.nanmask[tidx]],\
+                                                                                                               gvdf_tstamp.GL["w"][gvdf_tstamp.nanmask[tidx]]
+
+        # defining the cartesian coordinates for this specific timestamp velocity grid on quadrature grid
+        gvdf_tstamp.vx_GL = gvdf_tstamp.GL["v"] * np.cos(np.radians(gvdf_tstamp.GL["theta"])) * np.cos(np.radians(gvdf_tstamp.GL["phi"]))
+        gvdf_tstamp.vy_GL = gvdf_tstamp.GL["v"] * np.cos(np.radians(gvdf_tstamp.GL["theta"])) * np.sin(np.radians(gvdf_tstamp.GL["phi"]))
+        gvdf_tstamp.vz_GL = gvdf_tstamp.GL["v"] * np.sin(np.radians(gvdf_tstamp.GL["theta"]))
+
         # computing super-resolution and moments from the scipy corrected bulk velocity
         vdf_inv, vdf_super, __, data_misfit, model_misfit  =\
                                     gvdf_tstamp.super_resolution(u_corr, tidx, NPTS_SUPER)

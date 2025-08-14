@@ -391,15 +391,17 @@ def field_aligned_coordinates(B_vec):
 
 def rotate_vector_field_aligned(Ax, Ay, Az, Nx, Ny, Nz, Px, Py, Pz, Qx, Qy, Qz):
     # For some Vector A in the SAME COORDINATE SYSTEM AS THE ORIGINAL B-FIELD VECTOR:
-    if Ax.ndim == 4:
-        An = (Ax * Nx[:, None, None, None]) + (Ay * Ny[:, None, None, None]) + (Az * Nz[:, None, None, None])  # A dot N = A_parallel
-        Ap = (Ax * Px[:, None, None, None]) + (Ay * Py[:, None, None, None]) + (Az * Pz[:, None, None, None])  # A dot P = A_perp (~RTN_N (+/- depending on B), perpendicular to s/c y)
-        Aq = (Ax * Qx[:, None, None, None]) + (Ay * Qy[:, None, None, None]) + (Az * Qz[:, None, None, None])  # 
-    
-    else:
+    if np.isscalar(Nx):
         An = (Ax * Nx) + (Ay * Ny) + (Az * Nz)  # A dot N = A_parallel
         Ap = (Ax * Px) + (Ay * Py) + (Az * Pz)  # A dot P = A_perp (~RTN_N (+/- depending on B), perpendicular to s/c y)
         Aq = (Ax * Qx) + (Ay * Qy) + (Az * Qz)  # 
+
+    else:
+        ndim_diff = Ax.ndim - 1
+        newaxes = (np.newaxis,) * ndim_diff
+        An = (Ax * Nx[:, *newaxes]) + (Ay * Ny[:, *newaxes]) + (Az * Nz[:, *newaxes])  # A dot N = A_parallel
+        Ap = (Ax * Px[:, *newaxes]) + (Ay * Py[:, *newaxes]) + (Az * Pz[:, *newaxes])  # A dot P = A_perp (~RTN_N (+/- depending on B), perpendicular to s/c y)
+        Aq = (Ax * Qx[:, *newaxes]) + (Ay * Qy[:, *newaxes]) + (Az * Qz[:, *newaxes])  # 
 
     return(An, Ap, Aq)
 
@@ -834,8 +836,8 @@ def find_kmax_NN(gvdf_tstamp, tidx, NN=6):
     NN : int (optional)
         The number of nearest neighbours to consider when determining the :math:`k_{\mathrm{max, NN}}`.
     """
-    cluster_points = np.vstack([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vperp_nonan]).T  # blue points
-    query_point = np.array([[np.abs(gvdf_tstamp.vpara[*gvdf_tstamp.max_indices[tidx]]), 0]])  # the orange point
+    cluster_points = np.vstack([gvdf_tstamp.vpara_nonan_inst, gvdf_tstamp.vperp_nonan_inst]).T  # blue points
+    query_point = np.array([[np.abs(gvdf_tstamp.vpara_inst[*gvdf_tstamp.max_indices[tidx]]), 0]])  # the orange point
     # Fit nearest neighbors
     nn = NearestNeighbors(n_neighbors=NN)
     nn.fit(cluster_points)

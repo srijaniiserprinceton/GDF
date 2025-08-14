@@ -391,15 +391,17 @@ def field_aligned_coordinates(B_vec):
 
 def rotate_vector_field_aligned(Ax, Ay, Az, Nx, Ny, Nz, Px, Py, Pz, Qx, Qy, Qz):
     # For some Vector A in the SAME COORDINATE SYSTEM AS THE ORIGINAL B-FIELD VECTOR:
-    if Ax.ndim == 4:
-        An = (Ax * Nx[:, None, None, None]) + (Ay * Ny[:, None, None, None]) + (Az * Nz[:, None, None, None])  # A dot N = A_parallel
-        Ap = (Ax * Px[:, None, None, None]) + (Ay * Py[:, None, None, None]) + (Az * Pz[:, None, None, None])  # A dot P = A_perp (~RTN_N (+/- depending on B), perpendicular to s/c y)
-        Aq = (Ax * Qx[:, None, None, None]) + (Ay * Qy[:, None, None, None]) + (Az * Qz[:, None, None, None])  # 
-    
-    else:
+    if np.isscalar(Nx):
         An = (Ax * Nx) + (Ay * Ny) + (Az * Nz)  # A dot N = A_parallel
         Ap = (Ax * Px) + (Ay * Py) + (Az * Pz)  # A dot P = A_perp (~RTN_N (+/- depending on B), perpendicular to s/c y)
         Aq = (Ax * Qx) + (Ay * Qy) + (Az * Qz)  # 
+
+    else:
+        ndim_diff = Ax.ndim - 1
+        newaxes = (np.newaxis,) * ndim_diff
+        An = (Ax * Nx[:, *newaxes]) + (Ay * Ny[:, *newaxes]) + (Az * Nz[:, *newaxes])  # A dot N = A_parallel
+        Ap = (Ax * Px[:, *newaxes]) + (Ay * Py[:, *newaxes]) + (Az * Pz[:, *newaxes])  # A dot P = A_perp (~RTN_N (+/- depending on B), perpendicular to s/c y)
+        Aq = (Ax * Qx[:, *newaxes]) + (Ay * Qy[:, *newaxes]) + (Az * Qz[:, *newaxes])  # 
 
     return(An, Ap, Aq)
 

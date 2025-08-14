@@ -1,17 +1,17 @@
 import numpy as np
 from scipy.linalg import solve
 
-from gdf.src import polar_cap_inversion as polcap_inversion
-from gdf.src import functions_GL as fn
-from gdf.src import basis_funcs as basis_fn
-from gdf.src import misc_funcs as misc_fn
+from gdf.src_GL import polar_cap_inversion as polcap_inversion
+from gdf.src_GL import functions as fn
+from gdf.src_GL import basis_funcs as basis_fn
+from gdf.src_GL import misc_funcs as misc_fn
 
 def find_polcap_knee_idx(gvdf_tstamp):
     #--------- starting the inversion for obtaining the coefficients using B-spline regularization-------#
     G_g = gvdf_tstamp.G_k_n @ gvdf_tstamp.G_k_n.T
     
     # Setup the BSpline regularization
-    D_i_i = basis_fn.get_Bspline_second_derivative(gvdf_tstamp.knots, gvdf_tstamp.p, gvdf_tstamp.super_vpara)
+    D_i_i = basis_fn.get_Bspline_second_derivative(gvdf_tstamp.knots_inst, gvdf_tstamp.p, gvdf_tstamp.super_vpara)
 
     # Augment the D-matrix
     gvdf_tstamp.D = np.kron(D_i_i, np.diag(gvdf_tstamp.Slep.norm))
@@ -229,9 +229,9 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
 
     #---------------------------------POLCAP SETUP 1----------------------------------#
     # creating the B-splines, Slepian functions (at new theta grids) and G matrix about the finalized ubulk
-    polcap_inversion.get_Bsplines(gvdf_tstamp)
-    polcap_inversion.get_Slepians(gvdf_tstamp, tidx)
-    polcap_inversion.get_G_matrix(gvdf_tstamp)
+    polcap_inversion.get_Bsplines_inst(gvdf_tstamp)
+    polcap_inversion.get_Slepians_GL(gvdf_tstamp, tidx)
+    polcap_inversion.get_G_matrix_GL(gvdf_tstamp)
 
     find_polcap_knee_idx(gvdf_tstamp)
 

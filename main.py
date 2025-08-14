@@ -1,8 +1,8 @@
 import sys, importlib
 import numpy as np
 
-from gdf.src import VDF_rec_PSP
-from gdf.src import misc_funcs as misc_fn
+from gdf.src_GL import VDF_rec_PSP
+from gdf.src_GL import misc_funcs as misc_fn
 
 # importing the config file provided at command line
 config_file = sys.argv[1]
