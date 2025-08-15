@@ -254,13 +254,13 @@ def plot_CartSlep(xx, yy, gvdf_tstamp, f_data, tidx, ext='png', SAVE=False):
     fig, ax = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 
     # the SPAN data grids in FAC
-    span_gridx = np.append(-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan)
-    span_gridy = np.append(gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan)
+    span_gridx = np.append(-gvdf_tstamp.vperp_nonan_inst, gvdf_tstamp.vperp_nonan_inst)
+    span_gridy = np.append(gvdf_tstamp.vpara_nonan_inst, gvdf_tstamp.vpara_nonan_inst)
     xmagmax = span_gridx.max() * 1.12
 
     # computing the nearest neighbour points
-    cluster_points = np.vstack([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vperp_nonan]).T  # blue points
-    query_point = np.array([[np.abs(gvdf_tstamp.vpara[*gvdf_tstamp.max_indices[tidx]]), 0]])  # the orange point
+    cluster_points = np.vstack([gvdf_tstamp.vpara_nonan_inst, gvdf_tstamp.vperp_nonan_inst]).T  # blue points
+    query_point = np.array([[np.abs(gvdf_tstamp.vpara_inst[*gvdf_tstamp.max_indices[tidx]]), 0]])  # the orange point
     # Fit nearest neighbors
     nn = NearestNeighbors(n_neighbors=6)
     nn.fit(cluster_points)
@@ -270,7 +270,7 @@ def plot_CartSlep(xx, yy, gvdf_tstamp, f_data, tidx, ext='png', SAVE=False):
     nearest_points = cluster_points[indices[0]]
     vperp_max = np.mean(nearest_points, axis=0)[1]
 
-    vmaxval = gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.vdfdata)]
+    vmaxval = gvdf_tstamp.vpara_nonan_inst[np.argmax(gvdf_tstamp.vdfdata)]
 
     cmap = plt.cm.inferno
     lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
@@ -283,11 +283,11 @@ def plot_CartSlep(xx, yy, gvdf_tstamp, f_data, tidx, ext='png', SAVE=False):
                   cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
     ax[0].scatter(-nearest_points[:,1], nearest_points[:,0], c=np.log10(f_data[indices[0]]), s=50,
                   cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
-    ax[0].scatter(gvdf_tstamp.vperp_nonan[np.argmax(gvdf_tstamp.vdfdata)],
-                  gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.vdfdata)],
+    ax[0].scatter(gvdf_tstamp.vperp_nonan_inst[np.argmax(gvdf_tstamp.vdfdata)],
+                  gvdf_tstamp.vpara_nonan_inst[np.argmax(gvdf_tstamp.vdfdata)],
                   marker='*', color='k', s=50)
-    ax[0].scatter(-gvdf_tstamp.vperp_nonan[np.argmax(gvdf_tstamp.vdfdata)],
-                  gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.vdfdata)],
+    ax[0].scatter(-gvdf_tstamp.vperp_nonan_inst[np.argmax(gvdf_tstamp.vdfdata)],
+                  gvdf_tstamp.vpara_nonan_inst[np.argmax(gvdf_tstamp.vdfdata)],
                   marker='*', color='k', s=50)
 
     ax[1].pcolormesh(xx, yy, np.reshape(gvdf_tstamp.CartSlep.H[:,2], (49,49), 'F'), vmin=-maxval, vmax=maxval,
@@ -323,8 +323,8 @@ def plot_super_resolution_CARTSLEP(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supr
     f_supres = np.reshape(f_supres, (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy)).T.flatten()
 
     # the SPAN data grids in FAC
-    span_gridx = np.append(-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan)
-    span_gridy = np.append(gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan)
+    span_gridx = np.append(-gvdf_tstamp.vperp_nonan_inst, gvdf_tstamp.vperp_nonan_inst)
+    span_gridy = np.append(gvdf_tstamp.vpara_nonan_inst, gvdf_tstamp.vpara_nonan_inst)
     xmagmax = span_gridx.max() * 1.12
 
     Nspangrids = len(span_gridx)
@@ -344,6 +344,8 @@ def plot_super_resolution_CARTSLEP(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supr
     ax[0].set_xlim([-xmagmax, xmagmax])
     ax[0].text(0.02, 0.94, "(A)", transform=ax[0].transAxes, fontsize=12, fontweight='bold',
                bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
+
+    print(f_supres.shape, np.max(f_supres), np.min(f_supres), np.nanmax(f_supres), np.nanmin(f_supres))
 
     ax[1].plot(CartSlep.XY[:,0], CartSlep.XY[:,1], '--w')
     im = ax[1].tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres), levels=lvls, cmap='inferno')
@@ -413,8 +415,8 @@ def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     f_data = np.power(10, gvdf_tstamp.vdfdata) * gvdf_tstamp.minval[tidx]
 
     # the SPAN data grids in FAC
-    span_gridx = np.append(-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan)
-    span_gridy = np.append(gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan)
+    span_gridx = np.append(-gvdf_tstamp.vperp_nonan_inst, gvdf_tstamp.vperp_nonan_inst)
+    span_gridy = np.append(gvdf_tstamp.vpara_nonan_inst, gvdf_tstamp.vpara_nonan_inst)
     xmagmax = span_gridx.max() * 1.12
 
     Nspangrids = len(span_gridx)
@@ -423,7 +425,7 @@ def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     cmap = plt.cm.inferno
     # lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
     #                    int(np.log10(gvdf_tstamp.maxval[tidx]) + 1), 10)
-    lvls = np.linspace(-23, -19, 10)
+    lvls = np.linspace(-23, -19, 25)
     norm = colors.BoundaryNorm(lvls, ncolors=cmap.N)
 
     # reshaping grids for plotting

@@ -5,6 +5,7 @@ from line_profiler import profile
 from gdf.src_GL import eval_Slepians
 from gdf.src_GL import plotter
 from gdf.src_GL import functions as fn
+from gdf.src_GL import quadrature
 
 def define_supres_cartgrids(gvdf_tstamp, NPTS, plothull=False):
     """
@@ -24,9 +25,9 @@ def define_supres_cartgrids(gvdf_tstamp, NPTS, plothull=False):
         Flag to optionally plot the convex hull for diagnostic purposes only.
     """
     # this is super-resolution grid in x
-    gvdf_tstamp.v_perp_all = np.concatenate([-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan])
+    gvdf_tstamp.v_perp_all = np.concatenate([-gvdf_tstamp.vperp_nonan_inst, gvdf_tstamp.vperp_nonan_inst])
     # this is super-resolution grid in y
-    gvdf_tstamp.v_para_all = np.concatenate([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan])
+    gvdf_tstamp.v_para_all = np.concatenate([gvdf_tstamp.vpara_nonan_inst, gvdf_tstamp.vpara_nonan_inst])
 
     # extracting the convex hull boundary
     supres_gridy_1D, supres_grids, boundary_points, hull_mask, area =\
@@ -41,7 +42,7 @@ def define_supres_cartgrids(gvdf_tstamp, NPTS, plothull=False):
     gvdf_tstamp.hull_mask = hull_mask
     gvdf_tstamp.hull_area = area
 
-def inversion_CartSlep(gvdf_tstamp):
+def inversion_CartSlep(gvdf_tstamp, tidx):
     """
     Computes the coefficients of the Cartesian Slepians from the SPAN-i data grid. Evaluates
     the low resolution Cartesian Slepians only.
@@ -58,22 +59,23 @@ def inversion_CartSlep(gvdf_tstamp):
         The coefficients of the Cartesian Slepians evaluated from the linear inverse problem
         using the SPAN-i data grid values. These are used for super-resolution.
     """
-    # getting the Slepians on the measurement points
+    # getting the Slepians on the GL quadrature points
+    gvdf_tstamp.v_perp_all_GL = np.concatenate([-gvdf_tstamp.vperp_nonan_GL, gvdf_tstamp.vperp_nonan_GL])
+    gvdf_tstamp.v_para_all_GL = np.concatenate([gvdf_tstamp.vpara_nonan_GL, gvdf_tstamp.vpara_nonan_GL])
     gvdf_tstamp.CartSlep.gen_Slep_basis(gvdf_tstamp.boundary_points, np.double(gvdf_tstamp.N2D_cart),
-                                        np.array([gvdf_tstamp.v_perp_all, gvdf_tstamp.v_para_all]).T)
+                                        np.array([gvdf_tstamp.v_perp_all_GL, gvdf_tstamp.v_para_all_GL]).T)
 
-    print(gvdf_tstamp.CartSlep.G.shape)
-
-    # clipping off at the Shannon number
-    gvdf_tstamp.CartSlep.G = gvdf_tstamp.CartSlep.G[:,:None]
-    gvdf_tstamp.CartSlep.H = gvdf_tstamp.CartSlep.H[:,:None]
+    # carrying out the volume average. Final shape is (Npoints, Nsleps)
+    gvdf_tstamp.CartSlep.G = quadrature.GL_vol_avg_cartesian(gvdf_tstamp.CartSlep.G, gvdf_tstamp, tidx) * 1.0
+    gvdf_tstamp.CartSlep.H = quadrature.GL_vol_avg_cartesian(gvdf_tstamp.CartSlep.H, gvdf_tstamp, tidx) * 1.0
 
     # the data we intend to fit to
-    vdf_data = np.append(gvdf_tstamp.vdfdata, gvdf_tstamp.vdfdata)
+    vdf_data = np.concatenate([gvdf_tstamp.vdfdata, gvdf_tstamp.vdfdata])
 
     # performing the inversion to get the Coefficients
     GTG = gvdf_tstamp.CartSlep.G.T @ gvdf_tstamp.CartSlep.G
     GTd = gvdf_tstamp.CartSlep.G.T @ vdf_data
+
     # the 'sym' option is used since we know GTG is a symmetric matrix
     coeffs = solve(GTG, GTd, assume_a='sym')
 
@@ -123,7 +125,7 @@ def super_resolution(gvdf_tstamp, tidx, NPTS, plotSlep=False):
     gvdf_tstamp.N2D_cart_all[tidx] = gvdf_tstamp.N2D_cart * 1.0
 
     # inferring the coefficients from the data
-    coeffs = inversion_CartSlep(gvdf_tstamp)
+    coeffs = inversion_CartSlep(gvdf_tstamp, tidx)
     # reconstruction on the SPAN-i data grid for comparison with vdfdata
     vdf_rec = coeffs @ gvdf_tstamp.CartSlep.G[:,:None].T
 

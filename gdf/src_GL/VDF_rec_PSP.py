@@ -486,10 +486,10 @@ class gyrovdf:
         theta_nonan_2D = self.theta_fa_GL[self.nanmask[tidx]]
 
         # flattening from (Nvalid_grids, Nq) ---> (Nvalid_grids * Nq,)
-        self.vpara_nonan_GL = np.reshape(vpara_nonan_2D, (-1), 'F')
-        self.vperp_nonan_GL = np.reshape(vperp_nonan_2D, (-1), 'F')
-        self.rfac_nonan_GL  = np.reshape(rfac_nonan_2D, (-1), 'F')
-        self.theta_nonan_GL = np.reshape(theta_nonan_2D, (-1), 'F')
+        self.vpara_nonan_GL = np.reshape(vpara_nonan_2D, (-1), 'C')
+        self.vperp_nonan_GL = np.reshape(vperp_nonan_2D, (-1), 'C')
+        self.rfac_nonan_GL  = np.reshape(rfac_nonan_2D, (-1), 'C')
+        self.theta_nonan_GL = np.reshape(theta_nonan_2D, (-1), 'C')
 
         # finding the minimum and maximum velocities with counts to find the knot locations
         vmin = np.min(self.velocity[tidx, self.nanmask[tidx]])
@@ -796,6 +796,8 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         gvdf_tstamp.rec_quants['vel'][tidx,:3]  = u_adj
         gvdf_tstamp.rec_quants['temp'][tidx,0] = Trace / 1e6   #converting to MK
         gvdf_tstamp.rec_quants['tani'][tidx,0] = (Tcomps[1] / Tcomps[0])
+
+        gvdf_tstamp.vdf_super = vdf_super
 
         if(SAVE_FIGS): gvdf_tstamp.plotter_func(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                                                 model_misfit=model_misfit, data_misfit=data_misfit,
