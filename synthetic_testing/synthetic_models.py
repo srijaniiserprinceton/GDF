@@ -7,6 +7,7 @@ import xarray as xr
 
 import matplotlib.pyplot as plt
 import gdf.src.functions as fn
+from gdf.src_GL import quadrature
 
 import astropy.constants as c
 import astropy.units as u
@@ -110,43 +111,6 @@ def bimax_model_from_values(grids, den1, den2, Trat1, Trat2, Tperp1, Tperp2, vdr
     
     return(f*1e-30, den_tot)
 
-def make_3d(ND, NP, vpara_2d, vperp_2d, phi0, vdf):
-    # Now we need to define the 3D vdf
-    vpara_3D = np.repeat(vpara_2d, NP).reshape(ND,ND,NP)  # Add in the scalar boost in the parallel direciton!
-    vperp1_3D = vperp_2d[:,:,None] * np.cos(phi0)[None, None, :]
-    vperp2_3D = vperp_2d[:,:,None] * np.sin(phi0)[None, None, :]
-
-    # Now repeat the f_biMax model valeus
-    vdf_bimax_3D = np.repeat(vdf, NP).reshape(ND, ND, NP)    
-
-    return vpara_3D, vperp1_3D, vperp2_3D, vdf_bimax_3D
-
-def shift_frame(vpara_3d, vperp1_3d, vperp2_3d, bvec, uvec):
-    vxg, vyg, vzg = fn.inverse_rotate_vector_field_aligned(
-        *np.array([vpara_3d.flatten(), vperp1_3d.flatten(), vperp2_3d.flatten()]), 
-        *fn.field_aligned_coordinates(np.asarray(bvec))
-    )
-
-    vxg += uvec[0]
-    vyg += uvec[1]
-    vzg += uvec[2]
-
-    return(vxg, vyg, vzg)
-
-def generate_inst_grid(vdf_xr):
-    # Define the SPAN-i grids
-    e_inst = vdf_xr.energy.data[0,:,:,:]
-    vel_inst = 13.85*np.sqrt(vdf_xr.energy.data[0,:,:,:])
-    theta_inst = np.radians(vdf_xr.theta.data[0,:,:,:])
-    phi_inst = np.radians(vdf_xr.phi.data[0,:,:,:])
-
-    # Define the new grids 
-    vx_inst = vel_inst * np.cos(theta_inst) * np.cos(phi_inst)
-    vy_inst = vel_inst * np.cos(theta_inst) * np.sin(phi_inst)
-    vz_inst = vel_inst * np.sin(theta_inst)
-
-    return(e_inst, vel_inst, theta_inst, phi_inst, vx_inst, vy_inst, vz_inst)
-
 def check_density_and_temperatures(ntot, vpara_hr_3d, vperp1_hr_3d, vperp2_hr_3d, f_bimax_3d, mass_kg=1.6726e-27):
     # Calculate grid spacing (assumes uniform spacing in each dimension)
     dvpara = np.mean(np.diff(vpara_hr_3d[:, 0, 0]))
@@ -217,8 +181,34 @@ def model_params():
 
     return(den1, den2, Trat1, Trat2, Tperp1, Tperp2, vdrift)
 
+def model_grids():
+    # Define the energy array 
+    energy_array = np.array([   21.020508,    26.02539,    32.03125,    40.039062,
+                                49.047850,    61.05957,    76.07422,    95.092770,
+                                118.115234,   147.14355,   182.17773,   227.221680,
+                                282.275400,   351.34277,   436.42578,   542.529300,
+                                673.657200,   837.81740,  1041.01560,  1294.262700,
+                                1608.569300,  1999.95120,  2486.42580,  3090.014600,
+                                3841.748000,  4774.65800,  5935.79100,  7378.198000,
+                                9171.948000, 11401.12300, 14171.82600, 17616.186000])
+    
+    theta_array = np.array([-51.775665, -37.69623, -22.3178, -7.6308002,   
+                            7.5497575, 22.527119, 37.425697, 52.47127])
+    
+    phi_array = np.array([174.375, 163.125, 151.875, 140.625, 129.375, 118.125, 106.875, 95.625])
+
+    return(energy_array, theta_array, phi_array)
+
+def edges_from_centers(x):
+    dx = np.diff(x)
+    edge = np.empty(len(x) + 1)
+    edge[1:-1] = x[:-1] + dx/2
+    edge[0]    = x[0]    - dx[0]/2
+    edge[-1]   = x[-1]   + dx[-1]/2
+    return edge
+
 class synthetic_models:
-    def __init__(self, den1, den2, Trat1, Trat2, Tperp1, Tperp2, vdrift):
+    def __init__(self, den1, den2, Trat1, Trat2, Tperp1, Tperp2, vdrift, ND = 50, NP = 32, PLOTTING=False):
         # Step I: Define the parameters needed for the bi-max model
         self.den1   = den1 
         self.den2   = den2
@@ -228,12 +218,13 @@ class synthetic_models:
         self.Tperp2 = Tperp2
         self.vdrift = vdrift
         
-        self.ND = 50
-        self.NP = 32
+        # Used for plotting purposes only.
+        self.ND = ND
+        self.NP = NP
 
         self.vpara_hr = np.linspace(-600,600,self.ND)
-        self.vperp_hr = np.linspace(0,1200,self.ND)
-        self.phi0 = np.linspace(0, 2*np.pi, self.NP)
+        self.vperp_hr = np.linspace(-600,600,self.ND)
+        # self.phi0 = np.linspace(0, 2*np.pi, self.NP)
 
         self.XX, self.YY = np.meshgrid(self.vpara_hr, self.vperp_hr, indexing='ij')
         self.grids_hr = np.vstack([self.XX.flatten(), self.YY.flatten()]).T
@@ -241,9 +232,119 @@ class synthetic_models:
         self.f_bimax, self.ntot = bimax_model_from_values(self.grids_hr, self.den1, self.den2, self.Trat1, 
                                                            self.Trat2, self.Tperp1, self.Tperp2, self.vdrift)
         
-        # self.init_psp_inst_grids()
+        self.plot = PLOTTING
+
+    def evaluate_bimax_on_inst_grid(self):
+        # Precompute thermal speeds
+        wperp_1 = np.sqrt((2 * self.Tperp1 * u.eV) / c.m_p).to('km/s').value
+        wpara_1 = np.sqrt((2 * (self.Tperp1/self.Trat1) * u.eV) / c.m_p).to('km/s').value
+        wperp_2 = np.sqrt((2 * self.Tperp2 * u.eV) / c.m_p).to('km/s').value
+        wpara_2 = np.sqrt((2 * (self.Tperp2/self.Trat2) * u.eV) / c.m_p).to('km/s').value
+        
+        self.vdf_direct = np.zeros((self.Nsteps, *self.vel_inst.shape))
+
+        for i in tqdm(range(self.Nsteps)):
+            # For each bin center velocity
+            vx = self.vx_inst
+            vy = self.vy_inst
+            vz = self.vz_inst
+
+            # Shift to bulk frame
+            vx_shift = vx - self.uvecs[i,0]
+            vy_shift = vy - self.uvecs[i,1]
+            vz_shift = vz - self.uvecs[i,2]
+
+            # Rotate into field-aligned coords for this B vector
+            v_para, v_perp1, v_perp2 = fn.rotate_vector_field_aligned(
+                vx_shift.flatten(), vy_shift.flatten(), vz_shift.flatten(),
+                *fn.field_aligned_coordinates(self.bvecs[i])
+            )
+            v_perp = np.sqrt(v_perp1**2 + v_perp2**2)
+
+            # Evaluate model directly
+            f_core = biMax_model(v_para, v_perp, self.den1*1e15, 0, wperp_1, wpara_1)
+            f_beam = biMax_model(v_para, v_perp, self.den2*1e15, self.vdrift, wperp_2, wpara_2)
+            f_tot = (f_core + f_beam) * 1e-30  # unit scaling
+
+            # Store back in bin grid
+            self.vdf_direct[i] = f_tot.reshape(*self.vel_inst.shape)
+
+            if self.plot:
+                self.plot_slices(i)
+
+        # Create dataset
+        self.ds = make_synthetic_cdf(
+            np.arange(self.Nsteps),
+            np.array([self.energy_inst for _ in range(self.Nsteps)]),
+            np.array([self.phi_inst    for _ in range(self.Nsteps)]),
+            np.array([self.theta_inst  for _ in range(self.Nsteps)]),
+            self.vdf_direct,
+            self.bvecs, self.uvecs
+        )
+
+    def evaluate_bimax_on_quadrature_grid(self):
+        # Precompute thermal speeds
+        wperp_1 = np.sqrt((2 * self.Tperp1 * u.eV) / c.m_p).to('km/s').value
+        wpara_1 = np.sqrt((2 * (self.Tperp1/self.Trat1) * u.eV) / c.m_p).to('km/s').value
+        wperp_2 = np.sqrt((2 * self.Tperp2 * u.eV) / c.m_p).to('km/s').value
+        wpara_2 = np.sqrt((2 * (self.Tperp2/self.Trat2) * u.eV) / c.m_p).to('km/s').value
+        
+        self.vdf_direct_gl = np.zeros((self.Nsteps, *self.vel_inst.shape))
+
+        for i in tqdm(range(self.Nsteps)):
+            # For each bin center velocity
+            vx = self.vx_inst_gl
+            vy = self.vy_inst_gl
+            vz = self.vz_inst_gl
+
+            # Shift to bulk frame
+            vx_shift = vx - self.uvecs[i,0]
+            vy_shift = vy - self.uvecs[i,1]
+            vz_shift = vz - self.uvecs[i,2]
+
+            # Rotate into field-aligned coords for this B vector
+            v_para, v_perp1, v_perp2 = fn.rotate_vector_field_aligned(
+                vx_shift.flatten(), vy_shift.flatten(), vz_shift.flatten(),
+                *fn.field_aligned_coordinates(self.bvecs[i])
+            )
+            v_perp = np.sqrt(v_perp1**2 + v_perp2**2)
+
+            # Evaluate model directly
+            f_core = biMax_model(v_para, v_perp, self.den1*1e15, 0, wperp_1, wpara_1)
+            f_beam = biMax_model(v_para, v_perp, self.den2*1e15, self.vdrift, wperp_2, wpara_2)
+            f_tot = (f_core + f_beam) * 1e-30  # unit scaling
+
+            # Store back in bin grid
+            f_vol        = np.sum(f_tot.reshape(*self.vx_inst_gl.shape) * self.w_inst_gl, axis=-1)   # Integrate over the quadrature!
+
+            dv_term = (self.V_edges[1:]**3 - self.V_edges[:-1]**3)/ 3.0
+            dmu     = np.sin(np.radians(self.T_edges[1:])) - np.sin(np.radians(self.T_edges[:-1]))
+            dphi    = np.radians(self.P_edges[:-1]) - np.radians(self.P_edges[1:])
+
+            VOL = dv_term[:,None,None] * dmu[None,:,None] * dphi[None, None, :]
+            
+            self.vdf_direct_gl[i] = f_vol/VOL
+
+            if self.plot:
+                self.plot_slices(i, GL=True)
+
+
+        # Create dataset
+        self.ds_gl = make_synthetic_cdf(
+            np.arange(self.Nsteps),
+            np.array([self.energy_inst for _ in range(self.Nsteps)]),
+            np.array([self.phi_inst    for _ in range(self.Nsteps)]),
+            np.array([self.theta_inst  for _ in range(self.Nsteps)]),
+            self.vdf_direct,
+            self.bvecs, self.uvecs
+        )
 
     def define_inst_grids(self, energy_array, theta_array, phi_array):
+        # Appending the defined arrays to self to be used in the quadrature below.
+        self.energy_array = energy_array
+        self.theta_array  = theta_array
+        self.phi_array    = phi_array
+
         self.energy_inst = energy_array[:, np.newaxis, np.newaxis] * np.ones((1, len(theta_array), len(phi_array)))
         self.theta_inst  = theta_array[np.newaxis, : , np.newaxis] * np.ones((len(energy_array), 1, len(phi_array)))
         self.phi_inst    = phi_array[np.newaxis, np.newaxis, :] * np.ones((len(energy_array), len(theta_array), 1))
@@ -254,26 +355,40 @@ class synthetic_models:
         self.vx_inst = self.vel_inst * np.cos(np.radians(self.theta_inst)) * np.cos(np.radians(self.phi_inst))
         self.vy_inst = self.vel_inst * np.cos(np.radians(self.theta_inst)) * np.sin(np.radians(self.phi_inst))
         self.vz_inst = self.vel_inst * np.sin(np.radians(self.theta_inst))
+
+    def generate_grid_edges(self):
+        E_edges = np.power(10, edges_from_centers(np.log10(self.energy_array)))
+        self.T_edges = edges_from_centers(self.theta_array)
+        self.P_edges = edges_from_centers(self.phi_array)
+
+        # Convert E_edges to v_edges
+        q_p, m_p = 1, 0.010438870
+        V_edges = np.sqrt(2 * q_p * E_edges / m_p)
+
+        self.V_edges = V_edges
+
+    def define_inst_quadrature_grids(self, nv=2, nt=2, nphi=2):
+        self.generate_grid_edges()
+        quad_dict = quadrature.build_cell_quadrature(self.V_edges, self.T_edges, self.P_edges, nv, nt, nphi)
+
+        self.w_inst_gl = quad_dict['w']
+
+        self.vel_inst_gl = quad_dict['v']
+        self.theta_inst_gl = quad_dict['theta']
+        self.phi_inst_gl = quad_dict['phi']
+
+        # Define the new grids 
+        self.vx_inst_gl = self.vel_inst_gl * np.cos(np.radians(self.theta_inst_gl)) * np.cos(np.radians(self.phi_inst_gl))
+        self.vy_inst_gl = self.vel_inst_gl * np.cos(np.radians(self.theta_inst_gl)) * np.sin(np.radians(self.phi_inst_gl))
+        self.vz_inst_gl = self.vel_inst_gl * np.sin(np.radians(self.theta_inst_gl))
 
     def init_psp_inst_grids(self):
         # Define the energy array 
-        energy_array = np.array([   21.020508,    26.02539,    32.03125,    40.039062,
-                                    49.047850,    61.05957,    76.07422,    95.092770,
-                                   118.115234,   147.14355,   182.17773,   227.221680,
-                                   282.275400,   351.34277,   436.42578,   542.529300,
-                                   673.657200,   837.81740,  1041.01560,  1294.262700,
-                                  1608.569300,  1999.95120,  2486.42580,  3090.014600,
-                                  3841.748000,  4774.65800,  5935.79100,  7378.198000,
-                                  9171.948000, 11401.12300, 14171.82600, 17616.186000])
-        
-        theta_array = np.array([-51.775665, -37.69623, -22.3178, -7.6308002,   
-                                7.5497575, 22.527119, 37.425697, 52.47127])
-        
-        phi_array = np.array([174.375, 163.125, 151.875, 140.625, 129.375, 118.125, 106.875, 95.625])
+        self.energy_array, self.theta_array, self.phi_array = model_grids()
 
-        self.energy_inst = energy_array[:, np.newaxis, np.newaxis] * np.ones((1, len(theta_array), len(phi_array)))
-        self.theta_inst  = theta_array[np.newaxis, : , np.newaxis] * np.ones((len(energy_array), 1, len(phi_array)))
-        self.phi_inst    = phi_array[np.newaxis, np.newaxis, :] * np.ones((len(energy_array), len(theta_array), 1))
+        self.energy_inst = self.energy_array[:, np.newaxis, np.newaxis] * np.ones((1, len(self.theta_array), len(self.phi_array)))
+        self.theta_inst  = self.theta_array[np.newaxis, : , np.newaxis] * np.ones((len(self.energy_array), 1, len(self.phi_array)))
+        self.phi_inst    = self.phi_array[np.newaxis, np.newaxis, :] * np.ones((len(self.energy_array), len(self.theta_array), 1))
 
         self.vel_inst    = 13.85*np.sqrt(self.energy_inst * 1.0)
 
@@ -282,71 +397,46 @@ class synthetic_models:
         self.vy_inst = self.vel_inst * np.cos(np.radians(self.theta_inst)) * np.sin(np.radians(self.phi_inst))
         self.vz_inst = self.vel_inst * np.sin(np.radians(self.theta_inst))
 
-    def make_3d_bimax(self):
-        temp_arr = make_3d(self.ND, self.NP, self.XX, self.YY, self.phi0, self.f_bimax)
-        self.vpara_hr_3d, self.vperp1_hr_3d, self.vperp2_hr_3d, self.f_bimax_3d = temp_arr
-        
-        n3d = check_density_and_temperatures(self.ntot, self.vpara_hr_3d, 
-                                             self.vperp1_hr_3d, self.vperp2_hr_3d, 
-                                             self.f_bimax_3d)
-    
-    def interpolate_to_inst_grids(self):
-        target_points = np.vstack([self.vx_inst.flatten(), self.vy_inst.flatten(), self.vz_inst.flatten()]).T
-        self.vdf_inter = np.zeros((self.Nsteps, 32, 8, 8))
-        for i in tqdm(range(self.Nsteps)):
-            vxg, vyg, vzg = shift_frame(self.vpara_hr_3d, self.vperp1_hr_3d, self.vperp2_hr_3d, self.bvecs[i], self.uvecs[i])
+    def synthetic_test_case_1(self, model_grids, NSTEPS=100):
+        self.define_inst_grids(*model_grids)
 
-            grids = np.asarray([vxg, vyg, vzg])
-
-            self.f_interp = griddata(points=np.vstack([vxg, vyg, vzg]).T,
-                                    values = self.f_bimax_3d.flatten(),
-                                    xi=target_points, 
-                                    method='linear')
-            
-            self.vdf_inter[i,:,:,:] = self.f_interp.reshape(32,8,8)
-            self.plot_slices(i)
-            print(fn.compute_vdf_moments(self.energy_inst[:,0,0], np.radians(90.0 - self.theta_inst[0,:,0]), np.radians(self.phi_inst[0,0,:]), self.vdf_inter[i], mass_p_kg))
-
-        psp_energy = np.array([self.energy_inst for _ in range(self.Nsteps)]) 
-        psp_theta  = np.array([self.theta_inst for _ in range(self.Nsteps)])  
-        psp_phi    = np.array([self.phi_inst for _ in range(self.Nsteps)])    
-
-        self.ds = make_synthetic_cdf(np.arange(self.Nsteps), psp_energy, psp_phi, psp_theta, self.vdf_inter, self.bvecs, self.uvecs)
-
-    def synthetic_test_1(self, Nsteps = 100):
-        self.init_psp_inst_grids()
-        self.make_3d_bimax()
-
+        self.Nsteps = NSTEPS
         # define the magnetic field vector
         # Generate the set of magnetic field vectors that we are going to use
-        theta = np.linspace(np.pi/8, -np.pi/2, Nsteps)
+        theta = np.linspace(np.pi/8, -np.pi/2, self.Nsteps)
 
-        self.bvecs = np.asarray([np.cos(theta), np.sin(theta), np.repeat(0.2, Nsteps)]).T
+        self.bvecs = np.asarray([np.cos(theta), np.sin(theta), np.repeat(0.2, self.Nsteps)]).T
         self.uvecs = -500*self.bvecs/np.linalg.norm(self.bvecs, axis=1)[:,None]
-        self.Nsteps = Nsteps
 
+        self.define_model_vectors(self.bvecs, self.uvecs)
         self.tag = 'Test_1'
+        self.define_inst_quadrature_grids()
 
-        self.interpolate_to_inst_grids()
+        self.evaluate_bimax_on_inst_grid()
+        self.evaluate_bimax_on_quadrature_grid()
 
-    def synthetic_test_2(self, Nsteps = 100):
-        self.init_psp_inst_grids()
-        self.make_3d_bimax()
 
+    def synthetic_test_case_2(self, model_grids, NSTEPS=100):
+        self.define_inst_grids(*model_grids)
+
+        self.Nsteps = NSTEPS
         # define the magnetic field vector
         # Generate the set of magnetic field vectors that we are going to use
-        theta = np.linspace(np.pi/2, -np.pi/2, Nsteps)
+        theta = np.linspace(np.pi/2, -np.pi/2, self.Nsteps)
 
-        self.bvecs = np.asarray([np.cos(theta), np.sin(theta), np.repeat(0.2, Nsteps)]).T
-        self.uvecs = np.array([-500, 250, 0]) * np.ones(Nsteps, 3)
-        self.Nsteps = Nsteps
+        self.bvecs  = np.asarray([np.cos(theta), np.sin(theta), np.repeat(0.2, self.Nsteps)]).T
+        self.uvecs  = np.array([-500, 250, 0]) * np.ones((self.Nsteps, 3))
+
+        self.define_model_vectors(self.bvecs, self.uvecs)
 
         self.tag = 'Test_2'
+        self.define_inst_quadrature_grids()
 
-        self.interpolate_to_inst_grids()
+        self.evaluate_bimax_on_inst_grid()
+        self.evaluate_bimax_on_quadrature_grid()
 
     def define_model_vectors(self, bvec, uvec, TAG = 'Custom'):
-        self.make_3d_bimax()
+        # self.make_3d_bimax()
 
         self.bvecs = bvec
         self.uvecs = uvec
@@ -354,39 +444,53 @@ class synthetic_models:
 
         self.tag = TAG
 
-    def plot_slices(self, i):
+    def plot_slices(self, i, GL=False):
+        if GL:
+            vdf = self.vdf_direct_gl
+            added_str = 'gl'
+        else:
+            vdf = self.vdf_direct
+            added_str = ''
+
         fig, ax = plt.subplots(1, 3, layout='constrained', figsize=(18,6))
-        ax0 = ax[0].tricontourf(self.grids_hr[:,1], -self.grids_hr[:,0], np.log10(self.f_bimax), levels=np.linspace(-24, -17, 10), cmap='plasma')
+        lvls = np.linspace(-24, -17, 25)
+
+        ax0 = ax[0].tricontourf(self.grids_hr[:,1], -self.grids_hr[:,0], np.log10(self.f_bimax), levels=lvls, cmap='inferno')
         ax[0].set_xlabel(r'$v_{\perp}$')
         ax[0].set_ylabel(r'$v_{\parallel}$')
-        vidx, tidx, pidx = np.unravel_index(np.nanargmax(self.f_interp), (self.NP,8,8))
+        vidx, tidx, pidx = np.unravel_index(np.nanargmax(vdf[i]), (self.NP,8,8))
         ax[1].scatter(self.vx_inst[:,tidx,:], self.vy_inst[:,tidx,:], color='k', marker='.')
-        ax1 = ax[1].contourf(self.vx_inst[:,tidx,:], self.vy_inst[:,tidx,:], np.log10(self.vdf_inter[i,:,tidx,:]), levels=np.linspace(-24, -17, 10), cmap='plasma')
+        ax1 = ax[1].contourf(self.vx_inst[:,tidx,:], self.vy_inst[:,tidx,:], np.log10(vdf[i,:,tidx,:]), levels=lvls, cmap='inferno')
         ax[2].scatter(self.vx_inst[:,:,pidx], self.vz_inst[:,:,pidx], color='k', marker='.')
-        ax2 = ax[2].contourf(self.vx_inst[:,:,pidx], self.vz_inst[:,:,pidx], np.log10(self.vdf_inter[i,:,:,pidx]), levels=np.linspace(-24, -17, 10), cmap='plasma')
+        ax2 = ax[2].contourf(self.vx_inst[:,:,pidx], self.vz_inst[:,:,pidx], np.log10(vdf[i,:,:,pidx]), levels=lvls, cmap='inferno')
         ax[1].set_xlabel(r'$v_x$')
         ax[1].set_ylabel(r'$v_y$')
         ax[2].set_xlabel(r'$v_x$')
         ax[2].set_ylabel(r'$v_z$')
         plt.colorbar(ax2)
-        plt.savefig(f'/home/michael/Research/GDF/Figures/slices/slice_{self.tag}_{i}.png')
+        plt.savefig(f'./Figures/slices/{added_str}_slice_{self.tag}_{i}.png')
         plt.close()
+
+
 
     def save_cdf(self):
         cdflib.xarray_to_cdf(self.ds, f'{self.tag}_synthetic_vdf.cdf')
+        cdflib.xarray_to_cdf(self.ds_gl, f'{self.tag}_synthetic_vdf_gl.cdf')
 
 if __name__ == '__main__':
     if os.path.exists('./Test_1_synthetic_vdf.cdf'):
         print(f"Synthetic test case 1 exists. Continuing...")
     else:
-        test1 = synthetic_models(*model_params()).synthetic_test_1()
+        test1 = synthetic_models(*model_params(), PLOTTING=True)
+        test1.synthetic_test_case_1(model_grids())
         test1.save_cdf()
     
     if os.path.exists('./Test_2_synthetic_vdf.cdf'):
         print(f"Synthetic test case 2 exists. Continuing...")
     else:
-        test1 = synthetic_models(*model_params()).synthetic_test_1()
-        test1.save_cdf()
+        test2 = synthetic_models(*model_params())
+        test2.synthetic_test_case_2(model_grids())
+        test2.save_cdf()
 
     
 
