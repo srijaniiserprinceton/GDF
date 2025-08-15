@@ -209,6 +209,7 @@ def plot_Lcurve_knee_HYBRID(tidx, model_misfit, data_misfit, knee_idx, mu, ext='
                    bbox=dict(facecolor='white', alpha=0.5, edgecolor='black', boxstyle='round,pad=0.5'),
                    transform=plt.gca().transAxes, ha='right', va='top')
     plt.grid(True)
+    plt.set_aspect('equal')
     plt.xlabel('Model Misfit', fontsize=14, fontweight='bold')
     plt.ylabel('Data Misfit', fontsize=14, fontweight='bold')
     plt.tight_layout()
@@ -547,3 +548,98 @@ def context_axis_plot(ax3, gvdf_tstamp, tidx):
         ax.yaxis.set_label_position("right")  # move label to right
         ax.set_ylabel(label) 
         
+
+def hybrid_plotter_for_paper(gvdf_tstamp, vdf_inv, vdf_super, tidx,
+                             model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False, ext='png'):
+    vdf_super_polcap, vdf_super_cartesian = vdf_super
+
+    # converting the VDFs to SPAN-i consistent units
+    f_supres_polcap = np.power(10, vdf_super_polcap) * gvdf_tstamp.minval[tidx]
+    f_supres_cartesian = np.power(10, vdf_super_cartesian) * gvdf_tstamp.minval[tidx]
+
+    # reshaping the VDFs correctly
+    f_supres_A = np.reshape(f_supres_polcap, (gvdf_tstamp.nptsx,gvdf_tstamp.nptsy), 'F').T.flatten()
+    f_supres_B = np.reshape(f_supres_cartesian, (gvdf_tstamp.nptsx,gvdf_tstamp.nptsy), 'F').T.flatten()
+
+    # the SPAN data
+    f_data = np.power(10, gvdf_tstamp.vdfdata) * gvdf_tstamp.minval[tidx]
+
+    # the SPAN data grids in FAC
+    span_gridx = np.append(-gvdf_tstamp.vperp_nonan_inst, gvdf_tstamp.vperp_nonan_inst)
+    span_gridy = np.append(gvdf_tstamp.vpara_nonan_inst, gvdf_tstamp.vpara_nonan_inst)
+    xmagmax = span_gridx.max() * 1.12
+
+    Nspangrids = len(span_gridx)
+    
+    # making the colorbar norm function
+    cmap = plt.cm.inferno
+    lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
+                       int(np.log10(gvdf_tstamp.maxval[tidx]) + 1), 25)
+    # lvls = np.linspace(-23, -19, 25)
+    norm = colors.BoundaryNorm(lvls, ncolors=cmap.N)
+
+    # reshaping grids for plotting
+    xx = np.reshape(gvdf_tstamp.grid_points[:,0], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
+    yy = np.reshape(gvdf_tstamp.grid_points[:,1], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
+
+    # plotting the points and the boundary
+    fig, ax = plt.subplots(1, 3, figsize=(17,6.5))
+
+    ax1, ax2, ax3 = ax[0], ax[1], ax[2]
+
+    ax1.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
+    im = ax1.tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_A), levels=lvls, cmap='inferno')
+    ax1.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
+                  cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
+    ax1.set_aspect('equal')
+    ax1.set_xlim([-xmagmax, xmagmax])
+    ax1.text(0.02, 0.94, "(A)", transform=ax1.transAxes, fontsize=12, fontweight='bold',
+            bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
+
+    ax2.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
+    im = ax2.tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_B), levels=lvls, cmap='inferno')
+    ax2.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
+                  cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
+    ax2.set_aspect('equal')
+    ax2.set_xlim([-xmagmax, xmagmax])
+    ax2.text(0.02, 0.94, "(B)", transform=ax2.transAxes, fontsize=12, fontweight='bold',
+            bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
+
+    ax1.set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
+    ax1.set_ylabel(r'$v_{\parallel}$ [km/s]', fontsize=19)
+    ax2.set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
+
+    ax1.set_xlim([-250, 250])
+    ax2.set_xlim([-250, 250])
+    ax1.set_ylim([265, 800])
+    ax2.set_ylim([265, 800])
+
+    ax2.set_title('Hybrid reconstruction')
+
+    cax = fig.add_axes([ax1.get_position().x0 - 0.06, ax1.get_position().y1+0.1,
+                        ax1.get_position().x1 - 0.1, 0.02])
+    cbar = fig.colorbar(im, cax=cax, orientation='horizontal', location='top')
+    cbar.ax.tick_params(labelsize=14)
+    tick_locator = ticker.MaxNLocator(integer=True)
+    cbar.locator = tick_locator
+    cbar.update_ticks()
+
+    # plotting the knee of the trade-off curve
+    knee_idx = gvdf_tstamp.lambda_knee_idx
+    ax3.plot(model_misfit, data_misfit, 'b')
+    ax3.plot(model_misfit, data_misfit, 'or')
+    ax3.plot(model_misfit[knee_idx], data_misfit[knee_idx], 'xk', markersize=14)
+    ax3.text(0.95, 0.95, r'$\mu = $' + f'{gvdf_tstamp.lambda_arr[gvdf_tstamp.lambda_knee_idx]:.2e}',
+                   bbox=dict(facecolor='white', alpha=0.5, edgecolor='black', boxstyle='round,pad=0.5'),
+                   transform=ax3.transAxes, ha='right', va='top')
+    ax3.grid(True)
+    ax3.set_aspect('equal')
+    ax3.set_xlabel('Model Misfit', fontsize=14, fontweight='bold')
+    ax3.set_ylabel('Data Misfit', fontsize=14, fontweight='bold')
+
+    ax3.text(0.08, 0.94, "(C)", transform=ax3.transAxes, fontsize=12, fontweight='bold',
+             bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
+
+    plt.subplots_adjust(top=0.87, bottom=0.1, left=0.05, right=0.99, wspace=0.15, hspace=0.15)
+
+    plt.savefig(f'Figures/super_res_hybrid/paper_plot_tidx={tidx}.pdf')
