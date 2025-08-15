@@ -345,8 +345,6 @@ def plot_super_resolution_CARTSLEP(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supr
     ax[0].text(0.02, 0.94, "(A)", transform=ax[0].transAxes, fontsize=12, fontweight='bold',
                bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
 
-    print(f_supres.shape, np.max(f_supres), np.min(f_supres), np.nanmax(f_supres), np.nanmin(f_supres))
-
     ax[1].plot(CartSlep.XY[:,0], CartSlep.XY[:,1], '--w')
     im = ax[1].tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres), levels=lvls, cmap='inferno')
     ax[1].scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data[Nspangrids//2:]), s=30,

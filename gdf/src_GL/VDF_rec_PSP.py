@@ -283,7 +283,7 @@ class gyrovdf:
 
         # Rotate the plasma frame data into the magnetic field aligned frame.
         vpara_inst, vperp1_inst, vperp2_inst = np.array(fn.rotate_vector_field_aligned(ux_inst, uy_inst, uz_inst,
-                                                                                      *fn.field_aligned_coordinates(self.b_span[tidx])))                                                            
+                                                                                       *fn.field_aligned_coordinates(self.b_span[tidx])))                                                            
         
         # converting to the field aligned coordinates here [BEFORE SHIFTING ALONG vpara]
         self.vpara_inst, self.vperp1_inst, self.vperp2_inst = vpara_inst, vperp1_inst, vperp2_inst
