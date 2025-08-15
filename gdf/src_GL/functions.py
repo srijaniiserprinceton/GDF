@@ -506,7 +506,8 @@ def compute_vdf_moments(E_eV, theta, phi, f, mass):
         edge[-1]   = x[-1]   + dx[-1]/2
         return edge
 
-    v_edges     = edges_from_centers(v)
+    v_edges     = edges_from_centers(np.log10(v))
+    v_edges     = np.power(10, v_edges)
     theta_edges = edges_from_centers(theta)
     phi_edges   = edges_from_centers(phi)
 

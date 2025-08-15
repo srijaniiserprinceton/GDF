@@ -209,7 +209,7 @@ def plot_Lcurve_knee_HYBRID(tidx, model_misfit, data_misfit, knee_idx, mu, ext='
                    bbox=dict(facecolor='white', alpha=0.5, edgecolor='black', boxstyle='round,pad=0.5'),
                    transform=plt.gca().transAxes, ha='right', va='top')
     plt.grid(True)
-    plt.set_aspect('equal')
+    plt.gca().set_aspect('equal')
     plt.xlabel('Model Misfit', fontsize=14, fontweight='bold')
     plt.ylabel('Data Misfit', fontsize=14, fontweight='bold')
     plt.tight_layout()
