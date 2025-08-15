@@ -47,13 +47,10 @@ def get_G_matrix_GL(gvdf_tstamp, tidx):
 
     # unflattening the Npoints_inst and Nquadrature dimensions
     npoints_inst = len(gvdf_tstamp.vpara_nonan_inst)
-    G_k_n_nq_GL = np.reshape(G_k_nnq_GL, (-1, npoints_inst, gvdf_tstamp.NQ_V * gvdf_tstamp.NQ_T * gvdf_tstamp.NQ_P), 'F')
+    G_k_n_nq_GL = np.reshape(G_k_nnq_GL, (-1, npoints_inst, gvdf_tstamp.NQ_V * gvdf_tstamp.NQ_T * gvdf_tstamp.NQ_P), 'C')
 
     # this now has the same shape as the inst cell-centered grid measurements
-    gvdf_tstamp.G_k_n = quadrature.GL_vol_avg(G_k_n_nq_GL, gvdf_tstamp, tidx)
-
-    gvdf_tstamp.G_k_n_volavg = G_k_nnq_GL * 1.0
-    
+    gvdf_tstamp.G_k_n = quadrature.GL_vol_avg_polcap(G_k_n_nq_GL, gvdf_tstamp, tidx)
 
 def inversion_inst(gvdf_tstamp, vdfdata, tidx):
     """

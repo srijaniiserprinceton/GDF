@@ -167,9 +167,12 @@ def generate_grid_edges(vdf_dict, tidx):
 
     return V_edges, T_edges, P_edges
 
-def GL_vol_avg(G_k_n_nq_GL, gvdf_tstamp, tidx):
+def GL_vol_avg_polcap(G_k_n_nq_GL, gvdf_tstamp, tidx):
+    # exctracting the weight based on the method (cartesian needs a reflected grid and polcap does not)
+    w = gvdf_tstamp.w_nonan_GL
+
     # Sum over the quadrature dimension (last axis) to integrate each cell in the instrument frame
-    I_VOL = np.sum(G_k_n_nq_GL * gvdf_tstamp.w_nonan_GL[np.newaxis, :, :], axis=-1)
+    I_VOL = np.sum(G_k_n_nq_GL * w[np.newaxis, :, :], axis=-1)
 
     # calculating the volume in each element
     dv_term = (gvdf_tstamp.GL["v_edges"][1:]**3 - gvdf_tstamp.GL["v_edges"][:-1]**3) / 3.0                   # (Nv,)
@@ -180,6 +183,30 @@ def GL_vol_avg(G_k_n_nq_GL, gvdf_tstamp, tidx):
     VOL = (dv_term[:,None,None] * dmu[None,:,None] * dphi[None,None,:])[gvdf_tstamp.nanmask[tidx]]           # (alpha, ninst_grids)
     
     return I_VOL / VOL
+
+def GL_vol_avg_cartesian(G, gvdf_tstamp, tidx):
+    # exctracting the weight based on the method (cartesian needs a reflected grid and polcap does not)
+    wflat = np.reshape(gvdf_tstamp.w_nonan_GL, (-1), 'C')
+    w = np.concatenate([wflat, wflat])
+    Gw = G * w[:,np.newaxis]
+
+    Nsleps = G.shape[-1] 
+    Npoints = gvdf_tstamp.v_para_all.shape[0]
+    NQ = gvdf_tstamp.NQ_V * gvdf_tstamp.NQ_T * gvdf_tstamp.NQ_P
+
+    # Sum over the quadrature dimension to integrate each cell in the instrument frame
+    I_VOL = np.sum(np.reshape(Gw, (Npoints, NQ, Nsleps)), axis=1)
+
+    # calculating the volume in each element
+    dv_term = (gvdf_tstamp.GL["v_edges"][1:]**3 - gvdf_tstamp.GL["v_edges"][:-1]**3) / 3.0                   # (Nv,)
+    dmu     = np.sin(np.radians(gvdf_tstamp.GL["theta_edges"][1:])) - np.sin(np.radians(gvdf_tstamp.GL["theta_edges"][:-1]))           # (Nt,)
+    dphi    = (np.radians(gvdf_tstamp.GL["phi_edges"][:-1]) - np.radians(gvdf_tstamp.GL["phi_edges"][1:]))                           # (Np,)
+
+    # Broadcast to (Nv,Nt,Np)
+    VOL = (dv_term[:,None,None] * dmu[None,:,None] * dphi[None,None,:])[gvdf_tstamp.nanmask[tidx]]           # (ninst_grids,)
+    VOL = np.concatenate([VOL, VOL])
+    
+    return I_VOL / VOL[:,np.newaxis]
 
 # --- Tiny demo to verify shapes ---
 if __name__ == "__main__":

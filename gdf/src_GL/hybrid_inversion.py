@@ -5,6 +5,7 @@ from gdf.src_GL import polar_cap_inversion as polcap_inversion
 from gdf.src_GL import functions as fn
 from gdf.src_GL import basis_funcs as basis_fn
 from gdf.src_GL import misc_funcs as misc_fn
+from gdf.src_GL import quadrature
 
 def find_polcap_knee_idx(gvdf_tstamp):
     #--------- starting the inversion for obtaining the coefficients using B-spline regularization-------#
@@ -229,16 +230,22 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
 
     #---------------------------------POLCAP SETUP 1----------------------------------#
     # creating the B-splines, Slepian functions (at new theta grids) and G matrix about the finalized ubulk
-    polcap_inversion.get_Bsplines_inst(gvdf_tstamp)
+    polcap_inversion.get_Bsplines_GL(gvdf_tstamp)
     polcap_inversion.get_Slepians_GL(gvdf_tstamp, tidx)
-    polcap_inversion.get_G_matrix_GL(gvdf_tstamp)
+    polcap_inversion.get_G_matrix_GL(gvdf_tstamp, tidx)
 
     find_polcap_knee_idx(gvdf_tstamp)
 
     #-------------------------------CARTESIAN SETUP 1----------------------------------#
-    # getting the Slepians on the measurement points
+    # getting the Slepians on the GL quadrature points surrounding the measurement points
+    gvdf_tstamp.v_perp_all_GL = np.concatenate([-gvdf_tstamp.vperp_nonan_GL, gvdf_tstamp.vperp_nonan_GL])
+    gvdf_tstamp.v_para_all_GL = np.concatenate([gvdf_tstamp.vpara_nonan_GL, gvdf_tstamp.vpara_nonan_GL])
     gvdf_tstamp.CartSlep.gen_Slep_basis(gvdf_tstamp.boundary_points, np.double(gvdf_tstamp.N2D_cart),
-                                        np.array([gvdf_tstamp.v_perp_all, gvdf_tstamp.v_para_all]).T)
+                                        np.array([gvdf_tstamp.v_perp_all_GL, gvdf_tstamp.v_para_all_GL]).T)
+
+    # carrying out the volume average. Final shape is (Npoints, Nsleps)
+    gvdf_tstamp.CartSlep.G = quadrature.GL_vol_avg_cartesian(gvdf_tstamp.CartSlep.G, gvdf_tstamp, tidx) * 1.0
+    gvdf_tstamp.CartSlep.H = quadrature.GL_vol_avg_cartesian(gvdf_tstamp.CartSlep.H, gvdf_tstamp, tidx) * 1.0
 
     # storing the data resolution matrices and parameters [will be used in creating the augmented matrix]
     hybrid_dict['A'] = gvdf_tstamp.G_k_n.T

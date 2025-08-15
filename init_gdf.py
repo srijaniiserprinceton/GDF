@@ -18,7 +18,7 @@
 
 config = {
     'global': {
-        'METHOD'          : 'polcap',
+        'METHOD'          : 'hybrid',
         'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'], # Define the time range to load in from pyspedas
         'CLIP'            : True,
         'START_INDEX'     : 19,
