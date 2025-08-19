@@ -22,6 +22,7 @@ from gdf.src_GL import polar_cap_inversion as polcap
 from gdf.src_GL import cartesian_inversion as cartesian
 from gdf.src_GL import hybrid_inversion as hybrid
 from gdf.src_GL import quadrature
+from gdf.src_GL import maxwellian_inversion
 
 NAX = np.newaxis
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
@@ -609,9 +610,16 @@ class gyrovdf:
         self.make_knots_inst(tidx)
         self.make_knots_GL(tidx)
 
+        # making the scaled log vdfdata
+        self.vdfdata =  maxwellian_inversion.convert_f_to_logscaledf(np.power(10, self.log_unscaled_vdfdata), self)
+
         vdf_inv, vdf_super, zeromask, data_misfit, model_misfit = self.inversion_code.super_resolution(self, tidx, NPTS)
 
-        return vdf_inv, vdf_super, zeromask, data_misfit, model_misfit
+        # converting the vdf_super back to the log_unscaled_vdfdata convention
+        vdf_super = maxwellian_inversion.convert_logresf_to_f(vdf_super, gvdf_tstamp, gvdf_tstamp.grid_points[:,1], gvdf_tstamp.grid_points[:,0])
+        vdf_inv = maxwellian_inversion.convert_logresf_to_f(vdf_inv, gvdf_tstamp, gvdf_tstamp.vpara_nonan_inst, gvdf_tstamp.vperp_nonan_inst)
+
+        return np.log10(vdf_inv), np.log10(vdf_super), zeromask, data_misfit, model_misfit
 
 #---------------ALL FUNCTIONS IN THIS BLOCK ARE USED ONLY TO FIND THE GYROCENTROID--------------#
 def log_prior_perpspace(model_params):
@@ -691,7 +699,7 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
 
         # initializing the vdf data to optimize (this is the normalized and logarithmic value)
         vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
-        gvdf_tstamp.vdfdata = vdfdata * 1.0
+        gvdf_tstamp.log_unscaled_vdfdata = vdfdata * 1.0
 
         # the 3D array of grid points in VX, VY, VZ of the SPAN grid
         threeD_points = np.vstack([gvdf_tstamp.vx_inst[tidx][gvdf_tstamp.nanmask[tidx]],
@@ -799,6 +807,8 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         gvdf_tstamp.rec_quants['tani'][tidx,0] = (Tcomps[1] / Tcomps[0])
 
         gvdf_tstamp.vdf_super = vdf_super
+
+        print(f"SPAN dens: {gvdf_tstamp.rec_quants['dens'][tidx,1]}, Rec dens: {den}")
 
         if(SAVE_FIGS): gvdf_tstamp.plotter_func(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                                                 model_misfit=model_misfit, data_misfit=data_misfit,

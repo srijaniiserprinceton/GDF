@@ -21,6 +21,7 @@ from gdf.src import plotter
 from gdf.src import polar_cap_inversion as polcap
 from gdf.src import cartesian_inversion as cartesian
 from gdf.src import hybrid_inversion as hybrid
+from gdf.src import maxwellian_inversion
 
 NAX = np.newaxis
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
@@ -498,9 +499,23 @@ class gyrovdf:
         # making the gyrotropic coordinates for the finalized u_bulk and magnetic field at that timestamp
         self.get_coors_supres(u_bulk, tidx)
 
+        # making the scaled log vdfdata
+        self.vdfdata =  maxwellian_inversion.convert_f_to_logscaledf(np.power(10, self.log_unscaled_vdfdata), self)
+
         vdf_inv, vdf_super, zeromask, data_misfit, model_misfit = self.inversion_code.super_resolution(self, tidx, NPTS)
 
-        return vdf_inv, vdf_super, zeromask, data_misfit, model_misfit
+        # converting the vdf_super back to the log_unscaled_vdfdata convention
+        vdf_super = maxwellian_inversion.convert_logresf_to_f(vdf_super, self, self.grid_points[:,1], self.grid_points[:,0])
+        vdf_inv = maxwellian_inversion.convert_logresf_to_f(vdf_inv, self, self.vpara_nonan, self.vperp_nonan)
+
+        # this is only for hybrid where both the reconstructions are returned
+        if(isinstance(vdf_inv, list)):
+            return tuple(np.nan_to_num(np.log10(np.asarray(a, float))) for a in vdf_inv),\
+                   tuple(np.nan_to_num(np.log10(np.asarray(a, float))) for a in vdf_super),\
+                   zeromask, data_misfit, model_misfit
+            
+        else:
+            return np.nan_to_num(np.log10(vdf_inv)), np.nan_to_num(np.log10(vdf_super)), zeromask, data_misfit, model_misfit
 
 #---------------ALL FUNCTIONS IN THIS BLOCK ARE USED ONLY TO FIND THE GYROCENTROID--------------#
 def log_prior_perpspace(model_params):
@@ -580,7 +595,8 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
 
         # initializing the vdf data to optimize (this is the normalized and logarithmic value)
         vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
-        gvdf_tstamp.vdfdata = vdfdata * 1.0
+        # gvdf_tstamp.vdfdata = vdfdata * 1.0
+        gvdf_tstamp.log_unscaled_vdfdata = vdfdata * 1.0
 
         # the 3D array of grid points in VX, VY, VZ of the SPAN grid
         threeD_points = np.vstack([gvdf_tstamp.vx[tidx][gvdf_tstamp.nanmask[tidx]],
@@ -669,6 +685,8 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         gvdf_tstamp.rec_quants['vel'][tidx,:3]  = u_adj
         gvdf_tstamp.rec_quants['temp'][tidx,0] = Trace / 1e6   #converting to MK
         gvdf_tstamp.rec_quants['tani'][tidx,0] = (Tcomps[1] / Tcomps[0])
+
+        gvdf_tstamp.vdf_super = vdf_super
 
         if(SAVE_FIGS): gvdf_tstamp.plotter_func(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                                                 model_misfit=model_misfit, data_misfit=data_misfit,

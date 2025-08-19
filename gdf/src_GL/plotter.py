@@ -97,7 +97,7 @@ def plot_super_resolution_POLCAP(gvdf, vdf_super, mu, tidx, SAVE=False, VDFUNITS
 
     if VDFUNITS:
         f_super = np.power(10, vdf_super) * gvdf.minval[tidx]
-        f_data = np.power(10, gvdf.vdfdata) * gvdf.minval[tidx]
+        f_data = np.power(10, gvdf.log_unscaled_vdfdata) * gvdf.minval[tidx]
         lvls = np.linspace(int(np.log10(gvdf.minval[tidx]) - 1), int(np.log10(gvdf.maxval[tidx])+1), 25)
         cmap = plt.cm.inferno
         norm = colors.BoundaryNorm(lvls, cmap.N)
@@ -205,11 +205,11 @@ def plot_Lcurve_knee_HYBRID(tidx, model_misfit, data_misfit, knee_idx, mu, ext='
     plt.plot(model_misfit, data_misfit, 'b')
     plt.plot(model_misfit, data_misfit, 'or')
     plt.plot(model_misfit[knee_idx], data_misfit[knee_idx], 'xk', markersize=14)
-    plt.gca().text(0.95, 0.95, r'$\mu = $' + f'{mu:.2e}',
+    plt.gca().text(0.95, 0.95, r'$\lambda = $' + f'{mu:.2e}',
                    bbox=dict(facecolor='white', alpha=0.5, edgecolor='black', boxstyle='round,pad=0.5'),
                    transform=plt.gca().transAxes, ha='right', va='top')
     plt.grid(True)
-    plt.set_aspect('equal')
+    plt.gca().set_aspect('equal')
     plt.xlabel('Model Misfit', fontsize=14, fontweight='bold')
     plt.ylabel('Data Misfit', fontsize=14, fontweight='bold')
     plt.tight_layout()
@@ -629,7 +629,7 @@ def hybrid_plotter_for_paper(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     ax3.plot(model_misfit, data_misfit, 'b')
     ax3.plot(model_misfit, data_misfit, 'or')
     ax3.plot(model_misfit[knee_idx], data_misfit[knee_idx], 'xk', markersize=14)
-    ax3.text(0.95, 0.95, r'$\mu = $' + f'{gvdf_tstamp.lambda_arr[gvdf_tstamp.lambda_knee_idx]:.2e}',
+    ax3.text(0.95, 0.95, r'$\lambda = $' + f'{gvdf_tstamp.lambda_arr[gvdf_tstamp.lambda_knee_idx]:.2e}',
                    bbox=dict(facecolor='white', alpha=0.5, edgecolor='black', boxstyle='round,pad=0.5'),
                    transform=ax3.transAxes, ha='right', va='top')
     ax3.grid(True)

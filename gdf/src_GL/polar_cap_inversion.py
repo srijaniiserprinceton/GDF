@@ -264,7 +264,7 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
 
     for mu in gvdf_tstamp.mu_arr:
         # coeffs = np.linalg.inv(G_g + mu * gvdf_tstamp.D) @ gvdf_tstamp.G_k_n @ vdfdata
-        coeffs = solve(G_g + mu * gvdf_tstamp.D, gvdf_tstamp.G_k_n @ gvdf_tstamp.vdfdata, assume_a='sym')
+        coeffs = solve(G_g + mu * gvdf_tstamp.D, gvdf_tstamp.G_k_n  @ gvdf_tstamp.vdfdata, assume_a='sym')
 
         # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
         vdf_rec = coeffs @ gvdf_tstamp.G_k_n
@@ -283,12 +283,18 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
     gvdf_tstamp.knee_idx = fn.geometric_knee(model_misfit, data_misfit)
 
     #------these are the final coefficients with the optimal (knee) choice for the regularization----------#
-    # coeffs = np.linalg.inv(G_g + gvdf_tstamp.mu_arr[knee_idx] * gvdf_tstamp.D) @ gvdf_tstamp.G_k_n @ gvdf_tstamp.vdfdata
+    # # coeffs = np.linalg.inv(G_g + gvdf_tstamp.mu_arr[knee_idx] * gvdf_tstamp.D) @ gvdf_tstamp.G_k_n @ gvdf_tstamp.vdfdata
+    # coeffs = solve(G_g + gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx] * gvdf_tstamp.D,
+    #                gvdf_tstamp.G_k_n @ gvdf_tstamp.vdfdata, assume_a='sym')
     coeffs = solve(G_g + gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx] * gvdf_tstamp.D,
                    gvdf_tstamp.G_k_n @ gvdf_tstamp.vdfdata, assume_a='sym')
 
     # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
     vdf_rec = coeffs @ gvdf_tstamp.G_k_n
+
+    M = np.sum(np.power(10, gvdf_tstamp.vdfdata))
+    I0 = np.sum(np.power(10, vdf_rec))
+    print((M - I0) / M)
 
     # the superresolved VDF using the coefficient inferred from the sparse measurements
     vdf_super = coeffs.flatten() @ gvdf_tstamp.super_G_k_n
