@@ -421,9 +421,9 @@ def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     
     # making the colorbar norm function
     cmap = plt.cm.inferno
-    # lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
-    #                    int(np.log10(gvdf_tstamp.maxval[tidx]) + 1), 10)
-    lvls = np.linspace(-23, -19, 10)
+    lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
+                       int(np.log10(gvdf_tstamp.maxval[tidx]) + 1), 25)
+    # lvls = np.linspace(-23, -19, 10)
     norm = colors.BoundaryNorm(lvls, ncolors=cmap.N)
 
     # reshaping grids for plotting
