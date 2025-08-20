@@ -139,8 +139,11 @@ def make_synthetic_cdf(time_array, energy_sort, phi_sort, theta_sort, vdf, bspan
 
     # Zero values.
     eflux_sort = np.zeros_like(vdf)
-    count_sort = np.zeros_like(vdf)
+    count_sort = np.ones_like(vdf) * 10
     unix_time = np.zeros_like(xr_time_array)
+
+    # setting count_sort less than 
+    count_sort[vdf < 1e-24] = 0
 
     # Generate the xarray dataArrays for each value we are going to pass
     xr_eflux  = xr.DataArray(eflux_sort,  dims = ['time', 'energy_dim', 'theta_dim', 'phi_dim'], coords = dict(time = xr_time_array, energy_dim = np.arange(32), theta_dim = np.arange(8), phi_dim = np.arange(8)), attrs={'units':'eV/cm2-s-ster-eV', 'fillval' : 'np.array([nan], dtype=float32)', 'validmin':'0.001', 'validmax' : '1e+16', 'scale' : 'log'})
@@ -335,7 +338,7 @@ class synthetic_models:
             np.array([self.energy_inst for _ in range(self.Nsteps)]),
             np.array([self.phi_inst    for _ in range(self.Nsteps)]),
             np.array([self.theta_inst  for _ in range(self.Nsteps)]),
-            self.vdf_direct,
+            self.vdf_direct_gl,
             self.bvecs, self.uvecs
         )
 
@@ -481,7 +484,7 @@ if __name__ == '__main__':
     if os.path.exists('./Test_1_synthetic_vdf.cdf'):
         print(f"Synthetic test case 1 exists. Continuing...")
     else:
-        test1 = synthetic_models(*model_params(), PLOTTING=True)
+        test1 = synthetic_models(*model_params())
         test1.synthetic_test_case_1(model_grids())
         test1.save_cdf()
     
