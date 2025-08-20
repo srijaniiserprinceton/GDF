@@ -10,7 +10,7 @@ def get_Bsplines(gvdf_tstamp):
     gvdf_tstamp.B_i_n = basis_fn.get_Bsplines_scipy(gvdf_tstamp.knots, gvdf_tstamp.p, gvdf_tstamp.rfac_nonan)
    
 def get_Slepians(gvdf_tstamp, tidx):
-    gvdf_tstamp.S_alpha_n = basis_fn.get_Slepians_scipy(gvdf_tstamp.Slep.C, gvdf_tstamp.theta_fa[gvdf_tstamp.nanmask[tidx]], 
+    gvdf_tstamp.S_alpha_n = basis_fn.get_Slepians_scipy(gvdf_tstamp.Slep.C, gvdf_tstamp.theta_fac_nonan, 
                                                         gvdf_tstamp.Lmax, gvdf_tstamp.N2D_polcap)   
 def get_G_matrix(gvdf_tstamp):
     gvdf_tstamp.G_k_n = None
@@ -213,6 +213,7 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
 
     # reconstructed VDF (this is the flattened version of the 2D gyrotropic VDF)
     vdf_rec = coeffs @ gvdf_tstamp.G_k_n
+    gvdf_tstamp.coeffs = coeffs * 1.0
 
     # the superresolved VDF using the coefficient inferred from the sparse measurements
     vdf_super = coeffs.flatten() @ gvdf_tstamp.super_G_k_n

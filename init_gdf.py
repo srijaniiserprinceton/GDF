@@ -18,20 +18,20 @@
 
 config = {
     'global': {
-        'METHOD'          : 'hybrid',
+        'METHOD'          : 'polcap',
         'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'], # Define the time range to load in from pyspedas
         'CLIP'            : True,
-        'START_INDEX'     : 0,
-        'NSTEPS'          : 100,                                              # use None for entire TRANGE interval
+        'START_INDEX'     : 21,
+        'NSTEPS'          : 1,                                              # use None for entire TRANGE interval
         'CREDS_PATH'      : './config.json',                                # path to the <.json> file containing credentials
         'COUNT_THRESHOLD' : 2,
         'SAVE_FIGS'       : True,
         'SAVE_PKL'        : True,
         'MIN_METHOD'      : 'L-BFGS-B',
         'NPTS_SUPER'      : 49,
-        'MCMC'            : True,
-        'MCMC_WALKERS'    : 6,
-        'MCMC_STEPS'      : 200,
+        'MCMC'            : False,
+        'MCMC_WALKERS'    : 8,
+        'MCMC_STEPS'      : 2000,
     },
     'polcap': {
         'TH'              : None,

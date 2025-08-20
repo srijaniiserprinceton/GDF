@@ -130,7 +130,7 @@ def convert_f_to_logscaledf(fdata, gvdf_tstamp):
     vperp = np.concatenate([-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan])
     y = np.concatenate([fdata, fdata])
     # fitting the maxwellian
-    gvdf_tstamp.M = fit_maxwellian(vpara, vperp, y)   
+    gvdf_tstamp.M = fit_maxwellian(vpara, vperp, y) 
     # reconstructing
     gvdf_tstamp.M_rec = maxwellian_model(gvdf_tstamp.vpara_nonan, gvdf_tstamp.vperp_nonan,
                                          gvdf_tstamp.M['A'], gvdf_tstamp.M['u'], gvdf_tstamp.M['wpar'], gvdf_tstamp.M['wperp'])
@@ -155,7 +155,7 @@ def convert_logresf_to_f(log_scaled_f_norm, gvdf_tstamp, vpara_grid, vperp_grid)
             vperp = vperp_grid * 1.0
 
         M = maxwellian_model(vpara, vperp,
-                            gvdf_tstamp.M['A'], gvdf_tstamp.M['u'], gvdf_tstamp.M['wpar'], gvdf_tstamp.M['wperp'])
+                             gvdf_tstamp.M['A'], gvdf_tstamp.M['u'], gvdf_tstamp.M['wpar'], gvdf_tstamp.M['wperp'])
 
         log_scaled_f = log_scaled_f_norm + gvdf_tstamp.log_minval
         scaled_f = np.power(10, log_scaled_f)
@@ -181,7 +181,7 @@ def convert_logresf_to_f(log_scaled_f_norm, gvdf_tstamp, vpara_grid, vperp_grid)
                     vperp = vperp_grid * 1.0
 
             M = maxwellian_model(vpara, vperp,
-                                gvdf_tstamp.M['A'], gvdf_tstamp.M['u'], gvdf_tstamp.M['wpar'], gvdf_tstamp.M['wperp'])
+                                 gvdf_tstamp.M['A'], gvdf_tstamp.M['u'], gvdf_tstamp.M['wpar'], gvdf_tstamp.M['wperp'])
 
             log_scaled_f = log_scaled_f_norm_i + gvdf_tstamp.log_minval
             scaled_f = np.power(10, log_scaled_f)

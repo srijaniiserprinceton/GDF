@@ -123,7 +123,7 @@ def create_hybrid_Gmatrix(gvdf_tstamp, hybrid_dict):
 
     # including the B-spline regularization for polar-cap model
     G[hybrid_dict['ndata_A']+hybrid_dict['ndata_B']+hybrid_dict['nf']:hybrid_dict['ndata_A']+hybrid_dict['ndata_B']+hybrid_dict['nf']+hybrid_dict['nparams_A'],
-      :hybrid_dict['nparams_A']] = -np.sqrt(gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx]) * P_reg
+      :hybrid_dict['nparams_A']] = -1.0 * np.sqrt(gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx]) * P_reg
 
     # creating the augmented data matrix
     d = np.zeros((hybrid_dict['ndata_A'] + hybrid_dict['ndata_B'] + hybrid_dict['nf'] + hybrid_dict['nparams_A']))

@@ -367,6 +367,31 @@ class gyrovdf:
         # making the knots everytime the gyrotropic coordinates are changed
         self.make_knots(tidx)
 
+        # making the scaled log vdfdata
+        self.vdfdata =  maxwellian_inversion.convert_f_to_logscaledf(np.power(10, self.log_unscaled_vdfdata), self)
+
+        #----------adding the fiducial data point at the peak of the maxwellian here--------#
+        fid_vpara = np.linspace(self.vpara_nonan.min(), self.M['u'], 10)
+        # fid_vpara = np.linspace(self.M['u'] - self.M['wpar']/2., self.M['u'], 10)
+        fid_vperp = np.zeros_like(fid_vpara)
+
+        M_cen = maxwellian_inversion.maxwellian_model(fid_vpara, fid_vperp, self.M['A'],
+                                                      self.M['u'], self.M['wpar'], self.M['wperp'])
+        M_cen_in_vdfdata = np.log10((M_cen + 1) / (M_cen - self.epsilon + 1)) - self.log_minval
+
+        # adding to the data
+        self.vdfdata = np.append(self.vdfdata, M_cen_in_vdfdata)
+        M_cen_in_vdfdata_log_unscaled = np.power(10, M_cen_in_vdfdata + gvdf_tstamp.log_minval) * (M_cen - gvdf_tstamp.epsilon + 1) - 1
+        self.log_unscaled_vdfdata = np.append(self.log_unscaled_vdfdata, np.log10(M_cen_in_vdfdata_log_unscaled))
+
+        # adding these points in rfac_nonan and theta_fac_nonan
+        self.rfac_nonan = np.append(self.rfac_nonan, fid_vpara)
+        self.theta_fac_nonan = np.append(self.theta_fac_nonan, fid_vperp)
+        # making similar adjustments in vpara_nonan and vperp_nonan
+        self.vpara_nonan = np.append(self.vpara_nonan, fid_vpara)
+        self.vperp_nonan = np.append(self.vperp_nonan, fid_vperp)
+        
+
     def make_knots(self, tidx):
         """
         Creates the knots in :math:`r = \sqrt{v_{||}^2 + v_{\perp}}` space. The default 
@@ -388,6 +413,7 @@ class gyrovdf:
         
         # this is used to create the knots for B-splines
         self.rfac_nonan = self.r_fa[self.nanmask[tidx]]
+        self.theta_fac_nonan = self.theta_fa[self.nanmask[tidx]]
 
         # finding the minimum and maximum velocities with counts to find the knot locations
         vmin = np.min(self.velocity[tidx, self.nanmask[tidx]])
@@ -498,9 +524,6 @@ class gyrovdf:
         """
         # making the gyrotropic coordinates for the finalized u_bulk and magnetic field at that timestamp
         self.get_coors_supres(u_bulk, tidx)
-
-        # making the scaled log vdfdata
-        self.vdfdata =  maxwellian_inversion.convert_f_to_logscaledf(np.power(10, self.log_unscaled_vdfdata), self)
 
         vdf_inv, vdf_super, zeromask, data_misfit, model_misfit = self.inversion_code.super_resolution(self, tidx, NPTS)
 
@@ -628,6 +651,11 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
 
         # if we want to further refine the estimate and obtain error bounds
         if(MCMC):
+            # initializing the vdf data to optimize (this is the normalized and logarithmic value)
+            vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
+            # gvdf_tstamp.vdfdata = vdfdata * 1.0
+            gvdf_tstamp.log_unscaled_vdfdata = vdfdata * 1.0
+
             # after the scipy correction, we start assuming (0,0) in the perpendicular phase space
             Vperp1, Vperp2 = 0.0, 0.0
             
