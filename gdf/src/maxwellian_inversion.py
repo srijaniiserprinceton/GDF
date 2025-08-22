@@ -5,6 +5,11 @@ def maxwellian_model(vpar, vperp, A, u, wpar, wperp):
     Q = ((vpar - u)**2) / (wpar**2) + (vperp**2) / (wperp**2)
     return A * np.exp(-Q)
 
+def maxwellian_model_2(vpar, vperp, den, u, wpar, wperp):
+    Q = ((vpar - u)**2) / (wpar**2) + (vperp**2) / (wperp**2)
+    A = den / (np.pi**(3/2) * (wperp*1e5)**2 * (wpar *1e5)) 
+    return A * np.exp(-Q)
+
 def _moment_init(vpar, vperp, y):
     """
     Moment-based initializer using y as weights.
@@ -27,7 +32,7 @@ def _moment_init(vpar, vperp, y):
         A0 = 1.0
     return A0, u0, wpar0, wperp0
 
-def fit_maxwellian(vpar, vperp, y, weights=None, init=None, robust=False, f_scale=1.0):
+def fit_maxwellian(vpar, vperp, den, y, weights=None, init=None, robust=False, f_scale=1.0):
     """
     Fit A * exp(-((vpar - u)^2)/wpar^2 - (vperp^2)/wperp^2) to data y.
     

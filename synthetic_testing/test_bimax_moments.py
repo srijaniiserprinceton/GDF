@@ -169,300 +169,327 @@ def bvector_rotation_matrix(B_vec):
 
     return np.array([[Nx, Ny, Nz], [Px, Py, Pz], [Qx, Qy, Qz]])
 
-# Load in the hybrid and synthetic test cases
-CASE = '2'
 
-if CASE == '1':
-    ds = cdflib.cdf_to_xarray('bimax_vdf_500_bhat_clockwise_field_rotation_pi_8_to_neg_pi_2_hires.cdf')
-if CASE == '2':
-    ds = cdflib.cdf_to_xarray('bimax_vdf_500_250_clockwise_field_rotation_corrected_hires.cdf')
-# All of these figures are on the exact same grids!
-energy, vel, theta, phi, vx, vy, vz = generate_inst_grid(ds)
-
-ns = []
-us = []
-ts = []
-for i in range(len(ds.time.data)):
-    # n, ux, uu, uz = (fn.span_intergration(vel, theta, phi, vx, vy, vz, ds.vdf.data[i]))
-    n, u, t_tens, _ = (fn.compute_vdf_moments(energy[:,0,0], (np.pi/2. - theta[0,:,0]), (phi[0,0,:]), ds.vdf.data[i], mass_p_kg))
-    ns.append(n)
-    us.append(u)
-    ts.append(t_tens)
+if __name__ == '__main__':
+    den0 = 1702.
+    tpara0 = 573551.14
+    tperp0 = 943147.10
 
 
+    # Load in the hybrid and synthetic test cases
+    CASE = '1'
 
-if CASE == '1':
-    res_polcap = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/TEST1_vdf_rec_dataA_polcap_3_200_bimax_test_case')
-    res_cart = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/TEST1_vdf_rec_dataA_cartesian_3_200_bimax_test_case')
-    res_hybrid = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/TEST1_vdf_rec_dataA_hybrid_3_200_bimax_test_case')
-if CASE == '2':
-    res_polcap = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/TEST2_vdf_rec_dataA_polcap_3_200_bimax_test_case')
-    res_cart = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/TEST2_vdf_rec_dataA_cartesian_3_200_bimax_test_case')
-    res_hybrid = read_pickle('/home/michael/Research/GDF/synthetic_testing/Outputs/TEST2_vdf_rec_dataA_hybrid_3_200_bimax_test_case')
+    if CASE == '1':
+        ds = cdflib.cdf_to_xarray('Test_1_synthetic_vdf.cdf')
+    if CASE == '2':
+        ds = cdflib.cdf_to_xarray('Test_2_synthetic_vdf.cdf')
+    if CASE == '3':
+        ds = cdflib.cdf_to_xarray('Test_3_synthetic_vdf.cdf')
+    # All of these figures are on the exact same grids!
+    energy, vel, theta, phi, vx, vy, vz = generate_inst_grid(ds)
 
-den_polcap = np.array([res_polcap[i]['den'] for i in res_polcap.keys()])
-den_cart = np.array([res_cart[i]['den'] for i in res_cart.keys()])
-den_hybrid = np.array([res_hybrid[i]['den'] for i in res_hybrid.keys()])
-
-vel_polcap = np.array([res_polcap[i]['u_final'] for i in res_polcap.keys()])
-vel_cart = np.array([res_cart[i]['u_final'] for i in res_cart.keys()])
-vel_hybrid = np.array([res_hybrid[i]['u_final'] for i in res_hybrid.keys()])
-
-t_comps_polcap = np.array([res_polcap[i]['component_temp'] for i in res_polcap.keys()])
-t_comps_cart   = np.array([res_cart[i]['component_temp'] for i in res_cart.keys()])
-t_comps_hybrid = np.array([res_hybrid[i]['component_temp'] for i in res_hybrid.keys()])
-
-R = np.array([bvector_rotation_matrix(ds.b_span.data[i]) for i in range(100)])
-ts_fa = np.array([R[i] @ ts[i] @ R[i].T for i in range(100)])
-tpara = ts_fa[:,0,0]
-tperp = (ts_fa[:,1,1] + ts_fa[:,2,2])/2
-
-# Create figure with constrained layout
-fig = plt.figure(constrained_layout=True, figsize=(6, 10))
-
-# Define height ratios: top 3 panels = 1 unit each, bottom 3 = 2 units each
-height_ratios = [1, 1, 1, 2, 2, 2]
-
-# Create 6-row, 1-column grid
-gs = gridspec.GridSpec(6, 1, figure=fig, height_ratios=height_ratios)
-
-LW = 2
-ALP = 0.6
-if CASE == '1':
-    thetas = -np.degrees(np.linspace(np.pi/8, -np.pi/2, 100))
-
-    # plot_slices_ranges_test_1([0, 12, 25, 37, 50, 62, 75, 87, 99], thetas)
-    # thetas = np.hstack([thetas, -np.pi/2])
-if CASE == '2':
-    thetas = np.degrees(np.linspace(-np.pi/2, np.pi/2, 100))
-    # plot_slices_ranges_test_2([0, 12, 25, 37, 50, 62, 75, 87, 99], thetas)
-
-colors = [np.array([230,159,0])/255, np.array([86,180,233])/255, np.array([0,158,115])/255, np.array([204, 121, 167])/255]
-# colors = ['tab:blue', 'tab:orange', 'tab:red']
-
-ax = []
-for i in range(6):
-    if i == 0:
-        axs = fig.add_subplot(gs[i])
-    else:
-        axs = fig.add_subplot(gs[i], sharex=ax[0])
-    ax.append(axs)
-
-
-ax[0].plot(thetas, (vel_polcap[:,0]+1)/(ds.u_span.data[:,0]+1), marker='o', color=colors[0], lw=LW, alpha=ALP, label='Polar Cap')
-ax[0].plot(thetas, (vel_cart[:,0]+1)/(ds.u_span.data[:,0]+1), marker='s', color=colors[1], lw=LW, alpha=ALP, label='Cartesian')
-ax[0].plot(thetas, (vel_hybrid[:,0]+1)/(ds.u_span.data[:,0]+1), marker='v', color=colors[2], lw=LW, alpha=ALP, label='Hybrid')
-ax[0].plot(thetas, (np.array(us)[:,0]+10)/(ds.u_span.data[:,0]+10), marker='.', color='k', lw=LW, alpha=ALP, label='SPAN-Ai Moment')
-ax[0].legend(ncols=4, fontsize=8, frameon=False)
-
-ax[1].plot(thetas, (vel_polcap[:,1]+1)/(ds.u_span.data[:,1]+1), marker='o', color=colors[0], lw=LW, alpha=ALP)
-ax[1].plot(thetas, (vel_cart[:,1]+1)/(ds.u_span.data[:,1]+1), marker='s', color=colors[1], lw=LW, alpha=ALP)
-ax[1].plot(thetas, (vel_hybrid[:,1]+1)/(ds.u_span.data[:,1]+1), marker='v', color=colors[2], lw=LW, alpha=ALP)
-ax[1].plot(thetas, (np.array(us)[:,1]+10)/(ds.u_span.data[:,1]+10), marker='.', color='k', lw=LW, alpha=ALP)
-
-if CASE == '1':
-    ax[2].plot(thetas, (vel_polcap[:,2])/(ds.u_span.data[:,2]), marker='o', color=colors[0], lw=LW, alpha=ALP)
-    ax[2].plot(thetas, (vel_cart[:,2])/(ds.u_span.data[:,2]), marker='s', color=colors[1], lw=LW, alpha=ALP)
-    ax[2].plot(thetas, (vel_hybrid[:,2])/(ds.u_span.data[:,2]), marker='v', color=colors[2], lw=LW, alpha=ALP)
-    ax[2].plot(thetas, (np.array(us)[:,2]+10)/(ds.u_span.data[:,2]+10), marker='.', color='k', lw=LW, alpha=ALP)
-if CASE == '2':
-    ax[2].plot(thetas, (vel_polcap[:,2]+100)/(ds.u_span.data[:,2]+100), marker='o', color=colors[0], lw=LW, alpha=ALP)
-    ax[2].plot(thetas, (vel_cart[:,2]+100)/(ds.u_span.data[:,2]+100), marker='s', color=colors[1], lw=LW, alpha=ALP)
-    ax[2].plot(thetas, (vel_hybrid[:,2]+100)/(ds.u_span.data[:,2]+100), marker='v', color=colors[2], lw=LW, alpha=ALP)
-    ax[2].plot(thetas, (np.array(us)[:,2]+100)/(ds.u_span.data[:,2]+100), marker='.', color='k', lw=LW, alpha=ALP)
+    ns = []
+    us = []
+    ts = []
+    for i in range(len(ds.time.data)):
+        # n, ux, uu, uz = (fn.span_intergration(vel, theta, phi, vx, vy, vz, ds.vdf.data[i]))
+        n, u, t_tens, _ = (fn.compute_vdf_moments(energy[:,0,0], (np.pi/2. - theta[0,:,0]), (phi[0,0,:]), ds.vdf.data[i], mass_p_kg))
+        ns.append(n)
+        us.append(u)
+        ts.append(t_tens)
 
 
 
-[ax[i].axhline(1, lw=4, alpha=1.0, color=colors[3], linestyle='dashed') for i in range(3)]
+    if CASE == '1':
+        res_polcap = read_pickle('./Outputs/Test_1_test2_vdf_rec_data_polcap_3_200_bimax_test_case')
+        res_cart = read_pickle('./Outputs/Test_1_test2_vdf_rec_data_cartesian_3_200_bimax_test_case')
+        res_hybrid = read_pickle('./Outputs/Test_1_test2_vdf_rec_data_hybrid_3_200_bimax_test_case')
+    if CASE == '2':
+        res_polcap = read_pickle('./Outputs/Test_2_test_vdf_rec_data_polcap_3_200_bimax_test_case')
+        res_cart = read_pickle('./Outputs/Test_2_test3_vdf_rec_data_cartesian_3_200_bimax_test_case')
+        # res_cart = read_pickle('./Outputs/Test2_vdf_rec_cartesian_3_200_bimax_test_case')
+        res_hybrid = read_pickle('./Outputs/Test_2_test3_vdf_rec_data_hybrid_3_200_bimax_test_case')
+    if CASE == '3':
+        res_polcap = read_pickle('./Outputs/Test3_test_vdf_rec_data_polcap_3_200_bimax_test_case')
+        # res_polcap = read_pickle('./Outputs/Test3_vdf_rec_polcap_3_200_bimax_test_case')
+        res_cart = read_pickle('./Outputs/Test3_test_vdf_rec_data_cartesian_3_200_bimax_test_case')
+        res_hybrid = read_pickle('./Outputs/Test3_test_vdf_rec_data_hybrid_3_200_bimax_test_case')
 
-ax[3].plot(thetas, den_polcap, marker='o', color=colors[0], lw=LW, alpha=ALP, label='Polar Cap')
-ax[3].plot(thetas, den_cart, marker='s', color=colors[1], lw=LW, alpha=ALP, label='Cartesian')
-ax[3].plot(thetas, den_hybrid, marker='v', color=colors[2], lw=LW, alpha=ALP, label='Hybrid')
-ax[3].plot(thetas, np.asarray(ns), marker='.', color='k', label='SPAN-Ai Moment', alpha=ALP)
-ax[3].axhline(1702, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
+    den_polcap = np.array([res_polcap[i]['den'] for i in res_polcap.keys()])
+    den_cart = np.array([res_cart[i]['den'] for i in res_cart.keys()])
+    den_hybrid = np.array([res_hybrid[i]['den'] for i in res_hybrid.keys()])
 
-ax[4].plot(thetas, (t_comps_polcap[:,0]/573551.14), marker='o', color=colors[0], lw=LW, alpha=ALP)
-ax[4].plot(thetas, (t_comps_cart[:,0]/573551.14), marker='s', color=colors[1], lw=LW, alpha=ALP)
-ax[4].plot(thetas, (t_comps_hybrid[:,0]/573551.14), marker='v', color=colors[2], lw=LW, alpha=ALP)
-ax[4].plot(thetas, tpara/573551.14, marker='.', color='k', label='SPAN-Ai Moment', alpha=ALP)
-# ax[4].axhline(573551.14, lw=2, alpha=1.0, color='grey', linestyle='dashed')
-ax[4].axhline(1, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
+    vel_polcap = np.array([res_polcap[i]['u_final'] for i in res_polcap.keys()])
+    vel_cart = np.array([res_cart[i]['u_final'] for i in res_cart.keys()])
+    vel_hybrid = np.array([res_hybrid[i]['u_final'] for i in res_hybrid.keys()])
 
-ax[5].plot(thetas, t_comps_polcap[:,1]/943147.10, marker='o', color=colors[0], lw=LW, alpha=ALP)
-ax[5].plot(thetas, t_comps_cart[:,1]/943147.10, marker='s', color=colors[1], lw=LW, alpha=ALP)
-ax[5].plot(thetas, t_comps_hybrid[:,1]/943147.10, marker='v', color=colors[2], lw=LW, alpha=ALP)
-# ax[5].axhline(943147.10, lw=2, alpha=1.0, color='grey', linestyle='dashed')
-ax[5].plot(thetas, tperp/943147.10, marker='.', color='k', label='SPAN-Ai Moment', alpha=ALP)
-ax[5].axhline(1, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
+    t_comps_polcap = np.array([res_polcap[i]['component_temp'] for i in res_polcap.keys()])
+    t_comps_cart   = np.array([res_cart[i]['component_temp'] for i in res_cart.keys()])
+    t_comps_hybrid = np.array([res_hybrid[i]['component_temp'] for i in res_hybrid.keys()])
 
-ax[3].set_ylabel('Density\n'+r'[$cm^{-3}$]')
-idx = ['x', 'y', 'z']
-[ax[i].set_ylabel(f'$V_{idx[i]}/U_{idx[i]}$') for i in range(3)]
-ax[4].set_ylabel(r'$\mathrm{T}_{\parallel}\left/\mathrm{T}_{\parallel}^{0}\right.$')
-ax[5].set_ylabel(r'$\mathrm{T}_{\perp}\left/\mathrm{T}_{\perp}^{0}\right.$')
+    R = np.array([bvector_rotation_matrix(ds.b_span.data[i]) for i in range(100)])
+    ts_fa = np.array([R[i] @ ts[i] @ R[i].T for i in range(100)])
+    tpara = ts_fa[:,0,0]
+    tperp = (ts_fa[:,1,1] + ts_fa[:,2,2])/2
 
-[ax[i].set_xlim([thetas[0], thetas[-1]]) for i in range(6)]
-[ax[i].label_outer() for i in range(5)]
+    # Create figure with constrained layout
+    fig = plt.figure(constrained_layout=True, figsize=(6, 10))
 
-if CASE == '1':
-    [ax[i].set_ylim([0.9, 1.5]) for i in range(3)]
-    ax[3].set_ylim([-950, 2550])
-    ax[4].set_ylim([0.4, 3.0])
-    ax[5].set_ylim([0.4, 3.0])
+    # Define height ratios: top 3 panels = 1 unit each, bottom 3 = 2 units each
+    height_ratios = [1, 1, 1, 4, 4, 4]
 
-    [ax[i].axvspan((thetas[0]), (thetas[46]), color='0.85') for i in range(6)]
-    ax[5].set_xlabel('Angle (deg)')
+    # Create 6-row, 1-column grid
+    gs = gridspec.GridSpec(6, 1, figure=fig, height_ratios=height_ratios)
 
+    LW = 2
+    LW2= 4
+    ALP = 1.0
+    ALP2 = 1.0
 
-    # --- Add SPC FOV arrow above the top subplot ---
-    # Get axis limits to place arrow just above the top panel
-    ax0 = ax[0]
-    x_start = thetas[0]
-    x_end = thetas[47]
-    y = ax0.get_ylim()[1]  # top y-limit of the first panel
+    if CASE == '1' or CASE == '3':
+        thetas = -np.degrees(np.linspace(np.pi/8, -np.pi/2, 100))
+    if CASE == '2':
+        thetas = np.degrees(np.linspace(-np.pi/2, np.pi/2, 100))
 
-    # Slight padding for visual clarity
-    arrow_y = y + 0.05*y
-    text_y = y + 0.05*y
+    colors = [np.array([230,159,0])/255, np.array([86,180,233])/255, np.array([0,158,115])/255, np.array([204, 121, 167])/255]
 
-    # Draw double-headed arrow
-    ax0.annotate(
-        '', xy=(x_end, arrow_y), xytext=(x_start, arrow_y),
-        arrowprops=dict(arrowstyle='<|-|>', lw=1.5, color='black'),
-        annotation_clip=False
-    )
+    ax = []
+    for i in range(6):
+        if i == 0:
+            axs = fig.add_subplot(gs[i])
+        else:
+            axs = fig.add_subplot(gs[i], sharex=ax[0])
+        ax.append(axs)
 
-    # Add centered label above the arrow
-    # Add label in the center of the arrow with white background
-    ax0.text(
-        (x_start + x_end) / 2, text_y, 'SPC FOV',
-        ha='center', va='center', fontsize=12,
-        bbox=dict(facecolor='white', edgecolor='none', pad=2)
-    )
+    NN = 4
 
-    # # --- Inset configuration ---
-    # 1. Create an inset axis within ax
-    ax_inset3 = inset_axes(ax[3], width="69.5%", height="35%", loc='lower right',
-                        bbox_to_anchor=(0.0, 0.15, 1.0, 1.0), bbox_transform=ax[3].transAxes,
-                        borderpad=0.0)
+    ax[0].plot(thetas, (np.array(us)[:,0]+10)/(ds.u_span.data[:,0]+10), marker=None, color='k', lw=6, alpha=ALP2, label='Grid Moment')
+    ax[0].plot(thetas, (vel_polcap[:,0]+1)/(ds.u_span.data[:,0]+1), marker=None, color=colors[0], lw=LW, alpha=ALP, label='Polar Cap')
+    ax[0].plot(thetas, (vel_cart[:,0]+1)/(ds.u_span.data[:,0]+1), marker=None, color=colors[1], lw=LW, alpha=ALP, label='Cartesian')
+    ax[0].plot(thetas, (vel_hybrid[:,0]+1)/(ds.u_span.data[:,0]+1), marker=None, color=colors[2], lw=LW2, alpha=ALP2, label='Hybrid')
+    # ax[0].plot(thetas[::NN], (vel_hybrid[::NN,0]+1)/(ds.u_span.data[::NN,0]+1), marker='s', markersize=8, linestyle='None', color=colors[2], lw=LW2, alpha=ALP2)
 
-    # 2. Plot the same data in the inset
-    start_idx = 30
-    end_idx = -1 
-    ax_inset3.axvspan(thetas[start_idx], thetas[46], color='0.85')
-    ax_inset3.axhline(1702, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
-    ax_inset3.plot(thetas[start_idx:end_idx], den_polcap[start_idx:end_idx], marker='o', color=colors[0], lw=LW, alpha=ALP)
-    ax_inset3.plot(thetas[start_idx:end_idx], den_cart[start_idx:end_idx], marker='s', color=colors[1], lw=LW, alpha=ALP)
-    ax_inset3.plot(thetas[start_idx:end_idx], den_hybrid[start_idx:end_idx], marker='v', color=colors[2], lw=LW, alpha=ALP)
-    ax_inset3.plot(thetas[start_idx:end_idx], np.asarray(ns)[start_idx:end_idx], marker='.', color='k', label='SPAN-Ai Moment', alpha=ALP)
+    
+    # ax[0].legend(ncols=4, fontsize=8, frameon=False)
+
+    ax[1].plot(thetas, (np.array(us)[:,1]+10)/(ds.u_span.data[:,1]+10), marker=None, color='k', lw=6, alpha=ALP)
+    ax[1].plot(thetas, (vel_polcap[:,1]+1)/(ds.u_span.data[:,1]+1), marker=None, color=colors[0], lw=LW, alpha=ALP)
+    ax[1].plot(thetas, (vel_cart[:,1]+1)/(ds.u_span.data[:,1]+1), marker=None, color=colors[1], lw=LW, alpha=ALP)
+    ax[1].plot(thetas, (vel_hybrid[:,1]+1)/(ds.u_span.data[:,1]+1), marker=None, color=colors[2], lw=LW2, alpha=ALP2)
+    # ax[1].plot(thetas[::NN], (vel_hybrid[::NN,1]+1)/(ds.u_span.data[::NN,1]+1), marker='s', markersize=8, linestyle='None', color=colors[2], lw=LW2, alpha=ALP2)
     
 
+    if CASE == '1':
+        ax[2].plot(thetas, (np.array(us)[:,2]+10)/(ds.u_span.data[:,2]+10), marker=None, color='k', lw=6, alpha=ALP)
+        ax[2].plot(thetas, (vel_polcap[:,2])/(ds.u_span.data[:,2]), marker=None, color=colors[0], lw=LW, alpha=ALP)
+        ax[2].plot(thetas, (vel_cart[:,2])/(ds.u_span.data[:,2]), marker=None, color=colors[1], lw=LW, alpha=ALP)
+        ax[2].plot(thetas, (vel_hybrid[:,2])/(ds.u_span.data[:,2]), marker=None, color=colors[2], lw=LW2, alpha=ALP2)
+    if CASE == '2':
+        ax[2].plot(thetas, (np.array(us)[:,2]+100)/(ds.u_span.data[:,2]+100), marker=None, color='k', lw=6, alpha=ALP)
+        ax[2].plot(thetas, (vel_polcap[:,2]+100)/(ds.u_span.data[:,2]+100), marker=None, color=colors[0], lw=LW, alpha=ALP)
+        ax[2].plot(thetas, (vel_cart[:,2]+100)/(ds.u_span.data[:,2]+100), marker=None, color=colors[1], lw=LW, alpha=ALP)
+        ax[2].plot(thetas, (vel_hybrid[:,2]+100)/(ds.u_span.data[:,2]+100), marker=None, color=colors[2], lw=LW2, alpha=ALP2)
+        # ax[2].plot(thetas[::NN], (vel_hybrid[::NN,2]+100)/(ds.u_span.data[::NN,2]+100), marker='s', markersize=8, linestyle='None', color=colors[2], lw=LW2, alpha=ALP2)
+        
 
-    # 3. Define zoomed-in range
-    x1, x2 = thetas[start_idx], thetas[end_idx]  # angle range
-    y1, y2 = 1620, 1860  # y range
+    
+    ax[3].plot(thetas, np.asarray(ns)/den0, marker=None, lw=6, color='k', label='Grid Moment', alpha=1.0)
+    ax[3].plot(thetas, den_polcap/den0, marker=None, color=colors[0], lw=LW, alpha=ALP, label='Polar Cap')
+    ax[3].plot(thetas, den_cart/den0, marker=None, color=colors[1], lw=LW, alpha=ALP, label='Cartesian')
+    ax[3].plot(thetas, den_hybrid/den0, marker=None, color=colors[2], lw=LW2, alpha=ALP2, label='Hybrid')
+    
+    ax[3].legend(ncols=2, fontsize=12)
 
-    xticks = ax_inset3.get_xticks()
-    # Keep every other label (e.g., even indices)
-    xtick_labels = [f"{tick:.0f}" if i % 2 == 0 else "" for i, tick in enumerate(xticks[0:-1])]
+    ax[4].plot(thetas, tpara/tpara0, marker=None, lw=6, color='k', alpha=1.0)
+    ax[4].plot(thetas, (t_comps_polcap[:,0]/tpara0), marker=None, color=colors[0], lw=LW, alpha=ALP)
+    ax[4].plot(thetas, (t_comps_cart[:,0]/tpara0), marker=None, color=colors[1], lw=LW, alpha=ALP)
+    ax[4].plot(thetas, (t_comps_hybrid[:,0]/tpara0), marker=None, color=colors[2], lw=LW2, alpha=ALP2)
+    # ax[4].plot(thetas[::NN], (t_comps_hybrid[::NN,0]/tpara0), marker='s', markersize=8, color=colors[2], linestyle='None', lw=LW2, alpha=ALP2)
+    
+    ax[5].plot(thetas, tperp/tperp0, marker=None, lw=6, color='k', alpha=1.0)
+    ax[5].plot(thetas, t_comps_polcap[:,1]/tperp0, marker=None, color=colors[0], lw=LW, alpha=ALP)
+    ax[5].plot(thetas, t_comps_cart[:,1]/tperp0, marker=None, color=colors[1], lw=LW, alpha=ALP)
+    ax[5].plot(thetas, t_comps_hybrid[:,1]/tperp0, marker=None, color=colors[2], lw=LW2, alpha=ALP2)
+    # ax[5].plot(thetas[::NN], t_comps_hybrid[::NN,1]/tperp0, marker='s', markersize=8, color=colors[2], linestyle='None', lw=LW2, alpha=ALP2)
+    
 
-    # Apply the new tick labels
-    ax_inset3.set_xticklabels(xtick_labels[1:-1])
+    ax[3].set_ylabel(r'$n \left/ n_{0} \right.$')
+    idx = ['x', 'y', 'z']
+    [ax[i].set_ylabel(f'$V_{idx[i]}/U_{idx[i]}$') for i in range(3)]
+    ax[4].set_ylabel(r'$\mathrm{T}_{\parallel}\left/\mathrm{T}_{\parallel}^{0}\right.$')
+    ax[5].set_ylabel(r'$\mathrm{T}_{\perp}\left/\mathrm{T}_{\perp}^{0}\right.$')
 
-    ax_inset3.set_xlim(x1, x2)
-    ax_inset3.set_ylim(y1, y2)
-    ax_inset3.tick_params(labelsize=12)
-    ax_inset3.axhline(1702, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
+    [ax[i].set_xlim([thetas[0], thetas[-1]]) for i in range(6)]
+    [ax[i].label_outer() for i in range(5)]
 
-
-    # # --- Inset configuration ---
-    # 1. Create an inset axis within ax
-    ax_inset4 = inset_axes(ax[4], width="69.5%", height="50%", loc='upper right',
-                        bbox_to_anchor=(0.0, 0.0, 1.0, 1.0), bbox_transform=ax[4].transAxes,
-                        borderpad=0.0)
-
-    # 2. Plot the same data in the inset
-    start_idx = 30
-    end_idx = -1 
-    ax_inset4.axvspan(thetas[start_idx], thetas[46], color='0.85')
-    ax_inset4.axhline(1702, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
-    ax_inset4.plot(thetas[start_idx:end_idx], (t_comps_polcap[start_idx:end_idx,0]/573551.14), marker='o', color=colors[0], lw=LW, alpha=ALP)
-    ax_inset4.plot(thetas[start_idx:end_idx], (t_comps_cart[start_idx:end_idx,0]/573551.14), marker='s', color=colors[1], lw=LW, alpha=ALP)
-    ax_inset4.plot(thetas[start_idx:end_idx], (t_comps_hybrid[start_idx:end_idx,0]/573551.14), marker='v', color=colors[2], lw=LW, alpha=ALP)
-    ax_inset4.plot(thetas[start_idx:end_idx], tpara[start_idx:end_idx]/573551.14, marker='.', color='k', label='SPAN-Ai Moment', alpha=ALP)
-
-    # 3. Define zoomed-in range
-    y1_1, y2_1 = 0.8, 1.05  # y range
-
-    # Apply the new tick labels
-    ax_inset4.set_xticklabels(xtick_labels[1:-1])
-
-    ax_inset4.set_xlim(x1, x2)
-    ax_inset4.set_ylim(y1_1, y2_1)
-    ax_inset4.tick_params(labelsize=12)
-    ax_inset4.axhline(1, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
-
-
-    # # --- Inset configuration ---
-    # 1. Create an inset axis within ax
-    ax_inset5 = inset_axes(ax[5], width="69.5%", height="50%", loc='upper right',
-                        bbox_to_anchor=(0.0, 0.0, 1.0, 1.0), bbox_transform=ax[5].transAxes,
-                        borderpad=0.0)
-
-    # 2. Plot the same data in the inset
-    start_idx = 30
-    end_idx = -1 
-    ax_inset5.axvspan(thetas[start_idx], thetas[46], color='0.85')
-    ax_inset5.axhline(1702, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
-    ax_inset5.plot(thetas[start_idx:end_idx], (t_comps_polcap[start_idx:end_idx,1]/943147.10), marker='o', color=colors[0], lw=LW, alpha=ALP)
-    ax_inset5.plot(thetas[start_idx:end_idx], (t_comps_cart[start_idx:end_idx,1]/943147.10), marker='s', color=colors[1], lw=LW, alpha=ALP)
-    ax_inset5.plot(thetas[start_idx:end_idx], (t_comps_hybrid[start_idx:end_idx,1]/943147.10), marker='v', color=colors[2], lw=LW, alpha=ALP)
-    ax_inset5.plot(thetas[start_idx:end_idx], tperp[start_idx:end_idx]/943147.10, marker='.', color='k', label='SPAN-Ai Moment', alpha=ALP)
-
-    # 3. Define zoomed-in range
-    y1_1, y2_1 = 0.8, 1.05  # y range
-
-    # Apply the new tick labels
-    ax_inset5.set_xticklabels(xtick_labels[1:-1])
-
-    ax_inset5.set_xlim(x1, x2)
-    ax_inset5.set_ylim(y1_1, y2_1)
-    ax_inset5.tick_params(labelsize=12)
-    ax_inset5.axhline(1, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
-
-    plt.savefig('./Figures/paper_plots/case_1_figure.png')
+    if CASE == '1':
+        [ax[i].set_ylim([0.9, 1.5]) for i in range(3)]
+        [ax[i].set_ylim([.9,1.1]) for i in range(3)]
+        [ax[i].set_ylim([.75,1.25]) for i in range(3,6)]
+        [ax[i].axhline([0.9], linestyle='dashed', color='grey') for i in range(3,6)]
+        [ax[i].axhline([1.1], linestyle='dashed', color='grey') for i in range(3,6)]
+        [ax[i].grid(True, alpha=0.2) for i in range(6)]
+        [ax[i].axvspan((thetas[0]), (thetas[46]), color='0.85') for i in range(6)]
+        ax[5].set_xlabel('Angle (deg)')
 
 
-if CASE == '2':
-    [ax[i].set_ylim([0.95, 1.1]) for i in range(3)]
-    ax[5].set_xlabel('Angle (deg)')
+        # --- Add SPC FOV arrow above the top subplot ---
+        # Get axis limits to place arrow just above the top panel
+        ax0 = ax[0]
+        x_start = thetas[0]
+        x_end = thetas[47]
+        y = ax0.get_ylim()[1]  # top y-limit of the first panel
 
-    [ax[i].axvspan(0, 45, color='0.85') for i in range(6)]
+        # Slight padding for visual clarity
+        arrow_y = y + 0.05*y
+        text_y = y + 0.05*y
 
-    # --- Add SPC FOV arrow above the top subplot ---
-    # Get axis limits to place arrow just above the top panel
-    ax0 = ax[0]
-    x_start = 0
-    x_end = 45
-    y = ax0.get_ylim()[1]  # top y-limit of the first panel
+        # Draw double-headed arrow
+        ax0.annotate(
+            '', xy=(x_end, arrow_y), xytext=(x_start, arrow_y),
+            arrowprops=dict(arrowstyle='<|-|>', lw=1.5, color='black'),
+            annotation_clip=False
+        )
 
-    # Slight padding for visual clarity
-    arrow_y = y + 0.03*y
-    text_y = y + 0.03*y
+        # Add centered label above the arrow
+        # Add label in the center of the arrow with white background
+        ax0.text(
+            (x_start + x_end) / 2, text_y, 'SPC FOV',
+            ha='center', va='center', fontsize=12,
+            bbox=dict(facecolor='white', edgecolor='none', pad=2)
+        )
+        '''
+        # # --- Inset configuration ---
+        # 1. Create an inset axis within ax
+        ax_inset3 = inset_axes(ax[3], width="69.5%", height="35%", loc='lower right',
+                            bbox_to_anchor=(0.0, 0.15, 1.0, 1.0), bbox_transform=ax[3].transAxes,
+                            borderpad=0.0)
 
-    # Draw double-headed arrow
-    ax0.annotate(
-        '', xy=(x_end, arrow_y), xytext=(x_start, arrow_y),
-        arrowprops=dict(arrowstyle='<|-|>', lw=1.5, color='black'),
-        annotation_clip=False
-    )
+        # 2. Plot the same data in the inset
+        start_idx = 30
+        end_idx = -1 
+        ax_inset3.axvspan(thetas[start_idx], thetas[46], color='0.85')
+        # ax_inset3.axhline(1, lw=1, alpha=0.1, color=colors[3], linestyle='dashed')
+        ax_inset3.plot(thetas[start_idx:end_idx], den_polcap[start_idx:end_idx], marker=None, color=colors[0], lw=LW, alpha=ALP)
+        ax_inset3.plot(thetas[start_idx:end_idx], den_cart[start_idx:end_idx], marker=None, color=colors[1], lw=LW, alpha=ALP)
+        ax_inset3.plot(thetas[start_idx:end_idx], den_hybrid[start_idx:end_idx], marker='o', color=colors[2], lw=LW, alpha=ALP)
+        ax_inset3.plot(thetas[start_idx:end_idx], np.asarray(ns)[start_idx:end_idx], marker='.', color='k', label='SPAN-Ai Moment', alpha=ALP)
+        
 
-    # Add centered label above the arrow
-    # Add label in the center of the arrow with white background
-    ax0.text(
-        (x_start + x_end) / 2, text_y, 'Typical B-field',
-        ha='center', va='center', fontsize=12,
-        bbox=dict(facecolor='white', edgecolor='none', pad=2)
-    )
 
-    plt.savefig('./Figures/paper_plots/case_2_figure.png')
+        # 3. Define zoomed-in range
+        x1, x2 = thetas[start_idx], thetas[end_idx]  # angle range
+        y1, y2 = 1620, 1860  # y range
+
+        xticks = ax_inset3.get_xticks()
+        # Keep every other label (e.g., even indices)
+        xtick_labels = [f"{tick:.0f}" if i % 2 == 0 else "" for i, tick in enumerate(xticks[0:-1])]
+
+        # Apply the new tick labels
+        ax_inset3.set_xticklabels(xtick_labels[1:-1])
+
+        ax_inset3.set_xlim(x1, x2)
+        ax_inset3.set_ylim(y1, y2)
+        ax_inset3.tick_params(labelsize=12)
+        # ax_inset3.axhline(1, lw=1, alpha=0.1, color=colors[3], linestyle='dashed')
+
+
+        # # --- Inset configuration ---
+        # 1. Create an inset axis within ax
+        ax_inset4 = inset_axes(ax[4], width="69.5%", height="50%", loc='upper right',
+                            bbox_to_anchor=(0.0, 0.0, 1.0, 1.0), bbox_transform=ax[4].transAxes,
+                            borderpad=0.0)
+
+        # 2. Plot the same data in the inset
+        start_idx = 30
+        end_idx = -1 
+        ax_inset4.axvspan(thetas[start_idx], thetas[46], color='0.85')
+        # ax_inset4.axhline(1702, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
+        ax_inset4.plot(thetas[start_idx:end_idx], (t_comps_polcap[start_idx:end_idx,0]/tpara0), marker=None, color=colors[0], lw=LW, alpha=ALP)
+        ax_inset4.plot(thetas[start_idx:end_idx], (t_comps_cart[start_idx:end_idx,0]/tpara0), marker=None, color=colors[1], lw=LW, alpha=ALP)
+        ax_inset4.plot(thetas[start_idx:end_idx], (t_comps_hybrid[start_idx:end_idx,0]/tpara0), marker='o', color=colors[2], lw=LW, alpha=ALP)
+        ax_inset4.plot(thetas[start_idx:end_idx], tpara[start_idx:end_idx]/tpara0, marker='.', color='k', label='SPAN-Ai Moment', alpha=ALP)
+
+        # 3. Define zoomed-in range
+        y1_1, y2_1 = 0.8, 1.05  # y range
+
+        # Apply the new tick labels
+        ax_inset4.set_xticklabels(xtick_labels[1:-1])
+
+        ax_inset4.set_xlim(x1, x2)
+        ax_inset4.set_ylim(y1_1, y2_1)
+        ax_inset4.tick_params(labelsize=12)
+        # ax_inset4.axhline(1, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
+
+
+        # # --- Inset configuration ---
+        # 1. Create an inset axis within ax
+        ax_inset5 = inset_axes(ax[5], width="69.5%", height="50%", loc='upper right',
+                            bbox_to_anchor=(0.0, 0.0, 1.0, 1.0), bbox_transform=ax[5].transAxes,
+                            borderpad=0.0)
+
+        # 2. Plot the same data in the inset
+        start_idx = 30
+        end_idx = -1 
+        ax_inset5.axvspan(thetas[start_idx], thetas[46], color='0.85')
+        # ax_inset5.axhline(1702, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
+        ax_inset5.plot(thetas[start_idx:end_idx], (t_comps_polcap[start_idx:end_idx,1]/tperp0), marker=None, color=colors[0], lw=LW, alpha=ALP)
+        ax_inset5.plot(thetas[start_idx:end_idx], (t_comps_cart[start_idx:end_idx,1]/tperp0), marker=None, color=colors[1], lw=LW, alpha=ALP)
+        ax_inset5.plot(thetas[start_idx:end_idx], (t_comps_hybrid[start_idx:end_idx,1]/tperp0), marker='o', color=colors[2], lw=LW, alpha=ALP)
+        ax_inset5.plot(thetas[start_idx:end_idx], tperp[start_idx:end_idx]/tperp0, marker='.', color='k', label='SPAN-Ai Moment', alpha=ALP)
+
+        # 3. Define zoomed-in range
+        y1_1, y2_1 = 0.8, 1.05  # y range
+
+        # Apply the new tick labels
+        ax_inset5.set_xticklabels(xtick_labels[1:-1])
+
+        ax_inset5.set_xlim(x1, x2)
+        ax_inset5.set_ylim(y1_1, y2_1)
+        ax_inset5.tick_params(labelsize=12)
+        # ax_inset5.axhline(1, lw=4, alpha=1.0, color=colors[3], linestyle='dashed')
+        '''
+        plt.savefig('.  /Figures/paper_plots/case_1_figure.png')
+
+
+    if CASE == '2':
+        [ax[i].set_ylim([0.95, 1.1]) for i in range(3)]
+        ax[5].set_xlabel('Angle (deg)')
+
+        [ax[i].axvspan(0, 45, color='0.9') for i in range(6)]
+
+        # --- Add SPC FOV arrow above the top subplot ---
+        # Get axis limits to place arrow just above the top panel
+        ax0 = ax[0]
+        x_start = 0
+        x_end = 45
+        y = ax0.get_ylim()[1]  # top y-limit of the first panel
+
+        # Slight padding for visual clarity
+        arrow_y = y + 0.05*y
+        text_y = y + 0.05*y
+
+        # Draw double-headed arrow
+        ax0.annotate(
+            '', xy=(x_end, arrow_y), xytext=(x_start, arrow_y),
+            arrowprops=dict(arrowstyle='<|-|>', lw=1.5, color='black'),
+            annotation_clip=False
+        )
+
+        # Add centered label above the arrow
+        # Add label in the center of the arrow with white background
+        ax0.text(
+            (x_start + x_end) / 2, text_y, 'SW B-field',
+            ha='center', va='center', fontsize=12,
+            bbox=dict(facecolor='white', edgecolor='none', pad=2)
+        )
+        [ax[i].set_ylim([.9,1.1]) for i in range(3)]
+        [ax[i].set_ylim([.75,1.25]) for i in range(3,6)]
+        [ax[i].axhline([0.9], linestyle='dashed', color='grey') for i in range(3,6)]
+        [ax[i].axhline([1.1], linestyle='dashed', color='grey') for i in range(3,6)]
+        [ax[i].grid(True, alpha=0.2) for i in range(6)]
+
+        # [ax[i].axhspan(0.9, 1.1, color='tab:blue', alpha=0.2) for i in range(3,6)]
+        # [ax[i].axhspan(0.95, 1.05, color='tab:blue', alpha=0.2) for i in range(3,6)]
+        
+        plt.savefig('./Figures/paper_plots/case_2_figure.png')

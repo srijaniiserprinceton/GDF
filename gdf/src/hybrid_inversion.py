@@ -2,7 +2,7 @@ import numpy as np
 from scipy.linalg import solve
 
 from gdf.src import polar_cap_inversion as polcap_inversion
-from gdf.src import functions_GL as fn
+from gdf.src import functions as fn
 from gdf.src import basis_funcs as basis_fn
 from gdf.src import misc_funcs as misc_fn
 

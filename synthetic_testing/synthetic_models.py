@@ -184,6 +184,18 @@ def model_params():
 
     return(den1, den2, Trat1, Trat2, Tperp1, Tperp2, vdrift)
 
+def model_params_2():
+    # Step I: Define the parameters needed for the bi-max model
+    den1   = 1466.9059591788823 
+    den2   = 0#236.0497816330413 
+    Trat1  = 3.078559367462411 
+    Trat2  = 0.9010196661059698 
+    Tperp1 = 76.73630778076499 
+    Tperp2 = 5.61544387731757 
+    vdrift = -89.79244089265619
+
+    return(den1, den2, Trat1, Trat2, Tperp1, Tperp2, vdrift)
+
 def model_grids():
     # Define the energy array 
     energy_array = np.array([   21.020508,    26.02539,    32.03125,    40.039062,

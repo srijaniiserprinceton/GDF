@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import least_squares
 
 def maxwellian_model(vpar, vperp, A, u, wpar, wperp):
-    Q = ((vpar - u)**2) / (wpar**2) + (vperp**2) / (wperp**2)
+    Q = (((vpar - u)**2) / (wpar**2)) + ((vperp**2) / (wperp**2))
     return A * np.exp(-Q)
 
 def _moment_init(vpar, vperp, y):
@@ -27,7 +27,7 @@ def _moment_init(vpar, vperp, y):
         A0 = 1.0
     return A0, u0, wpar0, wperp0
 
-def fit_maxwellian(vpar, vperp, y, weights=None, init=None, robust=False, f_scale=1.0):
+def fit_maxwellian(vpar, vperp, ubulk, y, weights=None, init=None, robust=False, f_scale=1.0):
     """
     Fit A * exp(-((vpar - u)^2)/wpar^2 - (vperp^2)/wperp^2) to data y.
     
@@ -60,8 +60,8 @@ def fit_maxwellian(vpar, vperp, y, weights=None, init=None, robust=False, f_scal
         A0, u0, wpar0, wperp0 = init
 
     def model(params):
-        A, u, wpar, wperp = params
-        return maxwellian_model(vpar, vperp, A, u, wpar, wperp)
+        A, wpar, wperp = params
+        return maxwellian_model(vpar, vperp, A, ubulk, wpar, wperp)
 
     def residuals(params):
         r = model(params) - y
@@ -130,7 +130,7 @@ def convert_f_to_logscaledf(fdata, gvdf_tstamp):
     vperp = np.concatenate([-gvdf_tstamp.vperp_nonan_inst, gvdf_tstamp.vperp_nonan_inst])
     y = np.concatenate([fdata, fdata])
     # fitting the maxwellian
-    gvdf_tstamp.M = fit_maxwellian(vpara, vperp, y)   
+    gvdf_tstamp.M = fit_maxwellian(vpara, vperp, np.linalg.norm(gvdf_tstamp.ubulk), y)   
     # reconstructing
     gvdf_tstamp.M_rec = maxwellian_model(gvdf_tstamp.vpara_nonan_inst, gvdf_tstamp.vperp_nonan_inst,
                                          gvdf_tstamp.M['A'], gvdf_tstamp.M['u'], gvdf_tstamp.M['wpar'], gvdf_tstamp.M['wperp'])

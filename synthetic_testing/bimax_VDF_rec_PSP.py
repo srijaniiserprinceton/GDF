@@ -11,9 +11,11 @@ from scipy.optimize import minimize
 from datetime import datetime
 from scipy.spatial import Delaunay
 from tqdm import tqdm
+import cdflib
 import pickle
 import warnings
-import cdflib
+import astropy.constants as c
+import astropy.units as u
 
 from gdf.src import eval_Slepians
 from gdf.src import functions as fn
@@ -22,6 +24,7 @@ from gdf.src import plotter
 from gdf.src import polar_cap_inversion as polcap
 from gdf.src import cartesian_inversion as cartesian
 from gdf.src import hybrid_inversion as hybrid
+from gdf.src import maxwellian_inversion
 
 NAX = np.newaxis
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
@@ -53,6 +56,9 @@ class gyrovdf:
         self.method = config['global']['METHOD']
         # the time window
         self.trange = config['global']['TRANGE']
+        self.filename = config['global']['FILENAME']
+        self.s_ratio = []
+
         # the minimum counts required to be considered in the fitting process
         self.count_threshold = config['global']['COUNT_THRESHOLD']
 
@@ -81,6 +87,16 @@ class gyrovdf:
             # initializing the CartSlep class once; like we do for the polcap Slepians
             self.CartSlep = eval_Slepians.Slep_2D_Cartesian()
             self.plotter_func = plotter.hybrid_plotter
+
+            # the array for finding the similarity index
+            if(self.lam is None):
+                self.lambda_arr = np.logspace(-5, 1, 20)
+                self.lambda_knee_idx = None
+            else:
+                self.lambda_arr = None 
+
+            self.lambda_knee = None
+
         else:
             print('INVALID CHOICE OF METHOD. CHOOSE BETWEEN polcap, cartesian, hybrid')
 
@@ -173,8 +189,8 @@ class gyrovdf:
         count = vdf_dict.counts.data * 1.0
 
         # masking the bins where count is less than COUNT_THRESHOLD
-        # vdf[count <= self.count_threshold] = np.nan
-        vdf[vdf < 1e-24] = np.nan
+        vdf[count <= self.count_threshold] = np.nan
+        vdf[vdf == 0] = np.nan
         self.nanmask = np.isfinite(vdf)
 
         # store the min and maxvalues rquired for plotting
@@ -192,15 +208,29 @@ class gyrovdf:
         self.vy = self.velocity * np.cos(np.radians(theta)) * np.sin(np.radians(phi))
         self.vz = self.velocity * np.sin(np.radians(theta))
 
-        if True:
-            print('yep')
-        else:
+        if self.filename is None:
             # obtaining the L3 data which contains the magnetic field and partial moments
             data = fn.init_psp_moms(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
 
             # obtaining the magnetic field and v_bulk from the SWEAP L3 data product
             self.b_span = data.MAGF_INST.data
             self.v_span = data.VEL_INST.data
+            self.l3_time = data.Epoch.data
+            # getting the QTN densities if available
+            try:
+                self.qtn_data = fn.init_qtn_data(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
+            except:
+                self.qtn_data = None
+                
+        else:
+            data = {}
+            data['DENS'] = np.ones(len(self.b_span))
+            data['TEMP'] = np.ones(len(self.b_span))
+            data['VEL_INST'] = self.v_span
+            data['MAGF_INST'] = self.b_span
+
+            self.qtn_data = None
+            self.l3_time = time
 
         # Get the b-unit vector
         self.bvec = self.b_span/np.linalg.norm(self.b_span, axis=1)[:,NAX]
@@ -210,19 +240,20 @@ class gyrovdf:
 
         # storing the L2 and L3 times; we check later for each timestamp if they agree since
         # we want to use the correct magnetic field for its corresponding VDF.
-        self.l3_time = time #data.Epoch.data
         self.l2_time = time
 
         # finding the N2D length scale for cartesian or hybrid
-        self.kmax_arr = fn.find_kmax_arr(self, vdf_dict, self.Lmax)
+        self.kmax_arr = fn.find_kmax_from_maxvel(self, vdf_dict, self.Lmax)
+        self.kmax_arr_adjusted = np.zeros_like(self.kmax_arr)
 
         # the array of final TH
         self.TH_all = np.zeros(len(time))
         self.vshift_all = np.zeros(len(time))
         self.N2D_polcap_all = np.zeros(len(time))
         self.N2D_cart_all = np.zeros(len(time))
+        self.lambda_all = np.zeros(len(time))
+        self.u_origin_independent = np.zeros_like(self.v_span)
 
-        
         # creating the dictionary with arrays for the reconstructed moments to show in the context plot
         self.rec_keys = np.array(['dens', 'temp', 'tani', 'vel', 'mag'])
         self.rec_quants = {}
@@ -232,12 +263,11 @@ class gyrovdf:
         self.rec_quants['vel'] = np.zeros((len(time), 6)) + np.nan
 
         # adding the span moments
-        self.rec_quants['dens'][:,1] = np.ones(len(self.b_span)) #data['DENS'] * 1.0
-        self.rec_quants['temp'][:,1] = np.ones(len(self.b_span)) #data['TEMP'] * 1.0 / 8.617e-5 / 1e6 # converting from eV to MK
-        self.rec_quants['vel'][:,3:] = self.v_span #data.VEL_INST.data * 1.0
-        self.rec_quants['mag'] = self.b_span #data.MAGF_INST.data * 1.0
-        
-        
+        self.rec_quants['dens'][:,1] = data['DENS'] * 1.0
+        self.rec_quants['temp'][:,1] = data['TEMP'] * 1.0 / 8.617e-5 / 1e6 # converting from eV to MK
+        self.rec_quants['vel'][:,3:] = np.array(data['VEL_INST']) * 1.0
+        self.rec_quants['mag'] = np.array(data['MAGF_INST']) * 1.0
+
     def get_coors(self, u_bulk, tidx):
         r"""
         This function is used to setup the grids in gyrotropic coordinate depending on the 
@@ -321,14 +351,14 @@ class gyrovdf:
                                                                         *fn.field_aligned_coordinates(self.b_span[tidx])))                                                            
         
         # converting to the field aligned coordinates here [BEFORE SHIFTING ALONG vpara]
-        self.vpara, self.vperp1, self.vperp2 = vpara, vperp1, vperp2
+        self.vpara, self.vperp1, self.vperp2 = vpara * 1.0, vperp1 * 1.0, vperp2 * 1.0
         self.vperp = np.sqrt(self.vperp1**2 + self.vperp2**2)
 
         # Check angle between flow and magnetic field. 
         # NOTE: NEED TO CHECK THIS CALCULATION.
         if (self.theta_bv[tidx] < 90):
-            self.vpara = -1.0 * self.vpara
-            self.theta_sign = -1.0
+            self.vpara = 1.0 * self.vpara
+            self.theta_sign = 1.0
         else: self.theta_sign = 1.0
 
         # Boosting along vpara [this step is crucial for the polar cap method, only]
@@ -359,6 +389,52 @@ class gyrovdf:
         # making the knots everytime the gyrotropic coordinates are changed
         self.make_knots(tidx)
 
+        # making the scaled log vdfdata
+        self.vdfdata = self.log_unscaled_vdfdata * 1.0 #maxwellian_inversion.convert_f_to_logscaledf(np.power(10, self.log_unscaled_vdfdata), self)
+
+        # concatenating to make both sides
+        vpara = np.concatenate([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan])
+        vperp = np.concatenate([-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan])
+        y = np.concatenate([np.power(10,self.vdfdata), np.power(10,self.vdfdata)])
+        # fitting the maxwellian
+        den1 = 1702.
+        gvdf_tstamp.M = maxwellian_inversion.fit_maxwellian(vpara, vperp, den1/gvdf_tstamp.minval[tidx], y)   
+
+        # den1   = 1702. #1466.9059591788823 + 200
+        # Trat1  = 3.078559367462411
+        # Tperp1 = 76.73630778076499
+        # Tpara1 = Tperp1/Trat1
+
+        # wperp_1 = np.sqrt((2 * Tperp1 * u.eV)/c.m_p).to('km/s').value
+        # wpara_1 = np.sqrt((2 * Tpara1 * u.eV)/c.m_p).to('km/s').value
+
+        # gvdf_tstamp.M['A'] = den1 / (np.pi**(3/2) * (wperp_1*1e5)**2 * (wpara_1 *1e5)) / gvdf_tstamp.minval[tidx]
+        # gvdf_tstamp.M['wpar'] = wpara_1
+        # gvdf_tstamp.M['wperp'] = wperp_1
+
+        #----------adding the fiducial data point at the peak of the maxwellian here--------#
+        # fid_vpara = np.linspace(self.vpara_nonan.min(), self.M['u'], 50)
+        # fid_vpara = np.linspace(self.M['u'] - self.M['wpar']/2., self.M['u'] + self.M['wpar']/2., 20)
+        fid_vpara = np.linspace(self.M['u'] - self.M['wpar']/2., self.M['u'], 20)
+        fid_vperp = np.zeros_like(fid_vpara)
+
+        M_cen = maxwellian_inversion.maxwellian_model(fid_vpara, fid_vperp, self.M['A'],
+                                                      self.M['u'], self.M['wpar'], self.M['wperp'])
+        M_cen_in_vdfdata = np.log10((M_cen)) # / (M_cen - self.epsilon + 1)) - self.log_minval
+
+        # adding to the data
+        self.vdfdata = np.append(self.vdfdata, M_cen_in_vdfdata)
+        # M_cen_in_vdfdata_log_unscaled = np.power(10, M_cen_in_vdfdata) # + gvdf_tstamp.log_minval) * (M_cen - gvdf_tstamp.epsilon + 1) - 1
+        self.log_unscaled_vdfdata = np.append(self.log_unscaled_vdfdata, M_cen_in_vdfdata)
+
+        # adding these points in rfac_nonan and theta_fac_nonan
+        self.rfac_nonan = np.append(self.rfac_nonan, fid_vpara)
+        self.theta_fac_nonan = np.append(self.theta_fac_nonan, fid_vperp)
+        # making similar adjustments in vpara_nonan and vperp_nonan
+        self.vpara_nonan = np.append(self.vpara_nonan, fid_vpara)
+        self.vperp_nonan = np.append(self.vperp_nonan, fid_vperp)
+        
+
     def make_knots(self, tidx):
         """
         Creates the knots in :math:`r = \sqrt{v_{||}^2 + v_{\perp}}` space. The default 
@@ -380,17 +456,20 @@ class gyrovdf:
         
         # this is used to create the knots for B-splines
         self.rfac_nonan = self.r_fa[self.nanmask[tidx]]
+        self.theta_fac_nonan = self.theta_fa[self.nanmask[tidx]]
 
         # finding the minimum and maximum velocities with counts to find the knot locations
         vmin = np.min(self.velocity[tidx, self.nanmask[tidx]])
         vmax = np.max(self.velocity[tidx, self.nanmask[tidx]])
         
         # this is calculated from the mean(log10(v_{i+1}) - log10(v_i)) of SPAN-i grid
-        self.dlnv = 2 * np.nanmean(np.diff(np.log10(self.velocity[tidx,:,0,0])))
+        self.dlnv = 1.2 * np.nanmean(np.diff(np.log10(self.velocity[tidx,:,0,0])))
 
         # making the initial estimate of counts per bin and bin edges in log space of knots 
         Nbins = int((np.log10(vmax) - np.log10(vmin)) / self.dlnv)
         counts, bin_edges = np.histogram(np.log10(self.rfac_nonan), bins=Nbins)
+
+        bin_edges += self.dlnv/2.
         
         # NOTE: ARE THESE TWO LINES NECESSARY? WHERE ARE THESE ATTRIBUTES BEING USED?
         gvdf_tstamp.hist_counts = counts
@@ -398,7 +477,7 @@ class gyrovdf:
 
         # merging bins to have spline_mincount number of counts per bin of knots
         new_edges, _ = fn.merge_bins(bin_edges, counts, self.spline_mincount)
-        log_knots = np.sum(new_edges, axis=1)/2
+        log_knots = np.sum(new_edges, axis=1)/2 
 
         # adding the first and last points as knots
         log_knots = np.append(new_edges[0][0] - self.dlnv/2., log_knots)
@@ -493,6 +572,19 @@ class gyrovdf:
 
         vdf_inv, vdf_super, zeromask, data_misfit, model_misfit = self.inversion_code.super_resolution(self, tidx, NPTS)
 
+        # converting the vdf_super back to the log_unscaled_vdfdata convention
+        # vdf_super = maxwellian_inversion.convert_logresf_to_f(vdf_super, self, self.grid_points[:,1], self.grid_points[:,0])
+        # vdf_inv = maxwellian_inversion.convert_logresf_to_f(vdf_inv, self, self.vpara_nonan, self.vperp_nonan)
+
+        # # this is only for hybrid where both the reconstructions are returned
+        # if(isinstance(vdf_inv, list)):
+        #     return tuple(np.nan_to_num(np.log10(np.asarray(a, float))) for a in vdf_inv),\
+        #            tuple(np.nan_to_num(np.log10(np.asarray(a, float))) for a in vdf_super),\
+        #            zeromask, data_misfit, model_misfit
+            
+        # else:
+        #     return np.nan_to_num(np.log10(vdf_inv)), np.nan_to_num(np.log10(vdf_super)), zeromask, data_misfit, model_misfit
+
         return vdf_inv, vdf_super, zeromask, data_misfit, model_misfit
 
 #---------------ALL FUNCTIONS IN THIS BLOCK ARE USED ONLY TO FIND THE GYROCENTROID--------------#
@@ -573,20 +665,21 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
 
         # initializing the vdf data to optimize (this is the normalized and logarithmic value)
         vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
-        gvdf_tstamp.vdfdata = vdfdata * 1.0
-
-        # initializing the gyrocentroid to the reported SPAN velocity moment
-        u_origin = gvdf_tstamp.v_span[tidx,:]
+        # gvdf_tstamp.vdfdata = vdfdata * 1.0
+        gvdf_tstamp.log_unscaled_vdfdata = vdfdata * 1.0
 
         # the 3D array of grid points in VX, VY, VZ of the SPAN grid
         threeD_points = np.vstack([gvdf_tstamp.vx[tidx][gvdf_tstamp.nanmask[tidx]],
                                    gvdf_tstamp.vy[tidx][gvdf_tstamp.nanmask[tidx]],
                                    gvdf_tstamp.vz[tidx][gvdf_tstamp.nanmask[tidx]]]).T
 
+        # initializing the starting location of ubulk for the minimization
+        u_origin = gvdf_tstamp.v_span[tidx] * 1.0
+
         # first estimate of correction to the SPAN-moment using scipy.optimize.minimize
         u_corr, __, u, v = find_symmetry_point(threeD_points, vdfdata, gvdf_tstamp.bvec[tidx],
-                                               loss_fn_Slepians, tidx, origin=u_origin,
-                                               MIN_METHOD=MIN_METHOD)
+                                            loss_fn_Slepians, tidx, origin=u_origin,
+                                            MIN_METHOD=MIN_METHOD)
         # storing this to compare with the MCMC estimate, if needed, No other reason.
         u_corr_scipy = u_corr * 1.0
         
@@ -605,6 +698,11 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
 
         # if we want to further refine the estimate and obtain error bounds
         if(MCMC):
+            # initializing the vdf data to optimize (this is the normalized and logarithmic value)
+            vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
+            # gvdf_tstamp.vdfdata = vdfdata * 1.0
+            gvdf_tstamp.log_unscaled_vdfdata = vdfdata * 1.0
+
             # after the scipy correction, we start assuming (0,0) in the perpendicular phase space
             Vperp1, Vperp2 = 0.0, 0.0
             
@@ -663,6 +761,8 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         gvdf_tstamp.rec_quants['temp'][tidx,0] = Trace / 1e6   #converting to MK
         gvdf_tstamp.rec_quants['tani'][tidx,0] = (Tcomps[1] / Tcomps[0])
 
+        gvdf_tstamp.vdf_super = vdf_super
+
         if(SAVE_FIGS): gvdf_tstamp.plotter_func(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                                                 model_misfit=model_misfit, data_misfit=data_misfit,
                                                 GRID=True, SAVE_FIGS=SAVE_FIGS)
@@ -677,6 +777,8 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         bundle['data_misfit'] = data_misfit
         bundle['model_misfit'] = model_misfit
 
+        print(f'The density is {den}/1702')
+
         # saving additional parameters if MCMC is True
         if(MCMC):
             bundle['u_corr']  = u_corr
@@ -689,12 +791,12 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         vdf_rec_bundle[tidx] = bundle
 
     if(SAVE_PKL):
-        # ts0 = datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
-        # ts1 = datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX + NSTEPS - 1])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
+        ts0 = 0#datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
+        ts1 = 0#datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX + NSTEPS - 1])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
         ymd = 'bimax'#ts0.strftime('%Y%m%d')
-        a_label = 'test' #ts0.strftime('%H%M%S')
-        b_label = 'case' #ts1.strftime('%H%M%S')
-        misc_fn.write_pickle(vdf_rec_bundle, f'./Outputs/TEST2_vdf_rec_dataA_{gvdf_tstamp.method}_{MCMC_WALKERS}_{MCMC_STEPS}_{ymd}_{a_label}_{b_label}')
+        a_label = 'test'#ts0.strftime('%H%M%S')
+        b_label = 'case'#ts1.strftime('%H%M%S')
+        misc_fn.write_pickle(vdf_rec_bundle, f'./Outputs/{gvdf_tstamp.filename[:6]}_test3_vdf_rec_data_{gvdf_tstamp.method}_{MCMC_WALKERS}_{MCMC_STEPS}_{ymd}_{a_label}_{b_label}')
 
 def run(config):
     """
@@ -720,7 +822,6 @@ def run(config):
     # loading the PSP data for the given TRANGE with optional clipping
     if config['global']['FILENAME']:
         psp_vdf = cdflib.cdf_to_xarray(config['global']['FILENAME'])  # Load in the synthetic data
-        print(psp_vdf)
     else:
         psp_vdf = fn.init_psp_vdf(config['global']['TRANGE'], CREDENTIALS=creds, CLIP=config['global']['CLIP'])
 

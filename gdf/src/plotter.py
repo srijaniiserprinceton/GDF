@@ -98,7 +98,8 @@ def plot_super_resolution_POLCAP(gvdf, vdf_super, mu, tidx, SAVE=False, VDFUNITS
     if VDFUNITS:
         f_super = np.power(10, vdf_super) * gvdf.minval[tidx]
         f_data = np.power(10, gvdf.log_unscaled_vdfdata) * gvdf.minval[tidx]
-        lvls = np.linspace(int(np.log10(gvdf.minval[tidx]) - 1), int(np.log10(gvdf.maxval[tidx])+1), 25)
+        # lvls = np.linspace(int(np.log10(gvdf.minval[tidx]) - 1), int(np.log10(gvdf.maxval[tidx])+1), 25)
+        lvls = np.linspace(-24, -17, 25)
         cmap = plt.cm.inferno
         norm = colors.BoundaryNorm(lvls, cmap.N)
         if VSHIFT:
@@ -395,7 +396,7 @@ def cartesian_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     f_data = np.power(10, vdf_data) * gvdf_tstamp.minval[tidx]
 
     plot_super_resolution_CARTSLEP(gvdf_tstamp, gvdf_tstamp.CartSlep, xx, yy, f_data, f_supres, tidx, SAVE=SAVE_FIGS)
-    plot_CartSlep(xx, yy, gvdf_tstamp, f_data, tidx, SAVE=SAVE_FIGS)
+    # plot_CartSlep(xx, yy, gvdf_tstamp, f_data, tidx, SAVE=SAVE_FIGS)
 
 def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                    model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False, ext='png'):
@@ -463,10 +464,10 @@ def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     ax2.set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
     fig.supylabel(r'$v_{\parallel}$ [km/s]', fontsize=19)
 
-    ax1.set_xlim([-250, 250])
-    ax2.set_xlim([-250, 250])
-    ax1.set_ylim([200, 800])
-    ax2.set_ylim([200, 800])
+    # ax1.set_xlim([-250, 250])
+    # ax2.set_xlim([-250, 250])
+    # ax1.set_ylim([200, 800])
+    # ax2.set_ylim([200, 800])
 
     cax = fig.add_axes([ax1.get_position().x0 + 0.06, ax1.get_position().y1+0.05,
                         ax1.get_position().x1 - ax1.get_position().x0, 0.02])

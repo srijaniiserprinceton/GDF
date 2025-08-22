@@ -13,14 +13,17 @@ config = {
         'METHOD'          : 'hybrid',
         'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'],
         # 'FILENAME'        : 'bimax_vdf_500_bhat_clockwise_field_rotation_pi_8_to_neg_pi_2_hires.cdf',
-        'FILENAME'        : 'bimax_vdf_500_250_clockwise_field_rotation_corrected_hires.cdf',
+        # 'FILENAME'        : 'bimax_vdf_500_250_clockwise_field_rotation_corrected_hires.cdf',
+        'FILENAME'        : 'Test_1_synthetic_vdf.cdf',
+        # 'FILENAME'        : 'Test_2_synthetic_vdf.cdf',
+        # 'FILENAME'        : 'Test_3_synthetic_vdf.cdf',
         'CLIP'            : True,
         'START_INDEX'     : 0,
-        'NSTEPS'          : None,
+        'NSTEPS'          : 25,
         'CREDS_PATH'      : None,
         'COUNT_THRESHOLD' : 2,
-        'SAVE_FIGS'       : False,
-        'SAVE_PKL'        : True,
+        'SAVE_FIGS'       : True,
+        'SAVE_PKL'        : False,
         'MIN_METHOD'      : 'L-BFGS-B',
         'NPTS_SUPER'      : 49,
         'MCMC'            : False,
@@ -36,9 +39,9 @@ config = {
     },
     'cartesian': {
         'N2D_CART'        : None,
-        'N2D_CART_MAX'    : 60,
+        'N2D_CART_MAX'    : 100,
     },
     'hybrid': {
-        'LAMBDA'          : 1e-1,
+        'LAMBDA'          : None,
     }
 }
