@@ -67,8 +67,10 @@ def find_hybrid_knee_idx(gvdf_tstamp, G, d, hybrid_dict):
         vdf_super_polcap = hybrid_dict['Af'] @ m_polcap
         vdf_super_cartesian = hybrid_dict['Bf'] @ m_cartesian
 
+        mu = gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx]
         # computing and appending the data misfit
-        data_misfit.append(np.linalg.norm(vdf_inv_polcap - gvdf_tstamp.vdfdata)**2 + np.linalg.norm(vdf_inv_cartesian[hybrid_dict['ndata_A']:] - gvdf_tstamp.vdfdata)**2)
+        data_misfit.append(np.linalg.norm(vdf_inv_polcap - gvdf_tstamp.vdfdata)**2 \
+                           + np.linalg.norm(vdf_inv_cartesian[hybrid_dict['ndata_A']:] - gvdf_tstamp.vdfdata)**2 )
 
         # computing and appending the model misfit
         model_misfit.append(np.linalg.norm(vdf_super_polcap - vdf_super_cartesian)**2)
@@ -123,7 +125,7 @@ def create_hybrid_Gmatrix(gvdf_tstamp, hybrid_dict):
 
     # including the B-spline regularization for polar-cap model
     G[hybrid_dict['ndata_A']+hybrid_dict['ndata_B']+hybrid_dict['nf']:hybrid_dict['ndata_A']+hybrid_dict['ndata_B']+hybrid_dict['nf']+hybrid_dict['nparams_A'],
-      :hybrid_dict['nparams_A']] = -1.0 * np.sqrt(gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx]) * P_reg
+      :hybrid_dict['nparams_A']] = -0.0 * np.sqrt(gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx]) * P_reg
 
     # creating the augmented data matrix
     d = np.zeros((hybrid_dict['ndata_A'] + hybrid_dict['ndata_B'] + hybrid_dict['nf'] + hybrid_dict['nparams_A']))
