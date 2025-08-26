@@ -730,7 +730,7 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
 
         if(SAVE_FIGS): gvdf_tstamp.plotter_func(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                                                 model_misfit=model_misfit, data_misfit=data_misfit,
-                                                GRID=True, SAVE_FIGS=SAVE_FIGS)
+                                                GRID=True, SAVE_FIGS=SAVE_FIGS, ext='png')
 
         # bundling the post-processed parameters of interest
         bundle = {}
