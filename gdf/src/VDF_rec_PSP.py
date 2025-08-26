@@ -390,9 +390,7 @@ class gyrovdf:
 
         # making the knots everytime the gyrotropic coordinates are changed
         self.make_knots(tidx)
-
-        # making the scaled log vdfdata
-        # self.vdfdata =  maxwellian_inversion.convert_f_to_logscaledf(np.power(10, self.log_unscaled_vdfdata), self)
+        
         # concatenating to make both sides
         vpara = np.concatenate([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan])
         vperp = np.concatenate([-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan])
@@ -401,19 +399,15 @@ class gyrovdf:
         self.M = maxwellian_inversion.fit_maxwellian(vpara, vperp, y) 
 
         #----------adding the fiducial data point at the peak of the maxwellian here--------#
-        # fid_vpara = np.linspace(self.vpara_nonan.min(), self.M['u'], 10)
         fid_vpara = np.linspace(self.M['u'] - self.M['wpar']/2., self.M['u'], 20)
         fid_vperp = np.zeros_like(fid_vpara)
 
         M_cen = maxwellian_inversion.maxwellian_model(fid_vpara, fid_vperp, self.M['A'],
                                                       self.M['u'], self.M['wpar'], self.M['wperp'])
-        # M_cen_in_vdfdata = np.log10((M_cen + 1) / (M_cen - self.epsilon + 1)) - self.log_minval
         M_cen_in_vdfdata = np.log10(M_cen)
 
         # adding to the data
         self.vdfdata = np.append(self.vdfdata, M_cen_in_vdfdata)
-        # M_cen_in_vdfdata_log_unscaled = np.power(10, M_cen_in_vdfdata + gvdf_tstamp.log_minval) * (M_cen - gvdf_tstamp.epsilon + 1) - 1
-        # self.log_unscaled_vdfdata = np.append(self.log_unscaled_vdfdata, np.log10(M_cen_in_vdfdata_log_unscaled))
 
         # adding these points in rfac_nonan and theta_fac_nonan
         self.rfac_nonan = np.append(self.rfac_nonan, fid_vpara)
@@ -640,8 +634,6 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
 
         # initializing the vdf data to optimize (this is the normalized and logarithmic value)
         gvdf_tstamp.vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
-        # only needed in plotter. This is the set of data points which are un-appended by the fiducial points
-        # gvdf_tstamp.log_unscaled_vdfdata = vdfdata * 1.0
 
         # the 3D array of grid points in VX, VY, VZ of the SPAN grid
         threeD_points = np.vstack([gvdf_tstamp.vx[tidx][gvdf_tstamp.nanmask[tidx]],
@@ -675,8 +667,6 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         if(MCMC):
             # initializing the vdf data to optimize (this is the normalized and logarithmic value)
             gvdf_tstamp.vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
-            # gvdf_tstamp.vdfdata = vdfdata * 1.0
-            # gvdf_tstamp.log_unscaled_vdfdata = vdfdata * 1.0
 
             # after the scipy correction, we start assuming (0,0) in the perpendicular phase space
             Vperp1, Vperp2 = 0.0, 0.0
@@ -688,7 +678,7 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
             pos = np.array([Vperp1_pos, Vperp2_pos]).T
 
             # TODO: MAY CONVERT TO MULTIPROCESSING SETUP, IF NEEDED.
-            sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability_perpspace, args=(vdfdata, tidx, u_adj, u, v))
+            sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability_perpspace, args=(gvdf_tstamp.vdfdata, tidx, u_adj, u, v))
             sampler.run_mcmc(pos, MCMC_STEPS, progress=True)
             
             # extracting the MCMC chains

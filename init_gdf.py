@@ -30,7 +30,7 @@ config = {
         'SAVE_PKL'        : True,
         'MIN_METHOD'      : 'L-BFGS-B',
         'NPTS_SUPER'      : 49,
-        'MCMC'            : False,
+        'MCMC'            : True,
         'MCMC_WALKERS'    : 8,
         'MCMC_STEPS'      : 2000,
     },
