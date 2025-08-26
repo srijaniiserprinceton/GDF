@@ -73,10 +73,10 @@ def inversion_CartSlep(gvdf_tstamp):
     GTG = gvdf_tstamp.CartSlep.G.T @ gvdf_tstamp.CartSlep.G
     GTd = gvdf_tstamp.CartSlep.G.T @ vdf_data
     
-    _,s,_ = np.linalg.svd(GTG)
+    __, s, __ = np.linalg.svd(GTG)
     
     # the 'sym' option is used since we know GTG is a symmetric matrix
-    coeffs = solve(GTG + 1e-6*s.max()*np.eye(GTG.shape[0]), GTd, assume_a='sym')
+    coeffs = solve(GTG + 1e-6 * s.max() * np.eye(GTG.shape[0]), GTd, assume_a='sym')
     
     gvdf_tstamp.s_ratio.append(s.max()/s.min()) 
 
