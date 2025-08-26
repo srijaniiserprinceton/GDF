@@ -810,7 +810,7 @@ def find_kmax_from_maxvel(gvdf_tstamp, psp_vdf, Lmax=12):
     gvdf_tstamp.theta_res = 180 // Lmax
 
     # converting to 15 degrees length-scale [r d\theta]
-    wavelength = maxval_velocities * np.radians(gvdf_tstamp.theta_res)/np.sqrt(2)
+    wavelength = maxval_velocities * np.radians(gvdf_tstamp.theta_res) #/np.sqrt(2)
 
     # defining the maximum wavenumber
     kmax = np.pi / (wavelength)
@@ -847,22 +847,17 @@ def find_kmax_NN(gvdf_tstamp, tidx, NN=6):
     # Find 10 nearest neighbors to the orange point
     distances, indices = nn.kneighbors(query_point)
     # Get the neighbor points
-    
     nearest_points = cluster_points[indices[0]]
-    # getting vperp max
-    # vperp_argmax = np.argmax(nearest_points[:,1])
-    # vperp_max = nearest_points[vperp_argmax, 1]
     
     # Getting the mean value of the vperps
     vperp_max = np.mean(nearest_points[:,1])
 
     return np.pi / (vperp_max)
 
-def find_kmax_NN_2(gvdf_tstamp, tidx, NN=4):
+def find_kmax_from_avg_vperp(gvdf_tstamp, tidx, NN=4):
     r"""
-    Calculating the maximum resolvable wavenumber based on nearest neighbours from the 
-    :math:`(v_{\parallel, \mathrm{maxvel}}, 0)` location. Currently the default is to choose from the
-    six nearest neighbours.
+    Calculating the maximum resolvable wavenumber based on calculating the largest k calculated from \sqrt(kmax_para + kmax_perp). 
+    Currently the default is to choose from the six nearest neighbours.
 
     Parameters
     ----------
@@ -876,49 +871,53 @@ def find_kmax_NN_2(gvdf_tstamp, tidx, NN=4):
     NN : int (optional)
         The number of nearest neighbours to consider when determining the :math:`k_{\mathrm{max, NN}}`.
     """
-    cluster_points = np.vstack([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vperp_nonan]).T  # blue points
+    # building a cluster of all significant count points
+    cluster_points = np.vstack([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vperp_nonan]).T
+
+    # creading the mask used for purging the fiducial (fid) points
     fid_mask = cluster_points[:,1] == 0
 
+    # the cluster of points only from the instrument grid after purging the fiducial points
     cluster_points = cluster_points[~fid_mask]
     
-    query_point = np.array([[np.abs(gvdf_tstamp.vpara[*gvdf_tstamp.max_indices[tidx]]), 0]])  # the orange point
+    # this is the "central point" which is closest to the peak value of the measurement but on vperp=0
+    query_point = np.array([[np.abs(gvdf_tstamp.vpara[*gvdf_tstamp.max_indices[tidx]]), 0]])
 
+    # adding points along vpara axis from the "central point" up to the maximum recorded vpara to get the inner band of points using nearest neighbour finder
     vpara_points = np.linspace(query_point[0][0], np.max(gvdf_tstamp.vpara_nonan), 10)
-
     query_points = np.vstack([vpara_points, np.zeros_like(vpara_points)]).T
 
+    # list to store the index of points which are nearest neighbours to the 10 points placed along vperp=0
     indices_list = []
+
     for i in range(10):
-        # Fit nearest neighbors
+        # Find nearest neighbors
         nn = NearestNeighbors(n_neighbors=NN)
         nn.fit(cluster_points)
-        # Find 10 nearest neighbors to the orange point
+
+        # Find 10 nearest neighbors to a query point along vperp=0 axis
         distances, indices = nn.kneighbors(np.array([query_points[i]]))
-        # Get the neighbor points
+
+        # Get the indices for the neighboring points for this query point
         indices_list.append(indices[0])
     
+    # picking the unique points that lie along the inner branch
     indexes = np.unique(indices_list)
     nearest_points = cluster_points[indexes]
-    # getting vperp max
-    # vperp_argmax = np.argmax(nearest_points[:,1])
-    # vperp_max = nearest_points[vperp_argmax, 1]
     
-    # Getting the mean value of the vperps
+    # Getting the mean value of the vperps (from points along the central band about vperp=0)
     vperp_max = np.mean(nearest_points[:,1])
+
+    # calculating the differences in unique vpara
     vpara_diffs = (np.diff(np.unique(nearest_points[:,0])))
+
+    # picking the differences in vpara only when the difference is larger than 10km/s (to avoid differences from points on highly aligned shell)
     vpara_max = np.mean(vpara_diffs[vpara_diffs > 10])
 
+    # estimating the maximum distance in velocity phase space that is resolvable using cartesian inversion
     v_max = np.sqrt(vperp_max**2 + vpara_max**2)
-    # vperp_max = gvdf_tstamp.M['wperp']
 
-    # fig, ax = plt.subplots(1, 2, figsize=(12, 6))
-
-    # ax[0].scatter(gvdf_tstamp.vperp_nonan, gvdf_tstamp.vpara_nonan, color='k')
-    # [ax[0].scatter(nearest_points[i][1], nearest_points[i][0], color='r') for i in range(len(nearest_points))]
-
-    # ax[1].hist(vpara_diffs)
-
-    # plt.show()
+    # using k = pi / lambda
     return np.pi / (v_max) 
 
 def find_N2D_cart(gvdf_tstamp, tidx):
@@ -937,12 +936,10 @@ def find_N2D_cart(gvdf_tstamp, tidx):
     tidx : int
         The integer indicating the timestamp being evaluated.
     """
-    kmax_NN = find_kmax_NN_2(gvdf_tstamp, tidx)
-    gvdf_tstamp.kmax_arr_adjusted[tidx] = np.min([gvdf_tstamp.kmax_arr[tidx], kmax_NN])
-    gvdf_tstamp.kmax_arr_adjusted[tidx] = kmax_NN #gvdf_tstamp.kmax_arr[tidx]
+    kmax_NN = find_kmax_from_avg_vperp(gvdf_tstamp, tidx)
+    # gvdf_tstamp.kmax_arr_adjusted[tidx] = np.min([gvdf_tstamp.kmax_arr[tidx], kmax_NN])
+    gvdf_tstamp.kmax_arr_adjusted[tidx] = kmax_NN
     N2D_cart = int(np.floor(gvdf_tstamp.kmax_arr_adjusted[tidx]**2 * gvdf_tstamp.hull_area / (4*np.pi)))
-
-    print('HERE', kmax_NN, N2D_cart, N2D_cart*2)
     return N2D_cart
 
 def find_spherical_center(points, data, starting_guess=None, smoothing=0.1):

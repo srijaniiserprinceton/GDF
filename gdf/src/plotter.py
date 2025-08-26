@@ -97,7 +97,7 @@ def plot_super_resolution_POLCAP(gvdf, vdf_super, mu, tidx, SAVE=False, VDFUNITS
 
     if VDFUNITS:
         f_super = np.power(10, vdf_super) * gvdf.minval[tidx]
-        f_data = np.power(10, gvdf.log_unscaled_vdfdata) * gvdf.minval[tidx]
+        f_data = np.power(10, gvdf.vdfdata) * gvdf.minval[tidx]
         # lvls = np.linspace(int(np.log10(gvdf.minval[tidx]) - 1), int(np.log10(gvdf.maxval[tidx])+1), 25)
         lvls = np.linspace(-24, -17, 25)
         cmap = plt.cm.inferno
@@ -271,7 +271,7 @@ def plot_CartSlep(xx, yy, gvdf_tstamp, f_data, tidx, ext='png', SAVE=False):
     nearest_points = cluster_points[indices[0]]
     vperp_max = np.mean(nearest_points, axis=0)[1]
 
-    vmaxval = gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.log_unscaled_vdfdata)]
+    vmaxval = gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.vdfdata)]
 
     cmap = plt.cm.inferno
     lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
@@ -284,11 +284,11 @@ def plot_CartSlep(xx, yy, gvdf_tstamp, f_data, tidx, ext='png', SAVE=False):
                   cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
     ax[0].scatter(-nearest_points[:,1], nearest_points[:,0], c=np.log10(f_data[indices[0]]), s=50,
                   cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
-    ax[0].scatter(gvdf_tstamp.vperp_nonan[np.argmax(gvdf_tstamp.log_unscaled_vdfdata)],
-                  gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.log_unscaled_vdfdata)],
+    ax[0].scatter(gvdf_tstamp.vperp_nonan[np.argmax(gvdf_tstamp.vdfdata)],
+                  gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.vdfdata)],
                   marker='*', color='k', s=50)
-    ax[0].scatter(-gvdf_tstamp.vperp_nonan[np.argmax(gvdf_tstamp.log_unscaled_vdfdata)],
-                  gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.log_unscaled_vdfdata)],
+    ax[0].scatter(-gvdf_tstamp.vperp_nonan[np.argmax(gvdf_tstamp.vdfdata)],
+                  gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.vdfdata)],
                   marker='*', color='k', s=50)
 
     ax[1].pcolormesh(xx, yy, np.reshape(gvdf_tstamp.CartSlep.H[:,2], (49,49), 'F'), vmin=-maxval, vmax=maxval,
@@ -375,7 +375,7 @@ def plot_super_resolution_CARTSLEP(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supr
 
 def polcap_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                    model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False):
-    plot_span_vs_rec_contour_POLCAP(gvdf_tstamp, gvdf_tstamp.log_unscaled_vdfdata, vdf_inv, tidx,
+    plot_span_vs_rec_contour_POLCAP(gvdf_tstamp, gvdf_tstamp.vdfdata, vdf_inv, tidx,
                                     GRID=True, SAVE=SAVE_FIGS)
     # plot_super_resolution_POLCAP(gvdf_tstamp, vdf_super, gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx],
     #                              tidx, VDFUNITS=True, VSHIFT=gvdf_tstamp.vel, SAVE=SAVE_FIGS)
@@ -392,7 +392,7 @@ def cartesian_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
 
     # converting the VDFs to SPAN-i consistent units
     f_supres = np.power(10, vdf_super) * gvdf_tstamp.minval[tidx]
-    vdf_data = np.append(gvdf_tstamp.log_unscaled_vdfdata, gvdf_tstamp.log_unscaled_vdfdata)
+    vdf_data = np.append(gvdf_tstamp.vdfdata, gvdf_tstamp.vdfdata)
     f_data = np.power(10, vdf_data) * gvdf_tstamp.minval[tidx]
 
     plot_super_resolution_CARTSLEP(gvdf_tstamp, gvdf_tstamp.CartSlep, xx, yy, f_data, f_supres, tidx, SAVE=SAVE_FIGS)
@@ -411,7 +411,7 @@ def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     f_supres_B = np.reshape(f_supres_cartesian, (gvdf_tstamp.nptsx,gvdf_tstamp.nptsy), 'F').T.flatten()
 
     # the SPAN data
-    f_data = np.power(10, gvdf_tstamp.log_unscaled_vdfdata) * gvdf_tstamp.minval[tidx]
+    f_data = np.power(10, gvdf_tstamp.vdfdata) * gvdf_tstamp.minval[tidx]
 
     # the SPAN data grids in FAC
     span_gridx = np.append(-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan)
