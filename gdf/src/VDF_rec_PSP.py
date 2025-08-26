@@ -797,7 +797,7 @@ def run(config):
 
     if(config['global']['SYNTHDATA_FILE']): 
         # Load in the synthetic data
-        psp_vdf = cdflib.cdf_to_xarray(config['global']['FILENAME'])
+        psp_vdf = cdflib.cdf_to_xarray(config['global']['SYNTHDATA_FILE'])
     else:
         # loading the PSP data for the given TRANGE with optional clipping
         psp_vdf = fn.init_psp_vdf(config['global']['TRANGE'], CREDENTIALS=creds, CLIP=config['global']['CLIP'])
