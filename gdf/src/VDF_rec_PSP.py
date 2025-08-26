@@ -688,7 +688,7 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
             pos = np.array([Vperp1_pos, Vperp2_pos]).T
 
             # TODO: MAY CONVERT TO MULTIPROCESSING SETUP, IF NEEDED.
-            sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability_perpspace, args=(vdfdata, tidx, u_adj, u, v))
+            sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability_perpspace, args=(gvdf_tstamp.vdfdata, tidx, u_adj, u, v))
             sampler.run_mcmc(pos, MCMC_STEPS, progress=True)
             
             # extracting the MCMC chains
