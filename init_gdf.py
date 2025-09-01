@@ -19,15 +19,16 @@
 config = {
     'global': {
         'METHOD'          : 'hybrid',
-        'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'], # Define the time range to load in from pyspedas
+        'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T15:28:00'], # Define the time range to load in from pyspedas
         'SYNTHDATA_FILE'  : None,                                           # Path to a data file containing synthetic observation
         'CLIP'            : True,
         'START_INDEX'     : 0,
-        'NSTEPS'          : 1,                                              # use None for entire TRANGE interval
+        'NSTEPS'          : 2,                                              # use None for entire TRANGE interval
         'CREDS_PATH'      : './config.json',                                # path to the <.json> file containing credentials
         'COUNT_THRESHOLD' : 2,
         'SAVE_FIGS'       : True,
         'SAVE_PKL'        : True,
+        'SAVE_SUPRES'     : True,
         'MIN_METHOD'      : 'L-BFGS-B',
         'NPTS_SUPER'      : 49,
         'MCMC'            : False,

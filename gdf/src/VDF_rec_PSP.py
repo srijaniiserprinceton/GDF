@@ -415,6 +415,9 @@ class gyrovdf:
         # making similar adjustments in vpara_nonan and vperp_nonan
         self.vpara_nonan = np.append(self.vpara_nonan, fid_vpara)
         self.vperp_nonan = np.append(self.vperp_nonan, fid_vperp)
+
+        # creating the mask for the fiducial points
+        self.fid_mask = self.vperp_nonan == 0
         
 
     def make_knots(self, tidx):
@@ -606,7 +609,7 @@ def project_uncertainty(Sigma_ab, u, v, coord='y'):
 #---------------------------------------------------------------------------------------------#
 def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
          MCMC = False, MCMC_WALKERS=6, MCMC_STEPS=200,
-         MIN_METHOD='L-BFGS-B', SAVE_FIGS=False, SAVE_PKL=True):
+         MIN_METHOD='L-BFGS-B', SAVE_FIGS=False, SAVE_PKL=True, SAVE_SUPRES=False):
     """
     All the real computations happen in this function --- loading the data, finding the
     gyrocentroid and finding the final super-resolution. The input parameters are the same
@@ -614,6 +617,9 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
     """
     # the dictionary that is finally saved as a .pkl file
     vdf_rec_bundle = {}
+
+    # dictionary to save super-resolution
+    vdf_supres_bundle = {}
 
     # computes till the last timestamp available if NSTEPS is not specified
     if(NSTEPS is None): NSTEPS = len(psp_vdf.time.data)
@@ -753,6 +759,24 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
 
         vdf_rec_bundle[tidx] = bundle
 
+        # populating the dictionary containing the super-resolved grid (for plasma solvers, etc.)
+        if(SAVE_SUPRES):
+            supres_bundle = {}
+            # the super-resololved data and grid
+            supres_bundle['vdf_supres'] = vdf_super
+            supres_bundle['vperp_supres'] = gvdf_tstamp.grid_points[:,0]
+            supres_bundle['vpara_supres'] = gvdf_tstamp.grid_points[:,1]
+            # saving the data points excluding the fiducial points
+            supres_bundle['vdf_data'] = gvdf_tstamp.vdfdata[~gvdf_tstamp.fid_mask]
+            supres_bundle['vperp_data'] = gvdf_tstamp.vperp_nonan[~gvdf_tstamp.fid_mask]
+            supres_bundle['vpara_data'] = gvdf_tstamp.vpara_nonan[~gvdf_tstamp.fid_mask]
+            supres_bundle['convex_hull'] = gvdf_tstamp.boundary_points
+            # adding the minval to recover the original VDF
+            supres_bundle['minval'] = gvdf_tstamp.minval[tidx]
+            # the convex hull inside which the super-resolved GDF exists
+            vdf_supres_bundle[tidx] = supres_bundle
+
+
     if(not gvdf_tstamp.synth_file and SAVE_PKL):
         ts0 = datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
         ts1 = datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX + NSTEPS - 1])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
@@ -762,6 +786,13 @@ def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
         misc_fn.write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{gvdf_tstamp.method}_{MCMC_WALKERS}_{MCMC_STEPS}_{ymd}_{a_label}_{b_label}')
     else:
         misc_fn.write_pickle(vdf_rec_bundle, f'./Outputs/{gvdf_tstamp.synth_file[:6]}_final_vdf_rec_data_{gvdf_tstamp.method}_{MCMC_WALKERS}_{MCMC_STEPS}')
+
+    # saving the dictionary containing the super-resolved grid (for plasma solvers, etc.)
+    if(SAVE_SUPRES):
+        if(not gvdf_tstamp.synth_file):
+            misc_fn.write_pickle(vdf_supres_bundle, f'./Outputs/supres_dict_{gvdf_tstamp.method}_{MCMC_WALKERS}_{MCMC_STEPS}_{ymd}_{a_label}_{b_label}')
+        else:
+            misc_fn.write_pickle(vdf_supres_bundle, f'./Outputs/supres_dict_{gvdf_tstamp.synth_file[:6]}_{gvdf_tstamp.method}_{MCMC_WALKERS}_{MCMC_STEPS}')
 
 
 def run(config):
@@ -803,7 +834,8 @@ def run(config):
          MCMC_STEPS=config['global']['MCMC_STEPS'],
          MIN_METHOD=config['global']['MIN_METHOD'],
          SAVE_FIGS=config['global']['SAVE_FIGS'],
-         SAVE_PKL =config['global']['SAVE_PKL'])
+         SAVE_PKL =config['global']['SAVE_PKL'],
+         SAVE_SUPRES=config['global']['SAVE_SUPRES'])
 
     return gvdf_tstamp
 
