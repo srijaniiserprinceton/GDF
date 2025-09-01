@@ -28,7 +28,7 @@ config = {
         'COUNT_THRESHOLD' : 2,
         'SAVE_FIGS'       : True,
         'SAVE_PKL'        : True,
-        'SAVE_SUPRES'     : True,
+        'SAVE_SUPRES'     : False,
         'MIN_METHOD'      : 'L-BFGS-B',
         'NPTS_SUPER'      : 49,
         'MCMC'            : False,
