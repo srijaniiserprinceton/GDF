@@ -455,7 +455,11 @@ class synthetic_models:
 
         self.bvecs = bvec
         self.uvecs = uvec
-        self.Nsteps = len(bvec)
+
+        if bvec.ndim > 1:
+            self.Nsteps = len(bvec)
+        else:
+            self.Nsteps = 1
 
         self.tag = TAG
 

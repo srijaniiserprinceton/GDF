@@ -204,14 +204,18 @@ if __name__ == '__main__':
     if CASE == '1':
         # res_polcap = read_pickle('./Outputs/Test_1_test2_vdf_rec_data_polcap_3_200_bimax_test_case')
         res_polcap = read_pickle('./Outputs/Test_1_final_vdf_rec_data_polcap_4_600')
-        res_cart = read_pickle('./Outputs/Test_1_test3_vdf_rec_data_cartesian_3_200_bimax_test_case')
-        res_hybrid = read_pickle('./Outputs/Test_1_test3_vdf_rec_data_hybrid_3_200_bimax_test_case')
+        # res_cart = read_pickle('./Outputs/Test_1_test3_vdf_rec_data_cartesian_3_200_bimax_test_case')
+        res_cart = read_pickle('./Outputs/Test_1_final_vdf_rec_data_cartesian_3_200')
+        # res_hybrid = read_pickle('./Outputs/Test_1_test3_vdf_rec_data_hybrid_3_200_bimax_test_case')
+        res_hybrid = read_pickle('./Outputs/Test_1_final_vdf_rec_data_hybrid_3_200')
     if CASE == '2':
         # res_polcap = read_pickle('./Outputs/Test_2_test_vdf_rec_data_polcap_3_200_bimax_test_case')
         res_polcap = read_pickle('./Outputs/Test_2_final_vdf_rec_data_polcap_4_600')
-        res_cart = read_pickle('./Outputs/Test_2_test3_vdf_rec_data_cartesian_3_200_bimax_test_case')
-        # res_cart = read_pickle('./Outputs/Test2_vdf_rec_cartesian_3_200_bimax_test_case')
-        res_hybrid = read_pickle('./Outputs/Test_2_test3_vdf_rec_data_hybrid_3_200_bimax_test_case')
+        # res_cart = read_pickle('./Outputs/Test_2_test3_vdf_rec_data_cartesian_3_200_bimax_test_case')
+        # res_cart = read_pickle('./Outputs/Test_2_update_vdf_rec_data_cartesian_3_200_bimax_test_case')
+        res_cart = read_pickle('./Outputs/Test_2_final_vdf_rec_data_cartesian_3_200')
+        # res_hybrid = read_pickle('./Outputs/Test_2_test3_vdf_rec_data_hybrid_3_200_bimax_test_case')
+        res_hybrid = read_pickle('./Outputs/Test_2_final_vdf_rec_data_hybrid_3_200')
     if CASE == '3':
         res_polcap = read_pickle('./Outputs/Test3_test_vdf_rec_data_polcap_3_200_bimax_test_case')
         # res_polcap = read_pickle('./Outputs/Test3_vdf_rec_polcap_3_200_bimax_test_case')
@@ -336,6 +340,7 @@ if __name__ == '__main__':
 
     if CASE == '1':
         [ax[i].set_ylim([-50, 50]) for i in range(3)]
+        
 
         ax0.set_ylim([-10, 10])
         ax1.set_ylim([-10, 10])
@@ -346,6 +351,8 @@ if __name__ == '__main__':
         [ax[i].axhline([1.1], linestyle='dashed', color='grey') for i in range(3,6)]
         [ax[i].grid(True, alpha=0.2) for i in range(6)]
         [ax[i].axvspan((thetas[0]), (thetas[46]), zorder=0, color='grey', alpha=0.1) for i in range(6)]
+        [ax[i].axvline((thetas[14]), zorder=0, color='red', alpha=0.7) for i in range(6)]
+
         ax[5].set_xlabel('Angle (deg)')
 
         # --- Add SPC FOV arrow above the top subplot ---
@@ -435,7 +442,7 @@ if __name__ == '__main__':
         y1_1, y2_1 = 0.87, 1.14  # y range
 
         # Apply the new tick labels
-        ax_inset4.set_xticklabels(xtick_labels[1:-1])
+        ax_inset4.set_xticklabels(xtick_labels[0:-1:2])
 
         ax_inset4.set_xlim(x1, x2)
         ax_inset4.set_ylim(y1_1, y2_1)
@@ -467,7 +474,7 @@ if __name__ == '__main__':
         y1_1, y2_1 = 0.87, 1.14  # y range
 
         # Apply the new tick labels
-        ax_inset5.set_xticklabels(xtick_labels[1:-1])
+        ax_inset5.set_xticklabels(xtick_labels[0:-1:2])
 
         ax_inset5.set_xlim(x1, x2)
         ax_inset5.set_ylim(y1_1, y2_1)
