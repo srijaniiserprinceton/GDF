@@ -836,9 +836,9 @@ def find_kmax_NN(gvdf_tstamp, tidx, NN=6):
         The number of nearest neighbours to consider when determining the :math:`k_{\mathrm{max, NN}}`.
     """
     cluster_points = np.vstack([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vperp_nonan]).T  # blue points
-    fid_mask = cluster_points[:,1] == 0
+    # fid_mask = cluster_points[:,1] == 0
 
-    cluster_points = cluster_points[~fid_mask]
+    cluster_points = cluster_points[~gvdf_tstamp.fid_mask]
     
     query_point = np.array([[np.abs(gvdf_tstamp.vpara[*gvdf_tstamp.max_indices[tidx]]), 0]])  # the orange point
     # Fit nearest neighbors
@@ -874,11 +874,11 @@ def find_kmax_from_avg_vperp(gvdf_tstamp, tidx, NN=4):
     # building a cluster of all significant count points
     cluster_points = np.vstack([gvdf_tstamp.vpara_nonan, gvdf_tstamp.vperp_nonan]).T
 
-    # creading the mask used for purging the fiducial (fid) points
-    fid_mask = cluster_points[:,1] == 0
+    # # creading the mask used for purging the fiducial (fid) points
+    # fid_mask = cluster_points[:,1] == 0
 
     # the cluster of points only from the instrument grid after purging the fiducial points
-    cluster_points = cluster_points[~fid_mask]
+    cluster_points = cluster_points[~gvdf_tstamp.fid_mask]
     
     # this is the "central point" which is closest to the peak value of the measurement but on vperp=0
     query_point = np.array([[np.abs(gvdf_tstamp.vpara[*gvdf_tstamp.max_indices[tidx]]), 0]])
