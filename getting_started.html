@@ -1,0 +1,692 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Getting started &#8212; gdf</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=eba8b062" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="_static/documentation_options.js?v=e1a75a79"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=f281be69"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'getting_started';</script>
+    <link rel="icon" href="_static/favicon.ico"/>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Description of basis functions" href="basis_functions.html" />
+    <link rel="prev" title="Installation" href="install.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="_static/logo.png" class="logo__image only-light" alt="gdf - Home"/>
+    <script>document.write(`<img src="_static/logo.png" class="logo__image only-dark" alt="gdf - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basis_functions.html">Description of basis functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="polar_cap.html">Using 1D Slepians on polar caps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cartesian.html">Using 2D Slepians in a Cartesian plane</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/srijaniiserprinceton/gdf" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/srijaniiserprinceton/gdf/edit/main/getting_started.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/srijaniiserprinceton/gdf/issues/new?title=Issue%20on%20page%20%2Fgetting_started.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/getting_started.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Getting started</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#a-example-gdf-reconstruction">A example GDF reconstruction</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-the-initialization-file">Understanding the initialization file</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="getting-started">
+<span id="id1"></span><h1>Getting started<a class="headerlink" href="#getting-started" title="Link to this heading">#</a></h1>
+<p>The <code class="docutils literal notranslate"><span class="pre">gdf</span></code> repository directory comes with a <code class="docutils literal notranslate"><span class="pre">main.py</span></code> driver Python file and a <code class="docutils literal notranslate"><span class="pre">init_gdf_default.py</span></code> initialization file. It is
+expected that the user would only need to change (normally, just a few) of the parameters in the initialization
+file to obtain the distributions and associated moments in a desired time interval.</p>
+<section id="a-example-gdf-reconstruction">
+<h2>A example GDF reconstruction<a class="headerlink" href="#a-example-gdf-reconstruction" title="Link to this heading">#</a></h2>
+<p>To get started with your first reconstruction using the <code class="docutils literal notranslate"><span class="pre">gdf</span></code> repository, run the following
+in your terminal from the repository directory. <em>Make sure you have activated your environment
+where you have installed</em> <code class="docutils literal notranslate"><span class="pre">gdf</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>main.py<span class="w"> </span>init_gdf_default
+</pre></div>
+</div>
+<p>This should generate a few diagnostic figures, plots of reconstruction and super-resolution
+under the <code class="docutils literal notranslate"><span class="pre">Figures/</span></code> directory, as well as a <code class="docutils literal notranslate"><span class="pre">pkl</span></code> file under the <code class="docutils literal notranslate"><span class="pre">Outputs/</span></code> directory.
+Two of these generated figures that we would like to highlight at the outset are</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#span-rec-comparison"><span class="std std-numref">Fig. 1</span></a> which shows a comparison between the SPAN-Ai grids in field aligned
+coordinates (FAC) and the corresponding reconstructed distribution at the same grid points from
+the polar-cap Slepian reconstruction. These are plotted using <code class="docutils literal notranslate"><span class="pre">matplotlib.pyplot.tricontourf</span></code>
+since the data is on an irregular grid. This figure can be found in <code class="docutils literal notranslate"><span class="pre">Figures/span_rec_contour/</span></code>.</p></li>
+<li><p><a class="reference internal" href="#supres-polarcap"><span class="std std-numref">Fig. 2</span></a> which shows the final reconstructed GDF after being super-resolved on a
+fine Cartesian grid. This figure can be found in <code class="docutils literal notranslate"><span class="pre">Figures/super_res/</span></code>. All subsequent moments are
+computed using super-resolved distributions and <em>not</em> the crude SPAN-Ai FAC distributions.</p></li>
+</ul>
+<figure class="align-center" id="span-rec-comparison">
+<a class="reference internal image-reference" href="_images/tricontour_plot_0.png"><img alt="Comparing SPAN-Ai and reconstruction at SPAN resolution." src="_images/tricontour_plot_0.png" style="width: 95%;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Fig. 1 </span><span class="caption-text"><strong>Left:</strong> A <code class="docutils literal notranslate"><span class="pre">matplotlib.pyplot.tricontourf</span></code> representation of the SPAN-Ai VDF after rotating the
+grids into field aligned coordinates (FAC). <strong>Right:</strong> Same, but for the polar cap reconstructed GDF
+evaluated at the FAC grid locations. The colorbar is obtained from normalizing the log-scaled distributions.</span><a class="headerlink" href="#span-rec-comparison" title="Link to this image">#</a></p>
+</figcaption>
+</figure>
+<figure class="align-center" id="supres-polarcap">
+<a class="reference internal image-reference" href="_images/super_resolved_0_101.png"><img alt="Super-resolution using polar-cap reconstruction." src="_images/super_resolved_0_101.png" style="width: 95%;" />
+</a>
+<figcaption>
+<p><span class="caption-number">Fig. 2 </span><span class="caption-text">Final super-resolved image from the Slepians-on-a-polar-cap basis reconstruction. The
+background colormap is obtained from a <code class="docutils literal notranslate"><span class="pre">matplotlib.pyplot.tricontourf</span></code> of the high-resolution
+Cartesian super-resolved grid. The overplotted colored grids denote the SPAN-Ai measurements for
+visual comparison to assess goodness-of-fit. The colorbar is in log-scale but in original VDF units.</span><a class="headerlink" href="#supres-polarcap" title="Link to this image">#</a></p>
+</figcaption>
+</figure>
+</section>
+<section id="understanding-the-initialization-file">
+<h2>Understanding the initialization file<a class="headerlink" href="#understanding-the-initialization-file" title="Link to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># init_gdf_default.py</span>
+<span class="c1"># This is a template for primary initization file.</span>
+<span class="c1"># &#39;global&#39;: parameters needed for any method of reconstruction</span>
+<span class="c1"># &#39;polcap&#39;, &#39;cartesian&#39;, &#39;hybrid&#39; are parameters specific to particular methods of reconstruction</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;global&#39;</span><span class="p">:</span> <span class="p">{</span>                                                             <span class="c1">#--------GLOBAL PARAMETERS FOR GDF-----------#</span>
+        <span class="s1">&#39;METHOD&#39;</span>          <span class="p">:</span> <span class="s1">&#39;hybrid&#39;</span><span class="p">,</span>                                       <span class="c1"># choose a method. Use &#39;hybrid&#39; if unsure</span>
+        <span class="s1">&#39;TRANGE&#39;</span>          <span class="p">:</span> <span class="p">[</span><span class="s1">&#39;2020-01-26T14:28:00&#39;</span><span class="p">,</span> <span class="s1">&#39;2020-01-26T14:30:00&#39;</span><span class="p">],</span> <span class="c1"># Define the time range to load in from pyspedas</span>
+        <span class="s1">&#39;SYNTHDATA_FILE&#39;</span>  <span class="p">:</span> <span class="kc">None</span><span class="p">,</span>                                           <span class="c1"># Path to a data file containing synthetic observation</span>
+        <span class="s1">&#39;CLIP&#39;</span>            <span class="p">:</span> <span class="kc">True</span><span class="p">,</span>                                           <span class="c1"># If you want to clip the loaded day&#39;s data to the specified TRANGE</span>
+        <span class="s1">&#39;START_INDEX&#39;</span>     <span class="p">:</span> <span class="mi">0</span><span class="p">,</span>                                              <span class="c1"># Starting index with respect to the first timestamp in TRANGE</span>
+        <span class="s1">&#39;NSTEPS&#39;</span>          <span class="p">:</span> <span class="mi">1</span><span class="p">,</span>                                              <span class="c1"># use None for entire TRANGE interval</span>
+        <span class="s1">&#39;CREDS_PATH&#39;</span>      <span class="p">:</span> <span class="s1">&#39;./config.json&#39;</span><span class="p">,</span>                                <span class="c1"># path to the &lt;.json&gt; file containing credentials</span>
+        <span class="s1">&#39;COUNT_THRESHOLD&#39;</span> <span class="p">:</span> <span class="mi">2</span><span class="p">,</span>                                              <span class="c1"># the minimum counts per grid point to be consider in the reconstruction</span>
+        <span class="s1">&#39;SAVE_FIGS&#39;</span>       <span class="p">:</span> <span class="kc">True</span><span class="p">,</span>                                           <span class="c1"># flag for saving final figures. Default extension is .png</span>
+        <span class="s1">&#39;SAVE_PKL&#39;</span>        <span class="p">:</span> <span class="kc">False</span><span class="p">,</span>                                          <span class="c1"># flag for saving the reconstructed moments for the NSTEPS reconstruction</span>
+        <span class="s1">&#39;SAVE_SUPRES&#39;</span>     <span class="p">:</span> <span class="kc">False</span><span class="p">,</span>                                          <span class="c1"># if you want to save the super-resolved GDF and the corresponding grids</span>
+        <span class="s1">&#39;MIN_METHOD&#39;</span>      <span class="p">:</span> <span class="s1">&#39;L-BFGS-B&#39;</span><span class="p">,</span>                                     <span class="c1"># minimization method to find gyro-centroid</span>
+        <span class="s1">&#39;NPTS_SUPER&#39;</span>      <span class="p">:</span> <span class="mi">49</span><span class="p">,</span>                                             <span class="c1"># the number of grids in the super-resolved GDF. Taken scalar or a tuple</span>
+        <span class="s1">&#39;MCMC&#39;</span>            <span class="p">:</span> <span class="kc">False</span><span class="p">,</span>                                          <span class="c1"># flag for using MCMC based gyro-centroid refinement</span>
+        <span class="s1">&#39;MCMC_WALKERS&#39;</span>    <span class="p">:</span> <span class="mi">6</span><span class="p">,</span>                                              <span class="c1"># number of inpendent walkers to be used in MCMC</span>
+        <span class="s1">&#39;MCMC_STEPS&#39;</span>      <span class="p">:</span> <span class="mi">200</span><span class="p">,</span>                                            <span class="c1"># number of steps each walker will take</span>
+    <span class="p">},</span>
+    <span class="s1">&#39;polcap&#39;</span><span class="p">:</span> <span class="p">{</span>                                                             <span class="c1">#-----------POLAR CAP METHOD PARAMETERS---------#</span>
+        <span class="s1">&#39;TH&#39;</span>              <span class="p">:</span> <span class="kc">None</span><span class="p">,</span>                                           <span class="c1"># the one-sided angle for the polar cap. None = use adaptive calculation</span>
+        <span class="s1">&#39;LMAX&#39;</span>            <span class="p">:</span> <span class="mi">12</span><span class="p">,</span>                                             <span class="c1"># maximum angular degree for polar cap Slepians, instrument-based choice</span>
+        <span class="s1">&#39;N2D_POLCAP&#39;</span>      <span class="p">:</span> <span class="kc">None</span><span class="p">,</span>                                           <span class="c1"># total number of 1D polcap cap Slepian functions to use. None = Shannon</span>
+        <span class="s1">&#39;P&#39;</span>               <span class="p">:</span> <span class="mi">3</span><span class="p">,</span>                                              <span class="c1"># order for the piecewise B-spline. </span>
+        <span class="s1">&#39;SPLINE_MINCOUNT&#39;</span> <span class="p">:</span> <span class="mi">7</span><span class="p">,</span>                                              <span class="c1"># minimum number of gridpoints for each knot. If lower, then merge knots</span>
+    <span class="p">},</span>
+    <span class="s1">&#39;cartesian&#39;</span><span class="p">:</span> <span class="p">{</span>                                                          <span class="c1">#------------CARTESIAN METHOD PARAMETERS---------#</span>
+        <span class="s1">&#39;N2D_CART&#39;</span>        <span class="p">:</span> <span class="kc">None</span><span class="p">,</span>                                           <span class="c1"># default choice for the number of Cartesian Slepian functions.</span>
+        <span class="s1">&#39;N2D_CART_MAX&#39;</span>    <span class="p">:</span> <span class="mi">100</span><span class="p">,</span>                                            <span class="c1"># maximum value for N2D_CART. Useful for very high calculated kmax</span>
+    <span class="p">},</span>
+    <span class="s1">&#39;hybrid&#39;</span><span class="p">:</span> <span class="p">{</span>                                                             <span class="c1">#--------------HYBRID METHOD PARAMETERS-----------#</span>
+        <span class="s1">&#39;LAMBDA&#39;</span>          <span class="p">:</span> <span class="kc">None</span><span class="p">,</span>                                           <span class="c1"># default choice for similarity parameters. None = use L-curve method</span>
+    <span class="p">},</span>
+    <span class="s1">&#39;quadrature&#39;</span><span class="p">:</span> <span class="p">{</span>                                                         <span class="c1">#--------------GAUSS-LEGENDRE QUADRATURE----------# [not used currently]</span>
+        <span class="s1">&#39;NQ_V&#39;</span>             <span class="p">:</span> <span class="mi">2</span><span class="p">,</span>                                             <span class="c1"># number of nodes in velocity</span>
+        <span class="s1">&#39;NQ_T&#39;</span>             <span class="p">:</span> <span class="mi">2</span><span class="p">,</span>                                             <span class="c1"># number of nodes in elevation (theta)</span>
+        <span class="s1">&#39;NQ_P&#39;</span>             <span class="p">:</span> <span class="mi">2</span><span class="p">,</span>                                             <span class="c1"># number of nodes in azimuth (phi)</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The initialization file is supposed to be the primary interface for a standard user. While there are
+a number of listed parameters, TRANGE, START_INDEX and NTEPS are the three primary
+parameters which we think the user would interact with the most. Descriptions for all the parameters
+are provided in the table below.</p>
+<div class="pst-scrollable-table-container"><table class="table" id="id2">
+<caption><span class="caption-number">Table 1 </span><span class="caption-text">Description of parameters in the <code class="docutils literal notranslate"><span class="pre">init_gdf_default.py</span></code> initialization file.</span><a class="headerlink" href="#id2" title="Link to this table">#</a></caption>
+<colgroup>
+<col style="width: 25.0%" />
+<col style="width: 25.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Parameter</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>TRANGE</p></td>
+<td><p>list of str</p></td>
+<td><p>Start and end times in ISO 8601 standard format in UTC <code class="docutils literal notranslate"><span class="pre">YYYY-MM-DD-Thh:mm:ss</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>CLIP</p></td>
+<td><p>bool</p></td>
+<td><p>Whether to clip to specified TRANGE or keep entire day’s data.</p></td>
+</tr>
+<tr class="row-even"><td><p>START_INDEX</p></td>
+<td><p>int</p></td>
+<td><p>Index of first desired time stamp for <code class="docutils literal notranslate"><span class="pre">gdf</span></code> with respect to the start time in TRANGE.</p></td>
+</tr>
+<tr class="row-odd"><td><p>NSTEPS</p></td>
+<td><p>int or <code class="docutils literal notranslate"><span class="pre">None</span></code></p></td>
+<td><p>Number of timestamps to analyze starting at START_INDEX. Use <code class="docutils literal notranslate"><span class="pre">None</span></code> for entire TRANGE.</p></td>
+</tr>
+<tr class="row-even"><td><p>CREDS_PATH</p></td>
+<td><p>str or <code class="docutils literal notranslate"><span class="pre">None</span></code></p></td>
+<td><p>Path to a <code class="docutils literal notranslate"><span class="pre">json</span></code> file containing credentials to access SWEAP and FIELDS proprietary data.</p></td>
+</tr>
+<tr class="row-odd"><td><p>COUNT_THRESHOLD</p></td>
+<td><p>int</p></td>
+<td><p>Particle count threshold below which grid points are ignored from reconstructions.</p></td>
+</tr>
+<tr class="row-even"><td><p>SAVE_FIGS</p></td>
+<td><p>bool</p></td>
+<td><p>Flag if the final (and diagnostic) figures should be saved under directories in <code class="docutils literal notranslate"><span class="pre">Figures/</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p>SAVE_PKL</p></td>
+<td><p>bool</p></td>
+<td><p>Flag if the final metadata should be stored as a <code class="docutils literal notranslate"><span class="pre">pkl</span></code> file in the <code class="docutils literal notranslate"><span class="pre">Outputs/</span></code> directory.</p></td>
+</tr>
+<tr class="row-even"><td><p>MIN_METHOD</p></td>
+<td><p>str</p></td>
+<td><p>Minimization method used in the <code class="docutils literal notranslate"><span class="pre">scipy.optimize.minimize</span></code>. Optimal choice is ‘L-BFGS-B’.</p></td>
+</tr>
+<tr class="row-odd"><td><p>NPTS_SUPER</p></td>
+<td><p>int or tuple of ints</p></td>
+<td><p>Number of super-resolved points in a uniform Cartesian grid of (<span class="math notranslate nohighlight">\(v_{\perp},\, v_{\parallel}\)</span>). This can be a tuple if (NPTSx, NPTSy) where <span class="math notranslate nohighlight">\(x\)</span> is along <span class="math notranslate nohighlight">\(v_{\perp}\)</span> and <span class="math notranslate nohighlight">\(y\)</span> is along <span class="math notranslate nohighlight">\(v_{\parallel}\)</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p>MCMC</p></td>
+<td><p>bool</p></td>
+<td><p>Flag to use a MCMC refinement of the gyroaxis, provides error esimtates on the gyro-centroid.</p></td>
+</tr>
+<tr class="row-odd"><td><p>MCMC_WALKERS</p></td>
+<td><p>int</p></td>
+<td><p>Number of MCMC walkers to be used. Need to use 3 minimum walkers.</p></td>
+</tr>
+<tr class="row-even"><td><p>MCMC_STEPS</p></td>
+<td><p>int</p></td>
+<td><p>Number of MCMC steps for each walker. Optimal choice: (6 MCMC_WALKERS, 200 MCMC_STEPS).</p></td>
+</tr>
+<tr class="row-odd"><td><p>TH</p></td>
+<td><p>float</p></td>
+<td><p>Polar cap extent in degrees about the magnetic field axis used for generating Slepians.</p></td>
+</tr>
+<tr class="row-even"><td><p>LMAX</p></td>
+<td><p>int</p></td>
+<td><p>Maximum angular degree for constructing the 1D Slepian basis on a polar cap..</p></td>
+</tr>
+<tr class="row-odd"><td><p>N2D_POLCAP</p></td>
+<td><p>int or <code class="docutils literal notranslate"><span class="pre">None</span></code></p></td>
+<td><p>The number of polar-cap Slepian functions to be used for reconstructions.</p></td>
+</tr>
+<tr class="row-even"><td><p>P</p></td>
+<td><p>int (default: 3)</p></td>
+<td><p>The degree of the B-spline used for discretizing in velocity phase space.</p></td>
+</tr>
+<tr class="row-odd"><td><p>SPLINE_MINCOUNT</p></td>
+<td><p>int</p></td>
+<td><p>Minimum number of grid points to be contained in each B-spline shell.</p></td>
+</tr>
+<tr class="row-even"><td><p>N2D_CART</p></td>
+<td><p>int</p></td>
+<td><p>The Shannon number for the Cartesian Slepian basis.</p></td>
+</tr>
+<tr class="row-odd"><td><p>LAMBDA</p></td>
+<td><p>float</p></td>
+<td><p>The imposed similarity in the cost function term <span class="math notranslate nohighlight">\(\lambda \left(G_1 \, m_1 - G_2 \, m_2 \right)^2\)</span>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="install.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Installation</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="basis_functions.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Description of basis functions</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#a-example-gdf-reconstruction">A example GDF reconstruction</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-the-initialization-file">Understanding the initialization file</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Srijan Bharati Das, Michael Terres
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Srijan Bharati Das, Michael Terres.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
