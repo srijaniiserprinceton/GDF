@@ -82,7 +82,8 @@ class gyrovdf:
             self.init_cartslep_params(config['cartesian'])
             # initializing the CartSlep class once; like we do for the polcap Slepians
             self.CartSlep = eval_Slepians.Slep_2D_Cartesian()
-            self.plotter_func = plotter.hybrid_plotter
+            # self.plotter_func = plotter.hybrid_plotter
+            self.plotter_func = plotter.hybrid_plotter_for_paper
 
             # the array for finding the similarity index
             if(self.lam is None):
