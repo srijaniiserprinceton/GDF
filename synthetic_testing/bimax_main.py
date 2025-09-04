@@ -1,7 +1,7 @@
 import sys, importlib
 
-# from gdf.src import VDF_rec_PSP
-import synthetic_testing.bimax_VDF_rec_PSP as VDF_rec_PSP
+from gdf.src import VDF_rec_PSP
+# import synthetic_testing.bimax_VDF_rec_PSP as VDF_rec_PSP
 from gdf.src import misc_funcs as misc_fn
 
 # importing the config file provided at command line

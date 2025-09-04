@@ -10,20 +10,20 @@
 
 config = {
     'global': {
-        'METHOD'          : 'hybrid',
-        'TRANGE'          : ['2020-01-26T14:28:00', '2020-01-26T20:30:59'],
-        # 'FILENAME'        : 'bimax_vdf_500_bhat_clockwise_field_rotation_pi_8_to_neg_pi_2_hires.cdf',
-        # 'FILENAME'        : 'bimax_vdf_500_250_clockwise_field_rotation_corrected_hires.cdf',
-        'FILENAME'        : 'Test_1_synthetic_vdf.cdf',
-        # 'FILENAME'        : 'Test_2_synthetic_vdf.cdf',
-        # 'FILENAME'        : 'Test_3_synthetic_vdf.cdf',
+        'METHOD'          : 'polcap',
+        'TRANGE'          : ['2024-12-24T09:59:00', '2024-12-24T10:01:00'], # Define the time range to load in from pyspedas
+        # 'SYNTHDATA_FILE'  : None,                                           # Path to a data file containing synthetic observation
+        'SYNTHDATA_FILE'        : 'Test_1_synthetic_vdf.cdf',
+        # 'SYNTHDATA_FILE'        : 'Test_2_synthetic_vdf.cdf',
+        # 'SYNTHDATA_FILE'        : 'Test_3_synthetic_vdf.cdf',
         'CLIP'            : True,
         'START_INDEX'     : 0,
-        'NSTEPS'          : 25,
-        'CREDS_PATH'      : None,
+        'NSTEPS'          : None,                                              # use None for entire TRANGE interval
+        'CREDS_PATH'      : '/home/michael/Research/GDF/config.json',                                # path to the <.json> file containing credentials
         'COUNT_THRESHOLD' : 2,
         'SAVE_FIGS'       : True,
         'SAVE_PKL'        : False,
+        'SAVE_SUPRES'     : True,
         'MIN_METHOD'      : 'L-BFGS-B',
         'NPTS_SUPER'      : 49,
         'MCMC'            : False,
