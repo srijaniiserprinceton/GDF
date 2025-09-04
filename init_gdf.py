@@ -22,6 +22,9 @@ config = {
         'TRANGE'          : ['2024-12-24T09:59:00', '2024-12-24T10:01:00'], # Define the time range to load in from pyspedas
         'SYNTHDATA_FILE'  : None,                                           # Path to a data file containing synthetic observation
         'CLIP'            : True,
+        'START_INDEX'     : 14,
+        'NSTEPS'          : 1,                                              # use None for entire TRANGE interval
+        'CREDS_PATH'      : './config.json',                                  # path to the <.json> file containing credentials
         'START_INDEX'     : 0,
         'NSTEPS'          : None,                                              # use None for entire TRANGE interval
         'CREDS_PATH'      : './config.json',                                # path to the <.json> file containing credentials
@@ -31,7 +34,7 @@ config = {
         'SAVE_SUPRES'     : False,
         'MIN_METHOD'      : 'L-BFGS-B',
         'NPTS_SUPER'      : 49,
-        'MCMC'            : False,
+        'MCMC'            : True,
         'MCMC_WALKERS'    : 8,
         'MCMC_STEPS'      : 2000,
     },
@@ -44,10 +47,10 @@ config = {
     },
     'cartesian': {
         'N2D_CART'        : None,
-        'N2D_CART_MAX'    : 30,
+        'N2D_CART_MAX'    : 50,
     },
     'hybrid': {
-        'LAMBDA'          : None,
+        'LAMBDA'          : 0.0,
     },
     'quadrature': {
         'NQ_V'             : 2,
