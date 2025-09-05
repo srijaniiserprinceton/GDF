@@ -3,7 +3,7 @@ import os, sys, importlib
 import matplotlib.pyplot as plt; plt.ion()
 plt.rcParams['font.size'] = 14
 
-from gdf.src import hybrid_ubulk
+from gdf.src import VDF_rec_PSP
 from gdf.src import basis_funcs as basis_fn
 
 # loading the config file to obtain the desired gvdf dictionary
@@ -12,8 +12,14 @@ current_file_dir = os.path.dirname(__file__)
 config_file = 'init_plot_setup'
 
 # importing the config file
-config = importlib.import_module(config_file, package=current_file_dir)
-gvdf_tstamp = hybrid_ubulk.run(config)
+config = importlib.import_module(config_file, package=current_file_dir).config
+gvdf_tstamp = VDF_rec_PSP.run(config)
+
+# removing the fiducial points
+gvdf_tstamp.vpara_nonan = gvdf_tstamp.vpara_nonan[~gvdf_tstamp.fid_mask]
+gvdf_tstamp.vperp_nonan = gvdf_tstamp.vperp_nonan[~gvdf_tstamp.fid_mask]
+gvdf_tstamp.S_alpha_n = gvdf_tstamp.S_alpha_n[:,~gvdf_tstamp.fid_mask]
+# gvdf_tstamp.S_alpha_n = gvdf_tstamp.S_alpha_n[~gvdf_tstamp.fid_mask]
 
 # plotting the Bsplines
 sortidx = np.argsort(gvdf_tstamp.super_rfac)
@@ -58,11 +64,11 @@ Bspline_mask = (np.sqrt(gvdf_tstamp.vperp_nonan**2 + gvdf_tstamp.vpara_nonan**2)
 # obtaining the smooth Slepian functions on a dense regular grid
 theta_grid = np.linspace(0, 180, 360)
 S_alpha_theta = basis_fn.get_Slepians_scipy(gvdf_tstamp.Slep.C, theta_grid,
-                                            gvdf_tstamp.Lmax, gvdf_tstamp.N2D)
+                                            gvdf_tstamp.Lmax, gvdf_tstamp.N2D_polcap)
 plt.figure()
-for i in range(gvdf_tstamp.N2D):
+for i in range(gvdf_tstamp.N2D_polcap):
     # 8 is the index of the timestamp we are plotting in the plot_init_setup.py file
-    plt.plot(gvdf_tstamp.theta_fa[gvdf_tstamp.nanmask[config.START_INDEX]][Bspline_mask],
+    plt.plot(gvdf_tstamp.theta_fa[gvdf_tstamp.nanmask[config['global']['START_INDEX']]][Bspline_mask],
              gvdf_tstamp.S_alpha_n[i][Bspline_mask], 'ok', alpha=0.6)
     plt.plot(theta_grid, S_alpha_theta[i], label=r'$S_{%i}(\theta)$'%(i))
 
