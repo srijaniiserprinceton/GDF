@@ -374,7 +374,7 @@ def plot_super_resolution_CARTSLEP(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supr
         plt.close()
 
 def polcap_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
-                   model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False):
+                   model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False, ext='png'):
     plot_span_vs_rec_contour_POLCAP(gvdf_tstamp, gvdf_tstamp.vdfdata, vdf_inv, tidx,
                                     GRID=True, SAVE=SAVE_FIGS)
     # plot_super_resolution_POLCAP(gvdf_tstamp, vdf_super, gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx],
@@ -385,7 +385,7 @@ def polcap_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                             gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx], SAVE=SAVE_FIGS)
 
 def cartesian_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
-                      model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False):
+                      model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False, ext='png'):
     # reshaping grids for plotting
     xx = np.reshape(gvdf_tstamp.grid_points[:,0], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
     yy = np.reshape(gvdf_tstamp.grid_points[:,1], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')

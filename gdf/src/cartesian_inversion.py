@@ -78,7 +78,7 @@ def inversion_CartSlep(gvdf_tstamp):
     # the 'sym' option is used since we know GTG is a symmetric matrix
     coeffs = solve(GTG + 1e-6 * s.max() * np.eye(GTG.shape[0]), GTd, assume_a='sym')
     
-    gvdf_tstamp.s_ratio.append(s.max()/s.min()) 
+    # gvdf_tstamp.s_ratio.append(s.max()/s.min()) 
 
     return coeffs
 
