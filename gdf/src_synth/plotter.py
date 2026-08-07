@@ -398,13 +398,9 @@ def cartesian_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     plot_super_resolution_CARTSLEP(gvdf_tstamp, gvdf_tstamp.CartSlep, xx, yy, f_data, f_supres, tidx, SAVE=SAVE_FIGS)
     # plot_CartSlep(xx, yy, gvdf_tstamp, f_data, tidx, SAVE=SAVE_FIGS)
 
-import astropy.constants as c
-import astropy.units as u
 def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                    model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False, ext='png'):
     vdf_super_polcap, vdf_super_cartesian = vdf_super
-
-    VA = ((np.linalg.norm(gvdf_tstamp.b_span[tidx]) * u.nT)/np.sqrt(c.mu0 * c.m_p * np.nanmean(gvdf_tstamp.qtn_data.electron_density) * u.cm**(-3))).to(u.km/u.s).value
 
     # converting the VDFs to SPAN-i consistent units
     f_supres_polcap = np.power(10, vdf_super_polcap) * gvdf_tstamp.minval[tidx]
@@ -447,20 +443,18 @@ def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     ax3 = fig.add_subplot(gs[:, 1])
     ax3.axis('off')    # hides background axis ticks and frame
 
-    ax1.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1] - gvdf_tstamp.vshift, '--w')
-    im = ax1.tricontourf(xx.flatten(), yy.flatten() - gvdf_tstamp.vshift, np.log10(f_supres_A), levels=lvls, cmap='inferno')
-    ax1.scatter(0,VA, marker='x', color='w', s=10)
-    ax1.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:] - gvdf_tstamp.vshift, c=np.log10(f_data), s=50,
+    ax1.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
+    im = ax1.tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_A), levels=lvls, cmap='inferno')
+    ax1.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
                   cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
     ax1.set_aspect('equal')
     ax1.set_xlim([-xmagmax, xmagmax])
     ax1.text(0.02, 0.94, "(A)", transform=ax1.transAxes, fontsize=12, fontweight='bold',
             bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
 
-    ax2.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1] - gvdf_tstamp.vshift, '--w')
-    im = ax2.tricontourf(xx.flatten(), yy.flatten() - gvdf_tstamp.vshift, np.log10(f_supres_B), levels=lvls, cmap='inferno')
-    ax2.scatter(0,VA, marker='x', color='w', s=10)
-    ax2.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:] - gvdf_tstamp.vshift, c=np.log10(f_data), s=50,
+    ax2.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
+    im = ax2.tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_B), levels=lvls, cmap='inferno')
+    ax2.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
                   cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
     ax2.set_aspect('equal')
     ax2.set_xlim([-xmagmax, xmagmax])

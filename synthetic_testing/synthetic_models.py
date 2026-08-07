@@ -180,7 +180,7 @@ def model_params():
     Trat2  = 0.9010196661059698 
     Tperp1 = 76.73630778076499 
     Tperp2 = 105.61544387731757 
-    vdrift = -89.79244089265619
+    vdrift = 89.79244089265619
 
     return(den1, den2, Trat1, Trat2, Tperp1, Tperp2, vdrift)
 
@@ -192,7 +192,7 @@ def model_params_2():
     Trat2  = 0.9010196661059698 
     Tperp1 = 76.73630778076499 
     Tperp2 = 5.61544387731757 
-    vdrift = -89.79244089265619
+    vdrift = 89.79244089265619
 
     return(den1, den2, Trat1, Trat2, Tperp1, Tperp2, vdrift)
 
@@ -474,7 +474,7 @@ class synthetic_models:
         fig, ax = plt.subplots(1, 3, layout='constrained', figsize=(18,6))
         lvls = np.linspace(-24, -17, 25)
 
-        ax0 = ax[0].tricontourf(self.grids_hr[:,1], -self.grids_hr[:,0], np.log10(self.f_bimax), levels=lvls, cmap='inferno')
+        ax0 = ax[0].tricontourf(self.grids_hr[:,1], self.grids_hr[:,0], np.log10(self.f_bimax), levels=lvls, cmap='inferno')
         ax[0].set_xlabel(r'$v_{\perp}$')
         ax[0].set_ylabel(r'$v_{\parallel}$')
         vidx, tidx, pidx = np.unravel_index(np.nanargmax(vdf[i]), (self.NP,8,8))

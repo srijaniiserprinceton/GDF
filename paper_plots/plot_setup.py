@@ -29,7 +29,7 @@ rmax = gvdf_tstamp.rfac_nonan.max()
 B_i_n = gvdf_tstamp.super_B_i_n[:,sortidx]
 
 #------------ plotting the Bspline grid setup --------------#
-Bsp_idx = 6
+Bsp_idx = 14
 plt.figure()
 
 for i in range(len(B_i_n)):
@@ -66,7 +66,7 @@ theta_grid = np.linspace(0, 180, 360)
 S_alpha_theta = basis_fn.get_Slepians_scipy(gvdf_tstamp.Slep.C, theta_grid,
                                             gvdf_tstamp.Lmax, gvdf_tstamp.N2D_polcap)
 plt.figure()
-for i in range(gvdf_tstamp.N2D_polcap):
+for i in range(3):#gvdf_tstamp.N2D_polcap):
     # 8 is the index of the timestamp we are plotting in the plot_init_setup.py file
     plt.plot(gvdf_tstamp.theta_fa[gvdf_tstamp.nanmask[config['global']['START_INDEX']]][Bspline_mask],
              gvdf_tstamp.S_alpha_n[i][Bspline_mask], 'ok', alpha=0.6)

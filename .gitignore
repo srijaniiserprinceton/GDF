@@ -18,3 +18,4 @@ __pycache__
 *.lprof
 *.egg-info
 docs/build/
+spice_data/

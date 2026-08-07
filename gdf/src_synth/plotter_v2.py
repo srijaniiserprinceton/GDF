@@ -271,7 +271,7 @@ def plot_CartSlep(xx, yy, gvdf_tstamp, f_data, tidx, ext='png', SAVE=False):
     nearest_points = cluster_points[indices[0]]
     vperp_max = np.mean(nearest_points, axis=0)[1]
 
-    vmaxval = gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.vdfdata)]
+    vmaxval = gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.log_unscaled_vdfdata)]
 
     cmap = plt.cm.inferno
     lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
@@ -284,11 +284,11 @@ def plot_CartSlep(xx, yy, gvdf_tstamp, f_data, tidx, ext='png', SAVE=False):
                   cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
     ax[0].scatter(-nearest_points[:,1], nearest_points[:,0], c=np.log10(f_data[indices[0]]), s=50,
                   cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
-    ax[0].scatter(gvdf_tstamp.vperp_nonan[np.argmax(gvdf_tstamp.vdfdata)],
-                  gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.vdfdata)],
+    ax[0].scatter(gvdf_tstamp.vperp_nonan[np.argmax(gvdf_tstamp.log_unscaled_vdfdata)],
+                  gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.log_unscaled_vdfdata)],
                   marker='*', color='k', s=50)
-    ax[0].scatter(-gvdf_tstamp.vperp_nonan[np.argmax(gvdf_tstamp.vdfdata)],
-                  gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.vdfdata)],
+    ax[0].scatter(-gvdf_tstamp.vperp_nonan[np.argmax(gvdf_tstamp.log_unscaled_vdfdata)],
+                  gvdf_tstamp.vpara_nonan[np.argmax(gvdf_tstamp.log_unscaled_vdfdata)],
                   marker='*', color='k', s=50)
 
     ax[1].pcolormesh(xx, yy, np.reshape(gvdf_tstamp.CartSlep.H[:,2], (49,49), 'F'), vmin=-maxval, vmax=maxval,
@@ -336,6 +336,8 @@ def plot_super_resolution_CARTSLEP(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supr
                        int(np.log10(gvdf_tstamp.maxval[tidx]) + 1), 25)
     norm = colors.BoundaryNorm(lvls, ncolors=cmap.N)
 
+    print('LOOK HERE!!!!!!!!!', np.any(np.isnan(f_supres)), np.nanmax(f_supres), np.nanmin(f_supres))
+
     # plotting the points and the boundary
     fig, ax = plt.subplots(2, 1, figsize=(4.7,7.5), sharey=True)
     ax[0].plot(CartSlep.XY[:,0], CartSlep.XY[:,1], '--k')
@@ -374,8 +376,8 @@ def plot_super_resolution_CARTSLEP(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supr
         plt.close()
 
 def polcap_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
-                   model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False, ext='png'):
-    plot_span_vs_rec_contour_POLCAP(gvdf_tstamp, gvdf_tstamp.vdfdata, vdf_inv, tidx,
+                   model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False):
+    plot_span_vs_rec_contour_POLCAP(gvdf_tstamp, gvdf_tstamp.log_unscaled_vdfdata, vdf_inv, tidx,
                                     GRID=True, SAVE=SAVE_FIGS)
     # plot_super_resolution_POLCAP(gvdf_tstamp, vdf_super, gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx],
     #                              tidx, VDFUNITS=True, VSHIFT=gvdf_tstamp.vel, SAVE=SAVE_FIGS)
@@ -385,26 +387,22 @@ def polcap_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                             gvdf_tstamp.mu_arr[gvdf_tstamp.knee_idx], SAVE=SAVE_FIGS)
 
 def cartesian_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
-                      model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False, ext='png'):
+                      model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False):
     # reshaping grids for plotting
     xx = np.reshape(gvdf_tstamp.grid_points[:,0], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
     yy = np.reshape(gvdf_tstamp.grid_points[:,1], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
 
     # converting the VDFs to SPAN-i consistent units
     f_supres = np.power(10, vdf_super) * gvdf_tstamp.minval[tidx]
-    vdf_data = np.append(gvdf_tstamp.vdfdata, gvdf_tstamp.vdfdata)
+    vdf_data = np.append(gvdf_tstamp.log_unscaled_vdfdata, gvdf_tstamp.log_unscaled_vdfdata)
     f_data = np.power(10, vdf_data) * gvdf_tstamp.minval[tidx]
 
     plot_super_resolution_CARTSLEP(gvdf_tstamp, gvdf_tstamp.CartSlep, xx, yy, f_data, f_supres, tidx, SAVE=SAVE_FIGS)
     # plot_CartSlep(xx, yy, gvdf_tstamp, f_data, tidx, SAVE=SAVE_FIGS)
 
-import astropy.constants as c
-import astropy.units as u
 def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                    model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False, ext='png'):
     vdf_super_polcap, vdf_super_cartesian = vdf_super
-
-    VA = ((np.linalg.norm(gvdf_tstamp.b_span[tidx]) * u.nT)/np.sqrt(c.mu0 * c.m_p * np.nanmean(gvdf_tstamp.qtn_data.electron_density) * u.cm**(-3))).to(u.km/u.s).value
 
     # converting the VDFs to SPAN-i consistent units
     f_supres_polcap = np.power(10, vdf_super_polcap) * gvdf_tstamp.minval[tidx]
@@ -415,7 +413,7 @@ def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     f_supres_B = np.reshape(f_supres_cartesian, (gvdf_tstamp.nptsx,gvdf_tstamp.nptsy), 'F').T.flatten()
 
     # the SPAN data
-    f_data = np.power(10, gvdf_tstamp.vdfdata) * gvdf_tstamp.minval[tidx]
+    f_data = np.power(10, gvdf_tstamp.log_unscaled_vdfdata) * gvdf_tstamp.minval[tidx]
 
     # the SPAN data grids in FAC
     span_gridx = np.append(-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan)
@@ -447,20 +445,18 @@ def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
     ax3 = fig.add_subplot(gs[:, 1])
     ax3.axis('off')    # hides background axis ticks and frame
 
-    ax1.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1] - gvdf_tstamp.vshift, '--w')
-    im = ax1.tricontourf(xx.flatten(), yy.flatten() - gvdf_tstamp.vshift, np.log10(f_supres_A), levels=lvls, cmap='inferno')
-    ax1.scatter(0,VA, marker='x', color='w', s=10)
-    ax1.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:] - gvdf_tstamp.vshift, c=np.log10(f_data), s=50,
+    ax1.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
+    im = ax1.tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_A), levels=lvls, cmap='inferno')
+    ax1.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
                   cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
     ax1.set_aspect('equal')
     ax1.set_xlim([-xmagmax, xmagmax])
     ax1.text(0.02, 0.94, "(A)", transform=ax1.transAxes, fontsize=12, fontweight='bold',
             bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
 
-    ax2.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1] - gvdf_tstamp.vshift, '--w')
-    im = ax2.tricontourf(xx.flatten(), yy.flatten() - gvdf_tstamp.vshift, np.log10(f_supres_B), levels=lvls, cmap='inferno')
-    ax2.scatter(0,VA, marker='x', color='w', s=10)
-    ax2.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:] - gvdf_tstamp.vshift, c=np.log10(f_data), s=50,
+    ax2.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
+    im = ax2.tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_B), levels=lvls, cmap='inferno')
+    ax2.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
                   cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
     ax2.set_aspect('equal')
     ax2.set_xlim([-xmagmax, xmagmax])
@@ -554,99 +550,3 @@ def context_axis_plot(ax3, gvdf_tstamp, tidx):
         ax.yaxis.set_label_position("right")  # move label to right
         ax.set_ylabel(label) 
         
-
-def hybrid_plotter_for_paper(gvdf_tstamp, vdf_inv, vdf_super, tidx,
-                             model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False, ext='png'):
-    vdf_super_polcap, vdf_super_cartesian = vdf_super
-
-    # converting the VDFs to SPAN-i consistent units
-    f_supres_polcap = np.power(10, vdf_super_polcap) * gvdf_tstamp.minval[tidx]
-    f_supres_cartesian = np.power(10, vdf_super_cartesian) * gvdf_tstamp.minval[tidx]
-
-    # reshaping the VDFs correctly
-    f_supres_A = np.reshape(f_supres_polcap, (gvdf_tstamp.nptsx,gvdf_tstamp.nptsy), 'F').T.flatten()
-    f_supres_B = np.reshape(f_supres_cartesian, (gvdf_tstamp.nptsx,gvdf_tstamp.nptsy), 'F').T.flatten()
-
-    # the SPAN data
-    f_data = np.power(10, gvdf_tstamp.vdfdata) * gvdf_tstamp.minval[tidx]
-
-    # the SPAN data grids in FAC
-    span_gridx = np.append(-gvdf_tstamp.vperp_nonan, gvdf_tstamp.vperp_nonan)
-    span_gridy = np.append(gvdf_tstamp.vpara_nonan, gvdf_tstamp.vpara_nonan)
-    xmagmax = span_gridx.max() * 1.12
-
-    Nspangrids = len(span_gridx)
-    
-    # making the colorbar norm function
-    cmap = plt.cm.inferno
-    lvls = np.linspace(int(np.log10(gvdf_tstamp.minval[tidx]) - 1),
-                       int(np.log10(gvdf_tstamp.maxval[tidx]) + 1), 25)
-    # lvls = np.linspace(-23, -19, 25)
-    norm = colors.BoundaryNorm(lvls, ncolors=cmap.N)
-
-    # reshaping grids for plotting
-    xx = np.reshape(gvdf_tstamp.grid_points[:,0], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
-    yy = np.reshape(gvdf_tstamp.grid_points[:,1], (gvdf_tstamp.nptsx, gvdf_tstamp.nptsy), 'F')
-
-    # plotting the points and the boundary
-    fig, ax = plt.subplots(1, 3, figsize=(17,6.5))
-
-    ax1, ax2, ax3 = ax[0], ax[1], ax[2]
-
-    ax1.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
-    im = ax1.tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_A), levels=lvls, cmap='inferno')
-    ax1.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
-                  cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
-    ax1.set_aspect('equal')
-    ax1.set_xlim([-xmagmax, xmagmax])
-    ax1.text(0.02, 0.94, "(A)", transform=ax1.transAxes, fontsize=12, fontweight='bold',
-            bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
-
-    ax2.plot(gvdf_tstamp.CartSlep.XY[:,0], gvdf_tstamp.CartSlep.XY[:,1], '--w')
-    im = ax2.tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres_B), levels=lvls, cmap='inferno')
-    ax2.scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data), s=50,
-                  cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
-    ax2.set_aspect('equal')
-    ax2.set_xlim([-xmagmax, xmagmax])
-    ax2.text(0.02, 0.94, "(B)", transform=ax2.transAxes, fontsize=12, fontweight='bold',
-            bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
-
-    ax1.set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
-    ax1.set_ylabel(r'$v_{\parallel}$ [km/s]', fontsize=19)
-    ax2.set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
-
-    # ax1.set_xlim([-250, 250])
-    # ax2.set_xlim([-250, 250])
-    # ax1.set_ylim([265, 800])
-    # ax2.set_ylim([265, 800])
-
-    ax2.set_title('Hybrid reconstruction')
-
-    cax = fig.add_axes([ax1.get_position().x0 - 0.06, ax1.get_position().y1+0.1,
-                        ax1.get_position().x1 - 0.1, 0.02])
-    cbar = fig.colorbar(im, cax=cax, orientation='horizontal', location='top')
-    cbar.ax.tick_params(labelsize=14)
-    tick_locator = ticker.MaxNLocator(integer=True)
-    cbar.locator = tick_locator
-    cbar.update_ticks()
-
-    # plotting the knee of the trade-off curve if lambda default is None
-    if(gvdf_tstamp.lam is None):
-        ax3.plot(model_misfit, data_misfit, 'b')
-        ax3.plot(model_misfit, data_misfit, 'or')
-        ax3.plot(model_misfit[gvdf_tstamp.lambda_knee_idx], data_misfit[gvdf_tstamp.lambda_knee_idx], 'xk', markersize=14)
-        ax3.text(0.95, 0.95, r'$\lambda = $' + f'{gvdf_tstamp.lambda_arr[gvdf_tstamp.lambda_knee_idx]:.2e}',
-                    bbox=dict(facecolor='white', alpha=0.5, edgecolor='black', boxstyle='round,pad=0.5'),
-                    transform=ax3.transAxes, ha='right', va='top')
-        ax3.grid(True)
-        ax3.set_aspect('equal')
-        ax3.set_xlabel('Model Misfit', fontsize=14, fontweight='bold')
-        ax3.set_ylabel('Data Misfit', fontsize=14, fontweight='bold')
-
-        ax3.text(0.08, 0.94, "(C)", transform=ax3.transAxes, fontsize=12, fontweight='bold',
-                bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
-
-    plt.subplots_adjust(top=0.87, bottom=0.1, left=0.05, right=0.99, wspace=0.15, hspace=0.15)
-
-    plt.savefig(f'Figures/super_res_hybrid/paper_plot_tidx={tidx}.{ext}')
-    plt.close()

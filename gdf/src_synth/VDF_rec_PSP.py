@@ -12,9 +12,6 @@ from scipy.spatial import Delaunay
 from tqdm import tqdm
 import pickle
 import warnings
-from colorama import Fore, Style
-import astropy.constants as c
-import astropy.units as u
 
 from gdf.src import eval_Slepians
 from gdf.src import functions as fn
@@ -24,8 +21,6 @@ from gdf.src import polar_cap_inversion as polcap
 from gdf.src import cartesian_inversion as cartesian
 from gdf.src import hybrid_inversion as hybrid
 from gdf.src import maxwellian_inversion
-
-from gdf.src import spc_joint_functions as spc
 
 NAX = np.newaxis
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
@@ -59,11 +54,6 @@ class gyrovdf:
         self.trange = config['global']['TRANGE']
         # the minimum counts required to be considered in the fitting process
         self.count_threshold = config['global']['COUNT_THRESHOLD']
-
-        # Check if the data is going to be resampled
-        self.resample = config['global']['RESAMPLE']    # seconds.
-
-        self.spc_fit = config['global']['SPC_FIT']     # boolean or None
         
         # if a synthetic file is provided instead of SPAN data
         self.synth_file = config['global']['SYNTHDATA_FILE']
@@ -92,8 +82,8 @@ class gyrovdf:
             self.init_cartslep_params(config['cartesian'])
             # initializing the CartSlep class once; like we do for the polcap Slepians
             self.CartSlep = eval_Slepians.Slep_2D_Cartesian()
-            self.plotter_func = plotter.hybrid_plotter
-            # self.plotter_func = plotter.hybrid_plotter_for_paper
+            # self.plotter_func = plotter.hybrid_plotter
+            self.plotter_func = plotter.hybrid_plotter_for_paper
 
             # the array for finding the similarity index
             if(self.lam is None):
@@ -200,8 +190,6 @@ class gyrovdf:
         vdf[vdf == 0] = np.nan
         self.nanmask = np.isfinite(vdf)
 
-        self.vdf = vdf
-
         # store the min and maxvalues rquired for plotting
         self.minval = np.nanmin(vdf, axis=(1,2,3))
         self.maxval = np.nanmax(vdf, axis=(1,2,3))
@@ -221,8 +209,7 @@ class gyrovdf:
             # obtaining the L3 data which contains the magnetic field and partial moments
             data = fn.init_psp_moms(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
             data = data.drop('ROTMAT_SC_INST')
-            if self.resample:
-                data = data.resample(Epoch=f'{self.resample}s').mean(skipna=True)
+            data = data.resample(Epoch='1min').mean(skipna=True)
 
             # obtaining the magnetic field and v_bulk from the SWEAP L3 data product
             self.b_span = data.MAGF_INST.data
@@ -233,45 +220,6 @@ class gyrovdf:
                 self.qtn_data = fn.init_qtn_data(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
             except:
                 self.qtn_data = None
-
-            if self.spc_fit:
-                l3_data = spc.get_spc_l3(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
-                l3_data = l3_data.interpolate_na(dim='Epoch')
-                l3_data = l3_data.interp(Epoch=time).rename({'Epoch':'time'})
-                
-                # rotate vp_fit_SC into span frame
-                vspc_to_span = spc.spc2span_math(l3_data.vp_fit_SC.data)
-                self.v_spc = vspc_to_span
-                self.n_spc = l3_data.np_fit.data
-
-                # aniso_file = cdflib.cdf_to_xarray('/home/michael/Research/PSP_Temp_Anisotropy/anisotropy_files/SPC_Anisotropy_2024-10-03_peak_track_averaged_4s.cdf', to_datetime=True, fillval_to_nan=True)
-                aniso_file = cdflib.cdf_to_xarray('/home/michael/Research/PSP_Temp_Anisotropy/anisotropy_files/SPC_Anisotropy_2021-01-13_peak_track_averaged_4s.cdf', to_datetime=True, fillval_to_nan=True)
-                aniso_file = aniso_file.where(aniso_file != -1e31, np.nan)
-                aniso_file = aniso_file.interpolate_na(dim='time')
-                aniso_file = aniso_file.interp(time=time)
-
-                wspc = l3_data.wp_fit.data * (u.km/u.s) 
-                tspc = ((c.m_p * wspc**2)/(2.0 * c.k_B)).to(u.K)      # Convert the thermal speed to K
-                
-                nz   = aniso_file.Nz.data
-                tani = aniso_file.T_ani_avg.data
-
-                tpara = tspc / (nz**2 + tani * (1 - nz**2))
-                tperp = tani * tpara 
-
-                self.t_para_spc = tpara.value
-                self.t_perp_spc = tperp.value
-
-                self.wpara_spc = np.sqrt((2.0 * c.k_B * tpara)/(c.m_p)).to(u.km/u.s).value
-                self.wperp_spc = np.sqrt((2.0 * c.k_B * tperp)/(c.m_p)).to(u.km/u.s).value
-
-                n      = self.n_spc * u.cm**(-3)
-                C      = (c.m_p / (2.0 * np.pi * c.k_B))**(3./2.)
-                t_term = tperp * np.sqrt(tpara)
-
-                fmax = ((n * C)/t_term).to(u.s**(3)/u.cm**(6))
-
-                self.fmax_spc = fmax.value
                 
         else:
             data = {}
@@ -363,7 +311,6 @@ class gyrovdf:
         
         # Boosting along vpara [this step is crucial for the polar cap method, only]
         vpara1 = self.vpara - np.nanmax(self.vpara)
-        self.vpara1 = vpara1
         max_r = np.nanmax(self.vperp[self.nanmask[tidx]]/np.tan(np.radians(self.TH)) + (vpara1[self.nanmask[tidx]]))
         self.vshift = max_r + np.nanmax(self.vpara)
         self.vpara -= self.vshift
@@ -411,7 +358,7 @@ class gyrovdf:
         # '''
         # Check angle between flow and magnetic field. 
         # NOTE: NEED TO CHECK THIS CALCULATION.
-        if (self.theta_bv[tidx] < 90):
+        if (self.theta_bv[tidx] < 85):
             self.vpara = -1.0 * self.vpara
             self.theta_sign = -1.0
         else: self.theta_sign = 1.0
@@ -455,32 +402,13 @@ class gyrovdf:
         self.M = maxwellian_inversion.fit_maxwellian(vpara, vperp, y) 
 
         #----------adding the fiducial data point at the peak of the maxwellian here--------#
-        fid_vpara = np.array([self.M['u']]) # np.linspace(self.M['u'] - self.M['wpar']/2., self.M['u'] + self.M['wpar']/2., 20) # np.array([self.M['u']])
-        # fid_vpara = np.linspace(self.vshift - self.wpara_spc[tidx]/2., self.vshift + self.wpara_spc[tidx]/2., 20) # np.array([self.M['u']])
+        fid_vpara = np.array([self.M['u']]) # np.linspace(self.M['u'] - self.M['wpar']/2., self.M['u'], 2)
         fid_vperp = np.zeros_like(fid_vpara)
 
-        if self.spc_fit:
-            # Set the value of the centroid to be the Maxwellian defined from the SPC measurements.
-            M_cen = maxwellian_inversion.maxwellian_model(fid_vpara, fid_vperp, self.M['A'], self.M['u'], self.wpara_spc[tidx], self.wperp_spc[tidx])
-
-            # NOTE: M_cen is the value evaluated at the fiducal points from the Maxwellian fitting.
-            #       Therefore, we need to shift the amplitude to be at the SPC peak value.
-
-            self.M_cen = M_cen
-            A_spc = gvdf_tstamp.fmax_spc[tidx]/gvdf_tstamp.minval[tidx]
-            shift = np.max([A_spc - np.max(M_cen), 0])      # if the M_cen is larger than the spc value we will not shift the VDF. TODO: Fix this
-
-            M_cen_in_vdfdata = np.log10(M_cen + shift)
-        else:
-            M_cen = maxwellian_inversion.maxwellian_model(fid_vpara, fid_vperp, self.M['A'],
+        M_cen = maxwellian_inversion.maxwellian_model(fid_vpara, fid_vperp, self.M['A'],
                                                       self.M['u'], self.M['wpar'], self.M['wperp'])
-                                                    #   self.M['u'], self.wpara_spc[tidx], self.wperp_spc[tidx])
-            M_cen_in_vdfdata = np.log10(M_cen)
+        M_cen_in_vdfdata = np.log10(M_cen)
 
-            self.M_cen = M_cen
-        
-            M_cen_in_vdfdata = np.log10(M_cen)
-    
         # adding to the data
         self.vdfdata = np.append(self.vdfdata, M_cen_in_vdfdata)
 
@@ -494,6 +422,9 @@ class gyrovdf:
         # creating the mask for the fiducial points
         self.fid_mask = self.vperp_nonan == 0
         
+
+
+
     def get_coors_update_TH(self, u_bulk, tidx):
         r"""
         This function is used to setup the super-resolution grids in gyrotropic coordinate depending on the 
@@ -529,7 +460,7 @@ class gyrovdf:
         # '''
         # Check angle between flow and magnetic field. 
         # NOTE: NEED TO CHECK THIS CALCULATION.
-        if (self.theta_bv[tidx] < 90):
+        if (self.theta_bv[tidx] < 85):
             self.vpara = -1.0 * self.vpara
             self.theta_sign = -1.0
         else: self.theta_sign = 1.0
@@ -572,32 +503,13 @@ class gyrovdf:
         self.M = maxwellian_inversion.fit_maxwellian(vpara, vperp, y) 
 
         #----------adding the fiducial data point at the peak of the maxwellian here--------#
-        fid_vpara = np.array([self.M['u']]) #np.linspace(self.M['u'] - self.M['wpar']/2., self.M['u'] + self.M['wpar']/2., 20) # np.array([self.M['u']])
-        # fid_vpara = np.linspace(self.vshift - self.wpara_spc[tidx]/2., self.vshift + self.wpara_spc[tidx]/2., 20) # np.array([self.M['u']])
+        fid_vpara = np.array([self.M['u']]) # np.linspace(self.M['u'] - self.M['wpar']/2., self.M['u'], 2)
         fid_vperp = np.zeros_like(fid_vpara)
 
-        if self.spc_fit:
-            # Set the value of the centroid to be the Maxwellian defined from the SPC measurements.
-            M_cen = maxwellian_inversion.maxwellian_model(fid_vpara, fid_vperp, self.M['A'], self.M['u'], self.wpara_spc[tidx], self.wperp_spc[tidx])
-
-            # NOTE: M_cen is the value evaluated at the fiducal points from the Maxwellian fitting.
-            #       Therefore, we need to shift the amplitude to be at the SPC peak value.
-
-            self.M_cen = M_cen
-            A_spc = gvdf_tstamp.fmax_spc[tidx]/gvdf_tstamp.minval[tidx]
-            shift = np.max([A_spc - np.max(M_cen), 0])      # if the M_cen is larger than the spc value we will not shift the VDF. TODO: Fix this
-
-            M_cen_in_vdfdata = np.log10(M_cen + shift)
-        else:
-            M_cen = maxwellian_inversion.maxwellian_model(fid_vpara, fid_vperp, self.M['A'],
+        M_cen = maxwellian_inversion.maxwellian_model(fid_vpara, fid_vperp, self.M['A'],
                                                       self.M['u'], self.M['wpar'], self.M['wperp'])
-                                                    #   self.M['u'], self.wpara_spc[tidx], self.wperp_spc[tidx])
-            M_cen_in_vdfdata = np.log10(M_cen)
+        M_cen_in_vdfdata = np.log10(M_cen)
 
-            self.M_cen = M_cen
-        
-            M_cen_in_vdfdata = np.log10(M_cen)
-    
         # adding to the data
         self.vdfdata = np.append(self.vdfdata, M_cen_in_vdfdata)
 
@@ -640,8 +552,7 @@ class gyrovdf:
         vmax = np.max(self.velocity[tidx, self.nanmask[tidx]])
         
         # this is calculated from the mean(log10(v_{i+1}) - log10(v_i)) of SPAN-i grid
-        # self.dlnv = 1.2 * np.nanmean(np.diff(np.log10(self.velocity[tidx,:,0,0])))
-        self.dlnv = 1.2 * np.nanmean(np.diff(np.log10(np.unique(self.velocity))))
+        self.dlnv = 1.2 * np.nanmean(np.diff(np.log10(self.velocity[tidx,:,0,0])))
 
         # making the initial estimate of counts per bin and bin edges in log space of knots 
         Nbins = int((np.log10(vmax) - np.log10(vmin)) / self.dlnv)
@@ -800,11 +711,7 @@ def project_uncertainty(Sigma_ab, u, v, coord='y'):
     return np.sqrt(sigma2)
 
 #---------------------------------------------------------------------------------------------#
-
-#--------------ALL FUNCTIONS IN THIS BLOCK USE SPC TO SET THE GYROCENTROID VALUE--------------#
-
-
-def main(START_INDEX = 0, NSTEPS = None, INDICES = None, NPTS_SUPER=49,
+def main(START_INDEX = 0, NSTEPS = None, NPTS_SUPER=49,
          MCMC = False, MCMC_WALKERS=6, MCMC_STEPS=200,
          MIN_METHOD='L-BFGS-B', SAVE_FIGS=False, SAVE_PKL=True, SAVE_SUPRES=False):
     """
@@ -819,7 +726,7 @@ def main(START_INDEX = 0, NSTEPS = None, INDICES = None, NPTS_SUPER=49,
     vdf_supres_bundle = {}
 
     # computes till the last timestamp available if NSTEPS is not specified
-    # if(NSTEPS is None): NSTEPS = len(psp_vdf.time.data)
+    if(NSTEPS is None): NSTEPS = len(psp_vdf.time.data)
 
     # if a scalar is provided for NPTS_SUPER, convert it to a tuple
     if(isinstance(NPTS_SUPER, tuple)): pass
@@ -828,22 +735,8 @@ def main(START_INDEX = 0, NSTEPS = None, INDICES = None, NPTS_SUPER=49,
     # storing the dimensions of super resolution
     gvdf_tstamp.nptsx, gvdf_tstamp.nptsy = NPTS_SUPER
 
-    # --- NEW LOGIC START ---
-    # Determine which indices to loop over
-    if INDICES is not None:
-        # If a specific list is provided, use it
-        loop_iterable = INDICES
-        print(loop_iterable)
-    else:
-        # Otherwise, use the original range logic
-        if(NSTEPS is None): NSTEPS = len(psp_vdf.time.data)
-        loop_iterable = range(START_INDEX, START_INDEX + NSTEPS)
-    # --- NEW LOGIC END ---
-
     # the main time loop of GDF reconstruction
-    # for tidx in tqdm(range(START_INDEX, START_INDEX + NSTEPS)):
-    print(loop_iterable)
-    for tidx in tqdm(loop_iterable):
+    for tidx in tqdm(range(START_INDEX, START_INDEX + NSTEPS)):
         # Check the l2 and l3 times match (to ensure selection of correct magnetic field)
         if gvdf_tstamp.l2_time[tidx] != gvdf_tstamp.l3_time[tidx]:
             print('Index mismatch. Skipping time.')
@@ -858,104 +751,81 @@ def main(START_INDEX = 0, NSTEPS = None, INDICES = None, NPTS_SUPER=49,
                                    gvdf_tstamp.vz[tidx][gvdf_tstamp.nanmask[tidx]]]).T
 
         # initializing the starting location of ubulk for the minimization
-        if gvdf_tstamp.spc_fit:
-            # print(f'\n{Fore.RED}.........Using SPC Location.......{Style.RESET_ALL}\n')
-            u_origin = gvdf_tstamp.v_spc[tidx] * 1.0
-            
-            # we are not doing any optimization in this case. We just hard code the values to be u_origin
-            u_corr = u_origin
-            
-            # computing super-resolution and moments from the scipy corrected bulk velocity
-            vdf_inv, vdf_super, __, data_misfit, model_misfit  =\
-                                    gvdf_tstamp.super_resolution(u_corr, tidx, NPTS_SUPER)
-            den, vel, Tcomps, Trace, Qcomps, Qpara = fn.vdf_moments_new(gvdf_tstamp, vdf_super, tidx)
-            # den, vel, Tcomps, Trace, Qcomps, Qpara = fn.vdf_moments_new(gvdf_tstamp, vdf_super, tidx)
+        u_origin = gvdf_tstamp.v_span[tidx] * 1.0
 
-            # This tells us how far off our v_parallel is from the defined assumed v_parallel
-            delta_v = vel - gvdf_tstamp.vshift
-
-            # calculate a correction to the bulk velocity to account for the artificial shift (in polcap method)
-            u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-            u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-            u_adj = np.array([u_xnew, u_ynew, u_znew])
-
-
-        else:
-            u_origin = gvdf_tstamp.v_span[tidx] * 1.0
-
-            # first estimate of correction to the SPAN-moment using scipy.optimize.minimize
-            u_corr, __, u, v = find_symmetry_point(threeD_points, gvdf_tstamp.vdfdata, gvdf_tstamp.bvec[tidx],
-                                                  loss_fn_Slepians, tidx, origin=u_origin,
-                                                  MIN_METHOD=MIN_METHOD)
-            # storing this to compare with the MCMC estimate, if needed, No other reason.
-            u_corr_scipy = u_corr * 1.0
+        # first estimate of correction to the SPAN-moment using scipy.optimize.minimize
+        u_corr, __, u, v = find_symmetry_point(threeD_points, gvdf_tstamp.vdfdata, gvdf_tstamp.bvec[tidx],
+                                              loss_fn_Slepians, tidx, origin=u_origin,
+                                              MIN_METHOD=MIN_METHOD)
+        # storing this to compare with the MCMC estimate, if needed, No other reason.
+        u_corr_scipy = u_corr * 1.0
         
-            # computing super-resolution and moments from the scipy corrected bulk velocity
-            vdf_inv, vdf_super, __, data_misfit, model_misfit  =\
+        # computing super-resolution and moments from the scipy corrected bulk velocity
+        vdf_inv, vdf_super, __, data_misfit, model_misfit  =\
                                     gvdf_tstamp.super_resolution(u_corr, tidx, NPTS_SUPER)
+        den, vel, Tcomps, Trace, Qcomps, Qpara = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
+
+        # This tells us how far off our v_parallel is from the defined assumed v_parallel
+        delta_v = vel - gvdf_tstamp.vshift
+
+        # calculate a correction to the bulk velocity to account for the artificial shift (in polcap method)
+        u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
+        u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
+        u_adj = np.array([u_xnew, u_ynew, u_znew])
+
+        # if we want to further refine the estimate and obtain error bounds
+        if(MCMC):
+            # initializing the vdf data to optimize (this is the normalized and logarithmic value)
+            gvdf_tstamp.vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
+
+            # after the scipy correction, we start assuming (0,0) in the perpendicular phase space
+            Vperp1, Vperp2 = 0.0, 0.0
+            
+            # setting up the MCMC walkers with small perturbations about the initialization point
+            nwalkers = MCMC_WALKERS
+            Vperp1_pos = np.random.rand(nwalkers) + Vperp1
+            Vperp2_pos = np.random.rand(nwalkers) + Vperp2
+            pos = np.array([Vperp1_pos, Vperp2_pos]).T
+
+            # TODO: MAY CONVERT TO MULTIPROCESSING SETUP, IF NEEDED.
+            sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability_perpspace, args=(gvdf_tstamp.vdfdata, tidx, u_adj, u, v))
+            sampler.run_mcmc(pos, MCMC_STEPS, progress=True)
+            
+            # extracting the MCMC chains
+            flat_samples = sampler.get_chain(flat=True)
+            
+            # plotting the results of the emcee posterior distribution functions
+            if SAVE_FIGS:
+                labels = [r"$V_{\perp 1}$", r"$V_{\perp 2}$"]
+                fig = corner.corner(flat_samples, labels=labels, show_titles=True)
+                plt.tight_layout()
+                plt.savefig(f'./Figures/mcmc_dists_polcap/emcee_ubulk_{tidx}.png')
+                plt.close(fig)
+
+            # computing the 50th quantile level vales in (vperp1, vperp2) space [along u, v vectors]
+            vperp_12_corr = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
+
+            # final MCMC corrected bulk velocity correction to the u_adj from minimize
+            u_corr = u_adj + vperp_12_corr[0] * u + vperp_12_corr[1] * v
+
+            # making the uncertainties from the covariance matrix
+            vperp_12_covmat = np.cov(flat_samples.T)
+            sigma_x = project_uncertainty(vperp_12_covmat, u, v, 'x')
+            sigma_y = project_uncertainty(vperp_12_covmat, u, v, 'y')
+            sigma_z = project_uncertainty(vperp_12_covmat, u, v, 'z')
+
+            # computing super-resolution and moments from MCMC final correction
+            vdf_inv, vdf_super, __, data_misfit, model_misfit =\
+                                        gvdf_tstamp.super_resolution(u_corr, tidx, NPTS_SUPER)
             den, vel, Tcomps, Trace, Qcomps, Qpara = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
 
-            # This tells us how far off our v_parallel is from the defined assumed v_parallel
+            # This tells us how far off our v_parallel is from the defined/assumed v_parallel
             delta_v = vel - gvdf_tstamp.vshift
 
             # calculate a correction to the bulk velocity to account for the artificial shift (in polcap method)
             u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
             u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
             u_adj = np.array([u_xnew, u_ynew, u_znew])
-
-            # if we want to further refine the estimate and obtain error bounds
-            if(MCMC):
-                # initializing the vdf data to optimize (this is the normalized and logarithmic value)
-                gvdf_tstamp.vdfdata = np.log10(psp_vdf.vdf.data[tidx, gvdf_tstamp.nanmask[tidx]]/gvdf_tstamp.minval[tidx])
-
-                # after the scipy correction, we start assuming (0,0) in the perpendicular phase space
-                Vperp1, Vperp2 = 0.0, 0.0
-                
-                # setting up the MCMC walkers with small perturbations about the initialization point
-                nwalkers = MCMC_WALKERS
-                Vperp1_pos = np.random.rand(nwalkers) + Vperp1
-                Vperp2_pos = np.random.rand(nwalkers) + Vperp2
-                pos = np.array([Vperp1_pos, Vperp2_pos]).T
-
-                # TODO: MAY CONVERT TO MULTIPROCESSING SETUP, IF NEEDED.
-                sampler = emcee.EnsembleSampler(nwalkers, 2, log_probability_perpspace, args=(gvdf_tstamp.vdfdata, tidx, u_adj, u, v))
-                sampler.run_mcmc(pos, MCMC_STEPS, progress=True)
-                
-                # extracting the MCMC chains
-                flat_samples = sampler.get_chain(flat=True)
-                
-                # plotting the results of the emcee posterior distribution functions
-                if SAVE_FIGS:
-                    labels = [r"$V_{\perp 1}$", r"$V_{\perp 2}$"]
-                    fig = corner.corner(flat_samples, labels=labels, show_titles=True)
-                    plt.tight_layout()
-                    plt.savefig(f'./Figures/mcmc_dists_polcap/emcee_ubulk_{tidx}.png')
-                    plt.close(fig)
-
-                # computing the 50th quantile level vales in (vperp1, vperp2) space [along u, v vectors]
-                vperp_12_corr = np.quantile(flat_samples,q=[0.5],axis=0).squeeze()
-
-                # final MCMC corrected bulk velocity correction to the u_adj from minimize
-                u_corr = u_adj + vperp_12_corr[0] * u + vperp_12_corr[1] * v
-
-                # making the uncertainties from the covariance matrix
-                vperp_12_covmat = np.cov(flat_samples.T)
-                sigma_x = project_uncertainty(vperp_12_covmat, u, v, 'x')
-                sigma_y = project_uncertainty(vperp_12_covmat, u, v, 'y')
-                sigma_z = project_uncertainty(vperp_12_covmat, u, v, 'z')
-
-                # computing super-resolution and moments from MCMC final correction
-                vdf_inv, vdf_super, __, data_misfit, model_misfit =\
-                                            gvdf_tstamp.super_resolution(u_corr, tidx, NPTS_SUPER)
-                den, vel, Tcomps, Trace, Qcomps, Qpara = fn.vdf_moments(gvdf_tstamp, vdf_super, tidx)
-
-                # This tells us how far off our v_parallel is from the defined/assumed v_parallel
-                delta_v = vel - gvdf_tstamp.vshift
-
-                # calculate a correction to the bulk velocity to account for the artificial shift (in polcap method)
-                u_para, u_perp1, u_perp2 = fn.rotate_vector_field_aligned(*u_corr, *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-                u_xnew, u_ynew, u_znew = fn.inverse_rotate_vector_field_aligned(*np.array([u_para - delta_v, u_perp1, u_perp2]), *fn.field_aligned_coordinates(gvdf_tstamp.b_span[tidx]))
-                u_adj = np.array([u_xnew, u_ynew, u_znew])
 
         # saving this for plotting of the polcap reconstruction
         gvdf_tstamp.vel = vel
@@ -1015,12 +885,12 @@ def main(START_INDEX = 0, NSTEPS = None, INDICES = None, NPTS_SUPER=49,
 
     if(not gvdf_tstamp.synth_file and SAVE_PKL):
         ts0 = datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
-        ts1 = ts0 #datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX + NSTEPS - 1])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
+        ts1 = datetime.strptime(str(gvdf_tstamp.l2_time[START_INDEX + NSTEPS - 1])[0:26], '%Y-%m-%dT%H:%M:%S.%f')
         ymd = ts0.strftime('%Y%m%d')
         a_label = ts0.strftime('%H%M%S')
         b_label = ts1.strftime('%H%M%S')
         misc_fn.write_pickle(vdf_rec_bundle, f'./Outputs/vdf_rec_data_{gvdf_tstamp.method}_{MCMC_WALKERS}_{MCMC_STEPS}_{ymd}_{a_label}_{b_label}')
-    elif(gvdf_tstamp.synth_file and SAVE_PKL):
+    else:
         # pass
         misc_fn.write_pickle(vdf_rec_bundle, f'./Outputs/{gvdf_tstamp.synth_file[:6]}_new_final_vdf_rec_data_{gvdf_tstamp.method}_{MCMC_WALKERS}_{MCMC_STEPS}')
 
@@ -1051,7 +921,7 @@ def run(config):
     global psp_vdf, gvdf_tstamp
 
     # loading the credentials from the file
-    creds  = None # misc_fn.credential_reader(config['global']['CREDS_PATH'])
+    creds  = misc_fn.credential_reader(config['global']['CREDS_PATH'])
 
     if(config['global']['SYNTHDATA_FILE']): 
         # Load in the synthetic data
@@ -1061,18 +931,13 @@ def run(config):
         psp_vdf = fn.init_psp_vdf(config['global']['TRANGE'], CREDENTIALS=creds, CLIP=config['global']['CLIP'])
 
     # Adding in the ability to downsample the data set.
-    if(config['global']['RESAMPLE']):
-        dt = config['global']['RESAMPLE']   # seconds
-        psp_vdf = psp_vdf.resample(time=f'{dt}s').mean(skipna=True)
-
-    # If we want to adjust the centriod to use the SPC data, we should do this here. 
+    psp_vdf = psp_vdf.resample(time='1min').mean(skipna=True)
 
     # initializing the gvdf_tstamp class
     gvdf_tstamp = gyrovdf(psp_vdf, config, CREDENTIALS=creds)
 
     main(START_INDEX=config['global']['START_INDEX'],
          NSTEPS=config['global']['NSTEPS'],
-         INDICES=config['global']['INDICES'],
          NPTS_SUPER=config['global']['NPTS_SUPER'],
          MCMC=config['global']['MCMC'],
          MCMC_WALKERS=config['global']['MCMC_WALKERS'],

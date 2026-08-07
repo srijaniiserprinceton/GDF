@@ -203,11 +203,14 @@ if __name__ == '__main__':
 
     if CASE == '1':
         # res_polcap = read_pickle('./Outputs/Test_1_test2_vdf_rec_data_polcap_3_200_bimax_test_case')
-        res_polcap = read_pickle('./Outputs/Test_1_final_vdf_rec_data_polcap_4_600')
+        # res_polcap = read_pickle('./Outputs/Test_1_final_vdf_rec_data_polcap_4_600')
+        res_polcap = read_pickle('./Outputs/Test_1_new_final_vdf_rec_data_polcap_3_200')
         # res_cart = read_pickle('./Outputs/Test_1_test3_vdf_rec_data_cartesian_3_200_bimax_test_case')
-        res_cart = read_pickle('./Outputs/Test_1_final_vdf_rec_data_cartesian_3_200')
+        # res_cart = read_pickle('./Outputs/Test_1_final_vdf_rec_data_cartesian_3_200')
+        res_cart = read_pickle('./Outputs/Test_1_new_final_vdf_rec_data_cartesian_3_200')
         # res_hybrid = read_pickle('./Outputs/Test_1_test3_vdf_rec_data_hybrid_3_200_bimax_test_case')
-        res_hybrid = read_pickle('./Outputs/Test_1_final_vdf_rec_data_hybrid_3_200')
+        # res_hybrid = read_pickle('./Outputs/Test_1_final_vdf_rec_data_hybrid_3_200')
+        res_hybrid = read_pickle('./Outputs/Test_1_new_final_vdf_rec_data_hybrid_3_200')
     if CASE == '2':
         # res_polcap = read_pickle('./Outputs/Test_2_test_vdf_rec_data_polcap_3_200_bimax_test_case')
         res_polcap = read_pickle('./Outputs/Test_2_final_vdf_rec_data_polcap_4_600')

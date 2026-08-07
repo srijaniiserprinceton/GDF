@@ -26,8 +26,6 @@ mass_p_kg = 1.6726219e-27
 """
 Update: Fixed the init routines.
 """
-pyspedas.psp.config.local_data_dir = 'psp_data'
-pyspedas.psp.config.CONFIG['sweap_remote_data_dir'] = 'https://w3sweap.cfa.harvard.edu/data/sci/'
 
 def read_config():
     package_dir = os.getcwd()  
@@ -221,73 +219,65 @@ def init_psp_vdf(trange, CREDENTIALS=None, CLIP=False, filename=None):
     
     return(xr_ds)
 
-# def _get_psp_span_mom(trange, CREDENTIALS=None, OVERRIDE=False):
-#     '''
-#     Get and download the latest version of the MMS data. 
-
-#     Parameters:
-#     -----------
-#     trange : list of str, datetime object
-#              Timerange to download the data
-#     probe : int or list of ints
-#             Which MMS probe to get the data from.
-    
-#     Returns:
-#     --------
-
-#     TODO : Add check if file is already downloaded and use local file.
-#     TODO : Replace with a cdaweb or wget download procedure.
-#     '''
-#     date = datetime.strptime(trange[0], '%Y-%m-%dT%H:%M:%S')
-#     date_string = date.strftime('%Y%m%d')
-    
-#     # Get all the key information
-#     pwd = os.getcwd()
-
-#     files = None
-#     if (os.path.exists(f'{pwd}/psp_data/sweap/spi/')) and (OVERRIDE == False):
-#         preamble = 'psp_swp_spi_sf00'
-#         if CREDENTIALS:
-#             # Credentials means we are using the private data directory.
-#             level = 'L3'
-#             dtype = 'mom'
-
-#             file = f'{os.getcwd()}/psp_data/sweap/spi/{level}/spi_sf00/{date.year}/{date.month:02d}/{preamble}_{level}_{dtype}_{date_string}_v**.cdf'
-#         else:
-#             # Loading in the public side of the data.
-#             level = 'l3'
-#             dtype = 'mom'
-
-#             file = f'{os.getcwd()}/psp_data/sweap/spi/{level}/spi_sf00_{level}_{dtype}/{date.year}/{preamble}_{level}_{dtype}_{date_string}_v**.cdf'
-
-#         if (glob.glob(file)):
-#             print('Data is already downloaded', flush = True)
-#             latest_version = get_latest_version(glob.glob(file))
-
-#             files = [latest_version]
-
-#         if files == None:
-#             if CREDENTIALS:
-#                 files = pyspedas.psp.spi(trange, datatype='spi_sf00', level='L3', notplot=True, time_clip=True, downloadonly=True, last_version=True, username=CREDENTIALS[0], password=CREDENTIALS[1])
-#             else:
-#                 files = pyspedas.psp.spi(trange, datatype='spi_sf00_l3_mom', level='l3', notplot=True, time_clip=True, downloadonly=True, last_version=True)
-
-
-#     else:
-#         if CREDENTIALS:
-#             files = pyspedas.psp.spi(trange, datatype='spi_sf00', level='L3', notplot=True, time_clip=True, downloadonly=True, last_version=True, username=CREDENTIALS[0], password=CREDENTIALS[1])
-#         else:
-#             files = pyspedas.psp.spi(trange, datatype='spi_sf00_l3_mom', level='l3', notplot=True, time_clip=True, downloadonly=True, last_version=True)
-
-#     return(files)
-
 def _get_psp_span_mom(trange, CREDENTIALS=None, OVERRIDE=False):
-    if CREDENTIALS:
-        files = pyspedas.psp.spi(trange, datatype='spi_sf00', level='L3', notplot=True, time_clip=True, downloadonly=True, last_version=True, username=CREDENTIALS[0], password=CREDENTIALS[1])
-    else:
-        files = pyspedas.psp.spi(trange, datatype='spi_sf00_l3_mom', level='l3', notplot=True, time_clip=True, downloadonly=True, last_version=True)
+    '''
+    Get and download the latest version of the MMS data. 
 
-    return files
+    Parameters:
+    -----------
+    trange : list of str, datetime object
+             Timerange to download the data
+    probe : int or list of ints
+            Which MMS probe to get the data from.
+    
+    Returns:
+    --------
+
+    TODO : Add check if file is already downloaded and use local file.
+    TODO : Replace with a cdaweb or wget download procedure.
+    '''
+    date = datetime.strptime(trange[0], '%Y-%m-%dT%H:%M:%S')
+    date_string = date.strftime('%Y%m%d')
+    
+    # Get all the key information
+    pwd = os.getcwd()
+
+    files = None
+    if (os.path.exists(f'{pwd}/psp_data/sweap/spi/')) and (OVERRIDE == False):
+        preamble = 'psp_swp_spi_sf00'
+        if CREDENTIALS:
+            # Credentials means we are using the private data directory.
+            level = 'L3'
+            dtype = 'mom'
+
+            file = f'{os.getcwd()}/psp_data/sweap/spi/{level}/spi_sf00/{date.year}/{date.month:02d}/{preamble}_{level}_{dtype}_{date_string}_v**.cdf'
+        else:
+            # Loading in the public side of the data.
+            level = 'l3'
+            dtype = 'mom'
+
+            file = f'{os.getcwd()}/psp_data/sweap/spi/{level}/spi_sf00_{level}_{dtype}/{date.year}/{preamble}_{level}_{dtype}_{date_string}_v**.cdf'
+
+        if (glob.glob(file)):
+            print('Data is already downloaded', flush = True)
+            latest_version = get_latest_version(glob.glob(file))
+
+            files = [latest_version]
+
+        if files == None:
+            if CREDENTIALS:
+                files = pyspedas.psp.spi(trange, datatype='spi_sf00', level='L3', notplot=True, time_clip=True, downloadonly=True, last_version=True, username=CREDENTIALS[0], password=CREDENTIALS[1])
+            else:
+                files = pyspedas.psp.spi(trange, datatype='spi_sf00_l3_mom', level='l3', notplot=True, time_clip=True, downloadonly=True, last_version=True)
+
+
+    else:
+        if CREDENTIALS:
+            files = pyspedas.psp.spi(trange, datatype='spi_sf00', level='L3', notplot=True, time_clip=True, downloadonly=True, last_version=True, username=CREDENTIALS[0], password=CREDENTIALS[1])
+        else:
+            files = pyspedas.psp.spi(trange, datatype='spi_sf00_l3_mom', level='l3', notplot=True, time_clip=True, downloadonly=True, last_version=True)
+
+    return(files)
 
 def init_psp_moms(trange, CREDENTIALS=None, CLIP=False):
     files = _get_psp_span_mom(trange, CREDENTIALS=CREDENTIALS)
@@ -317,6 +307,7 @@ def init_qtn_data(trange, CREDENTIALS=None, CLIP=True):
                                        time_clip=True,
                                        downloadonly=True,
                                        last_version=True,
+                                       no_update=True,
                                        get_support_data=True,
                                        username=CREDENTIALS[0],
                                        password=CREDENTIALS[1])
@@ -328,6 +319,7 @@ def init_qtn_data(trange, CREDENTIALS=None, CLIP=True):
                                        time_clip=True,
                                        downloadonly=True,
                                        last_version=True,
+                                       no_update=True,
                                        get_support_data=True)
     
     cdf_qtn = cdflib.cdf_to_xarray(psp_sqtn[0], to_datetime=True, fillval_to_nan=True)
