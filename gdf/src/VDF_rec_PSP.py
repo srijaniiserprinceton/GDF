@@ -27,6 +27,8 @@ from gdf.src import maxwellian_inversion
 
 from gdf.src import spc_joint_functions as spc
 
+from gdf.src.utils import _cdf_to_xarray
+
 NAX = np.newaxis
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
 warnings.filterwarnings("ignore")
@@ -232,9 +234,10 @@ class gyrovdf:
             try:
                 self.qtn_data = fn.init_qtn_data(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
             except:
+                print("Failed to load in qtn data!")
                 self.qtn_data = None
 
-            if self.spc_fit:
+            if self.spc_fit:        # Note: In progress!
                 l3_data = spc.get_spc_l3(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
                 l3_data = l3_data.interpolate_na(dim='Epoch')
                 l3_data = l3_data.interp(Epoch=time).rename({'Epoch':'time'})
@@ -244,8 +247,7 @@ class gyrovdf:
                 self.v_spc = vspc_to_span
                 self.n_spc = l3_data.np_fit.data
 
-                # aniso_file = cdflib.cdf_to_xarray('/home/michael/Research/PSP_Temp_Anisotropy/anisotropy_files/SPC_Anisotropy_2024-10-03_peak_track_averaged_4s.cdf', to_datetime=True, fillval_to_nan=True)
-                aniso_file = cdflib.cdf_to_xarray('/home/michael/Research/PSP_Temp_Anisotropy/anisotropy_files/SPC_Anisotropy_2021-01-13_peak_track_averaged_4s.cdf', to_datetime=True, fillval_to_nan=True)
+                aniso_file = _cdf_to_xarray('./anisotropy_files/SPC_Anisotropy_2021-01-13_peak_track_averaged_4s.cdf', to_datetime=True, fillval_to_nan=True)
                 aniso_file = aniso_file.where(aniso_file != -1e31, np.nan)
                 aniso_file = aniso_file.interpolate_na(dim='time')
                 aniso_file = aniso_file.interp(time=time)
@@ -1055,7 +1057,7 @@ def run(config):
 
     if(config['global']['SYNTHDATA_FILE']): 
         # Load in the synthetic data
-        psp_vdf = cdflib.cdf_to_xarray(config['global']['SYNTHDATA_FILE'])
+        psp_vdf = _cdf_to_xarray(config['global']['SYNTHDATA_FILE'])
     else:
         # loading the PSP data for the given TRANGE with optional clipping
         psp_vdf = fn.init_psp_vdf(config['global']['TRANGE'], CREDENTIALS=creds, CLIP=config['global']['CLIP'])

@@ -337,29 +337,32 @@ def plot_super_resolution_CARTSLEP(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supr
     norm = colors.BoundaryNorm(lvls, ncolors=cmap.N)
 
     # plotting the points and the boundary
-    fig, ax = plt.subplots(2, 1, figsize=(4.7,7.5), sharey=True)
-    ax[0].plot(CartSlep.XY[:,0], CartSlep.XY[:,1], '--k')
-    ax[0].scatter(span_gridx, span_gridy, c=np.log10(f_data), s=30,
+    fig, ax = plt.subplots(2, 1, figsize=(6,8), sharey=True)
+    ax[0].plot(CartSlep.XY[:,0], CartSlep.XY[:,1] - gvdf_tstamp.vshift, '--k')
+    ax[0].scatter(span_gridx, span_gridy - gvdf_tstamp.vshift, c=np.log10(f_data), s=30,
                   cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
     ax[0].set_aspect('equal')
     ax[0].set_xlim([-xmagmax, xmagmax])
-    ax[0].text(0.02, 0.94, "(A)", transform=ax[0].transAxes, fontsize=12, fontweight='bold',
+    ax[0].text(0.02, 0.88, "(A)", transform=ax[0].transAxes, fontsize=12, fontweight='bold',
                bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
 
-    ax[1].plot(CartSlep.XY[:,0], CartSlep.XY[:,1], '--w')
-    im = ax[1].tricontourf(xx.flatten(), yy.flatten(), np.log10(f_supres), levels=lvls, cmap='inferno')
-    ax[1].scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:], c=np.log10(f_data[Nspangrids//2:]), s=30,
+    ax[1].plot(CartSlep.XY[:,0], CartSlep.XY[:,1] - gvdf_tstamp.vshift, '--w')
+    im = ax[1].tricontourf(xx.flatten(), (yy - gvdf_tstamp.vshift).flatten(), np.log10(f_supres), levels=lvls, cmap='inferno')
+    ax[1].scatter(span_gridx[Nspangrids//2:], span_gridy[Nspangrids//2:] - gvdf_tstamp.vshift, c=np.log10(f_data[Nspangrids//2:]), s=30,
                   cmap='inferno', norm=norm, edgecolor='k', linewidths=0.5)
     ax[1].set_aspect('equal')
     ax[1].set_xlim([-xmagmax, xmagmax])
-    ax[1].text(0.02, 0.94, "(B)", transform=ax[1].transAxes, fontsize=12, fontweight='bold',
+    ax[1].text(0.02, 0.88, "(B)", transform=ax[1].transAxes, fontsize=12, fontweight='bold',
             bbox=dict(boxstyle='round', facecolor='lightgrey', alpha=0.7))
 
     ax[1].set_xlabel(r'$v_{\perp}$ [km/s]', fontsize=19)
     ax[1].set_facecolor('black')
     fig.supylabel(r'$v_{\parallel}$ [km/s]', fontsize=19)
 
-    cax = fig.add_axes([ax[0].get_position().x0 + 0.06, ax[0].get_position().y1+0.05,
+    # fig.suptitle(, y=0.97, fontsize=16, fontweight='bold')
+    fig.suptitle(f'{str(gvdf_tstamp.l2_time[tidx])[:22]}', fontsize=19)
+
+    cax = fig.add_axes([ax[0].get_position().x0 + 0.04, ax[0].get_position().y1+0.05,
                         ax[0].get_position().x1 - ax[0].get_position().x0, 0.02])
     cbar = fig.colorbar(im, cax=cax, orientation='horizontal', location='top')
     cbar.ax.tick_params(labelsize=14)
@@ -367,7 +370,7 @@ def plot_super_resolution_CARTSLEP(gvdf_tstamp, CartSlep, xx, yy, f_data, f_supr
     cbar.locator = tick_locator
     cbar.update_ticks()
 
-    plt.subplots_adjust(top=0.92, bottom=0.1, left=0.14, right=1.0, wspace=0.1, hspace=0.15)
+    plt.subplots_adjust(top=0.92, bottom=0.1, left=0.14, right=0.95, wspace=0.1, hspace=0.15)
 
     if(SAVE):
         plt.savefig(f'Figures/super_res_cartesian/tidx={tidx}.{ext}')
@@ -403,8 +406,11 @@ import astropy.units as u
 def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                    model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False, ext='png'):
     vdf_super_polcap, vdf_super_cartesian = vdf_super
-
-    VA = ((np.linalg.norm(gvdf_tstamp.b_span[tidx]) * u.nT)/np.sqrt(c.mu0 * c.m_p * np.nanmean(gvdf_tstamp.qtn_data.electron_density) * u.cm**(-3))).to(u.km/u.s).value
+    print(gvdf_tstamp.qtn_data)
+    if gvdf_tstamp.qtn_data is not None:
+        VA = ((np.linalg.norm(gvdf_tstamp.b_span[tidx]) * u.nT)/np.sqrt(c.mu0 * c.m_p * np.nanmean(gvdf_tstamp.qtn_data.electron_density) * u.cm**(-3))).to(u.km/u.s).value
+    else:
+        VA = ((np.linalg.norm(gvdf_tstamp.b_span[tidx]) * u.nT)/np.sqrt(c.mu0 * c.m_p * np.nanmean(gvdf_tstamp.rec_quants['dens'][tidx,0]) * u.cm**(-3))).to(u.km/u.s).value
 
     # converting the VDFs to SPAN-i consistent units
     f_supres_polcap = np.power(10, vdf_super_polcap) * gvdf_tstamp.minval[tidx]

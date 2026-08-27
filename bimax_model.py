@@ -8,6 +8,8 @@ import astropy.units as u
 
 from scipy.interpolate import griddata
 
+from gdf.src.utils import _cdf_to_xarray
+
 plt.ion()
 
 def get_model_params(cdfdata, tidx, grids):
@@ -102,7 +104,7 @@ if __name__ == '__main__':
     trange = ['2022-02-25T16:56:00', '2022-02-25T16:57:00']
     psp_vdf = fn.init_psp_vdf(trange, CLIP=True)
 
-    cdfdata = cdflib.cdf_to_xarray('/home/michael/Research/GDF/biMax_Fits/spp_swp_spi_sf00_fits_2024-12-24_v00.cdf', to_datetime=True)
+    cdfdata = _cdf_to_xarray('./GDF/biMax_Fits/spp_swp_spi_sf00_fits_2024-12-24_v00.cdf', to_datetime=True)
 
     tidx = 100 #np.argmin(np.abs(cdfdata.Epoch.data - np.datetime64('2024-12-24T10:00:01')))
 

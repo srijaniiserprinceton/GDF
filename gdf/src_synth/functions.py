@@ -18,6 +18,8 @@ import matplotlib.pyplot as plt; plt.ion(); plt.rcParams['font.size'] = 16
 from datetime import datetime
 from pathlib import Path
 
+from gdf.src_synth.utils import _cdf_to_xarray, _convert_to_astropy
+
 # Constants for integration
 kB = 1.380649e-23  # J/K
 qe = 1.602176634e-19  # Elementary charge [C]
@@ -133,12 +135,12 @@ def init_psp_vdf(trange, CREDENTIALS=None, CLIP=False, filename=None):
         files = _get_psp_vdf(trange, CREDENTIALS)
 
     if len(files) > 1:
-        xr_data = xr.concat([cdflib.cdf_to_xarray(f).drop_vars(['ROTMAT_SC_INST']) for f in files], dim='Epoch')
+        xr_data = xr.concat([_cdf_to_xarray(f, to_datetime=False).drop_vars(['ROTMAT_SC_INST']) for f in files], dim='Epoch')
     else:
-        xr_data = cdflib.cdf_to_xarray(*files)
+        xr_data = _cdf_to_xarray(*files, to_datetime=False)
 
     # Get the instrument time
-    xr_time_object = cdflib.epochs_astropy.CDFAstropy.convert_to_astropy(xr_data.Epoch.data)
+    xr_time_object = _convert_to_astropy(xr_data.Epoch.data)
     xr_time_array  = xr_time_object.utc.datetime    # Ensure we are in utc!
 
     # Keep the unix time as a check
@@ -283,12 +285,12 @@ def init_psp_moms(trange, CREDENTIALS=None, CLIP=False):
     files = _get_psp_span_mom(trange, CREDENTIALS=CREDENTIALS)
     # Check if there are multiple datasets loaded for the interval.
     if len(files) > 1:
-        xr_data = xr.concat([cdflib.cdf_to_xarray(f).drop_vars(['ROTMAT_SC_INST']) for f in files], dim='Epoch')
+        xr_data = xr.concat([_cdf_to_xarray(f, to_datetime=False).drop_vars(['ROTMAT_SC_INST']) for f in files], dim='Epoch')
     else:
-        xr_data = cdflib.cdf_to_xarray(*files)
+        xr_data = _cdf_to_xarray(*files, to_datetime=False)
 
-    xr_time_object = cdflib.epochs_astropy.CDFAstropy.convert_to_astropy(xr_data.Epoch.data)
-    xr_time_array = xr_time_object.utc.datetime 
+    xr_time_object = _convert_to_astropy(xr_data.Epoch.data)
+    xr_time_array = np.datetime64(xr_time_object.utc.datetime, dtype='datetime64[ns]')
 
     xr_data['Epoch'] = xr_time_array
     if CLIP is True:
@@ -322,7 +324,7 @@ def init_qtn_data(trange, CREDENTIALS=None, CLIP=True):
                                        no_update=True,
                                        get_support_data=True)
     
-    cdf_qtn = cdflib.cdf_to_xarray(psp_sqtn[0], to_datetime=True, fillval_to_nan=True)
+    cdf_qtn = _cdf_to_xarray(psp_sqtn[0], to_datetime=True, fillval_to_nan=True)
 
     if CLIP:
         cdf_qtn = cdf_qtn.sel(Epoch=slice(trange[0], trange[-1]))

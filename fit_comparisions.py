@@ -13,7 +13,8 @@ import os, sys
 import pickle
 from datetime import datetime
 
-import src.functions as fn
+import gdf.src.functions as fn
+from gdf.src.utils import _cdf_to_xarray
 
 if __name__ == "__main__":
     trange = ['2024-12-24T10:00:00', '2024-12-24T12:00:00']
@@ -30,7 +31,7 @@ if __name__ == "__main__":
     v_rec = np.array([vel_rec[i] for i in range(500)])
 
 
-    cdfdata = cdflib.cdf_to_xarray('/home/michael/Research/GDF/biMax_Fits/spp_swp_spi_sf00_fits_2024-12-24_v00.cdf', to_datetime=True)
+    cdfdata = _cdf_to_xarray('/home/michael/Research/GDF/biMax_Fits/spp_swp_spi_sf00_fits_2024-12-24_v00.cdf', to_datetime=True)
     fit_sel = cdfdata.sel(Epoch=slice(start_time, end_time))
 
     mom_data = fn.init_psp_moms(trange, CREDENTIALS=creds, CLIP=True)

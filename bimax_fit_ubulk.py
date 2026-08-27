@@ -20,6 +20,8 @@ from gdf.src import misc_funcs as misc_fn
 from gdf.src import basis_funcs as basis_fn
 from gdf.src import plotter
 
+from gdf.src.utils import _cdf_to_xarray
+
 NAX = np.newaxis
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
 warnings.filterwarnings("ignore")
@@ -528,7 +530,7 @@ def run(config):
     creds = config.CREDS
     creds  = misc_fn.credential_reader(config.CREDS)
 
-    psp_vdf = cdflib.cdf_to_xarray(config.FILENAME)  
+    psp_vdf = _cdf_to_xarray(config.FILENAME)  
 
     gvdf_tstamp = gyrovdf(psp_vdf, trange,
                           Lmax=config.LMAX,
