@@ -114,7 +114,7 @@ def create_hybrid_Gmatrix(gvdf_tstamp, hybrid_dict):
 
     # filling in the (A(m1) - B(m2)) term ---> to ensure similarity between the two reconstructions
     G[hybrid_dict['ndata_A']+hybrid_dict['ndata_B']:hybrid_dict['ndata_A']+hybrid_dict['ndata_B']+hybrid_dict['nf'],
-      :hybrid_dict['nparams_A']] = hybrid_dict['Af']   # the \sqrt(lambda) will be multiplied later
+      :hybrid_dict['nparams_A']] = hybrid_dict['Af']# the \sqrt(lambda) will be multiplied later
     G[hybrid_dict['ndata_A']+hybrid_dict['ndata_B']:hybrid_dict['ndata_A']+hybrid_dict['ndata_B']+hybrid_dict['nf'],
       hybrid_dict['nparams_A']:hybrid_dict['nparams_A']+hybrid_dict['nparams_B']] = -hybrid_dict['Bf']   # the \sqrt(lambda) will be multiplied later
     
@@ -169,6 +169,7 @@ def inversion_hybrid(gvdf_tstamp, hybrid_dict):
     else:
         data_misfit, model_misfit = None, None
         gvdf_tstamp.lambda_knee = gvdf_tstamp.lam * 1.0
+        gvdf_tstamp.lambda_knee_idx = None
 
     # now adding the lambda corresponding to the knee of the trade-off curve
     G[hybrid_dict['ndata_A']+hybrid_dict['ndata_B']:hybrid_dict['ndata_A']+hybrid_dict['ndata_B']+hybrid_dict['nf'],
@@ -278,6 +279,18 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
     BfT = np.transpose(BfT, [1,0,2])
     hybrid_dict['Bf'] = np.reshape(BfT, (-1, hybrid_dict['nparams_B']))
 
+    hybrid_dict['Af_full'] = hybrid_dict['Af'] * 1.0
+    hybrid_dict['Bf_full'] = hybrid_dict['Bf'] * 1.0
+
+    vparas = np.abs(gvdf_tstamp.grid_points[:,1])
+    mask = (vparas <  np.min(vparas)+ 50)
+    # mask = np.ones_like(vparas, dtype=bool)
+
+    hybrid_dict['mask'] = mask
+    hybrid_dict['Af'] = hybrid_dict['Af'][mask,:]
+    hybrid_dict['Bf'] = hybrid_dict['Bf'][mask,:]
+    hybrid_dict['nf'] = hybrid_dict['Af'].shape[0]
+
     # calculating the coefficients
     m_polcap, m_cartesian, data_misfit, model_misfit = inversion_hybrid(gvdf_tstamp, hybrid_dict)
 
@@ -290,8 +303,8 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
     vdf_inv = (vdf_inv_polcap, vdf_inv_cartesian)
 
     # super-resolving the two models
-    vdf_super_polcap = hybrid_dict['Af'] @ m_polcap
-    vdf_super_cartesian = hybrid_dict['Bf'] @ m_cartesian
+    vdf_super_polcap = hybrid_dict['Af_full'] @ m_polcap
+    vdf_super_cartesian = hybrid_dict['Bf_full'] @ m_cartesian
     vdf_super = (vdf_super_polcap, vdf_super_cartesian)
 
     return vdf_inv, vdf_super, None, data_misfit, model_misfit

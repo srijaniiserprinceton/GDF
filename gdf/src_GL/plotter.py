@@ -201,22 +201,25 @@ def plot_Lcurve_knee_POLCAP(tidx, model_misfit, data_misfit, knee_idx, mu, ext='
         plt.close(fig)
 
 def plot_Lcurve_knee_HYBRID(tidx, model_misfit, data_misfit, knee_idx, mu, ext='png', SAVE=False):
-    fig = plt.figure()
-    plt.plot(model_misfit, data_misfit, 'b')
-    plt.plot(model_misfit, data_misfit, 'or')
-    plt.plot(model_misfit[knee_idx], data_misfit[knee_idx], 'xk', markersize=14)
-    plt.gca().text(0.95, 0.95, r'$\lambda = $' + f'{mu:.2e}',
-                   bbox=dict(facecolor='white', alpha=0.5, edgecolor='black', boxstyle='round,pad=0.5'),
-                   transform=plt.gca().transAxes, ha='right', va='top')
-    plt.grid(True)
-    plt.gca().set_aspect('equal')
-    plt.xlabel('Model Misfit', fontsize=14, fontweight='bold')
-    plt.ylabel('Data Misfit', fontsize=14, fontweight='bold')
-    plt.tight_layout()
+    if knee_idx:
+        fig = plt.figure()
+        plt.plot(model_misfit, data_misfit, 'b')
+        plt.plot(model_misfit, data_misfit, 'or')
+        plt.plot(model_misfit[knee_idx], data_misfit[knee_idx], 'xk', markersize=14)
+        plt.gca().text(0.95, 0.95, r'$\lambda = $' + f'{mu:.2e}',
+                    bbox=dict(facecolor='white', alpha=0.5, edgecolor='black', boxstyle='round,pad=0.5'),
+                    transform=plt.gca().transAxes, ha='right', va='top')
+        plt.grid(True)
+        plt.gca().set_aspect('equal')
+        plt.xlabel('Model Misfit', fontsize=14, fontweight='bold')
+        plt.ylabel('Data Misfit', fontsize=14, fontweight='bold')
+        plt.tight_layout()
 
-    if(SAVE):
-        plt.savefig(f'./Figures/kneeL_hybrid/kneeL_{tidx}.{ext}')
-        plt.close(fig)
+        if(SAVE):
+            plt.savefig(f'./Figures/kneeL_hybrid/kneeL_{tidx}.{ext}')
+            plt.close(fig)
+    else:
+        print("Lambda was assigned in config. ")
 
 def plot_CartSlep(xx, yy, gvdf_tstamp, f_data, tidx, ext='png', SAVE=False):
     # making the alpha arrays for even and odd functions

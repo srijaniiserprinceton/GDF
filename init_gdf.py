@@ -5,17 +5,17 @@
 config = {
     'global': {
         'METHOD'          : 'hybrid',
-        'TRANGE'          : ['2022-02-25T14:55:00', '2022-02-25T15:05:00'],
+        'TRANGE'          : ['2025-03-23T00:00:00', '2025-03-23T04:00:00'],
         'SPC_FIT'         : None,
         'SYNTHDATA_FILE'  : None,                                           # Path to a data file containing synthetic observation
         'CLIP'            : True,
         'RESAMPLE'        : None,
         'START_INDEX'     : 0,
         'NSTEPS'          : None,                                              # use None for entire TRANGE interval
-        'INDICES' : None, 
+        'INDICES'         : None,
         'CREDS_PATH'      : './config.json',                                  # path to the <.json> file containing credentials
-        'COUNT_THRESHOLD' : 3,
-        'SAVE_FIGS'       : True,
+        'COUNT_THRESHOLD' : 2,
+        'SAVE_FIGS'       : False,
         'SAVE_PKL'        : True,
         'SAVE_SUPRES'     : True,
         'MIN_METHOD'      : 'L-BFGS-B',
@@ -23,6 +23,8 @@ config = {
         'MCMC'            : False,
         'MCMC_WALKERS'    : 6,
         'MCMC_STEPS'      : 200,
+        'PARALLELIZED'    : True,
+        'N_CORES'         : 4,
     },
     'polcap': {
         'TH'              : None,
@@ -36,7 +38,7 @@ config = {
         'N2D_CART_MAX'    : 50,
     },
     'hybrid': {
-        'LAMBDA'          : None,
+        'LAMBDA'          : 2.0,
     },
     'quadrature': {
         'NQ_V'             : 2,

@@ -647,6 +647,7 @@ class gyrovdf:
 
         # making the initial estimate of counts per bin and bin edges in log space of knots 
         Nbins = int((np.log10(vmax) - np.log10(vmin)) / self.dlnv)
+        Nbins = max(1, Nbins)
         counts, bin_edges = np.histogram(np.log10(self.rfac_nonan), bins=Nbins)
 
         bin_edges += self.dlnv / 2.
@@ -849,6 +850,40 @@ def main(START_INDEX = 0, NSTEPS = None, INDICES = None, NPTS_SUPER=49,
         # Check the l2 and l3 times match (to ensure selection of correct magnetic field)
         if gvdf_tstamp.l2_time[tidx] != gvdf_tstamp.l3_time[tidx]:
             print('Index mismatch. Skipping time.')
+            continue
+
+        num_valid_points = np.sum(gvdf_tstamp.nanmask[tidx])
+        if num_valid_points < 24:
+            print(f'To few points to support reconstruction at {tidx}: Only {num_valid_points}. Interval defaulting to NaNs')
+
+            gvdf_tstamp.rec_quants['dens'][tidx, 0] = np.nan
+            gvdf_tstamp.rec_quants['vel'][tidx,:3] = np.nan
+            gvdf_tstamp.rec_quants['temp'][tidx,0] = np.nan
+            gvdf_tstamp.rec_quants['tani'][tidx,0] = np.nan
+
+            bundle = {
+                'den': np.nan,
+                'time': gvdf_tstamp.l2_time[tidx],
+                'component_temp': (np.nan, np.nan),
+                'scalar_temp': np.nan,
+                'q_para': np.nan,
+                'q_comps': [np.nan, np.nan],
+                'u_final': np.array([np.nan, np.nan, np.nan]),
+                'data_misfit': None,
+                'model_misfit': None
+            }
+
+            if MCMC:
+                bundle['u_corr']  = np.array([np.nan, np.nan, np.nan])
+                bundle['u_corr_scipy'] = np.array([np.nan, np.nan, np.nan])
+                bundle['vperp_12_covmat'] = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+                bundle['sigma_x'] = np.nan
+                bundle['sigma_y'] = np.nan
+                bundle['sigma_z'] = np.nan
+
+            vdf_rec_bundle[tidx] = bundle
+            
+            # Skip the rest of the loop for this timestamp
             continue
 
         # initializing the vdf data to optimize (this is the normalized and logarithmic value)
