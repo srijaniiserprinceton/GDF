@@ -5,7 +5,7 @@
 config = {
     'global': {
         'METHOD'          : 'hybrid',
-        'TRANGE'          : ['2025-03-23T00:00:00', '2025-03-23T04:00:00'],
+        'TRANGE'          : ['2025-03-23T00:00:00', '2025-03-23T00:01:00'],
         'SPC_FIT'         : None,
         'SYNTHDATA_FILE'  : None,                                           # Path to a data file containing synthetic observation
         'CLIP'            : True,
@@ -15,13 +15,13 @@ config = {
         'INDICES'         : None,
         'CREDS_PATH'      : './config.json',                                  # path to the <.json> file containing credentials
         'COUNT_THRESHOLD' : 2,
-        'SAVE_FIGS'       : False,
+        'SAVE_FIGS'       : True,
         'SAVE_PKL'        : True,
         'SAVE_SUPRES'     : True,
         'MIN_METHOD'      : 'L-BFGS-B',
         'NPTS_SUPER'      : 49,
         'MCMC'            : False,
-        'MCMC_WALKERS'    : 6,
+        'MCMC_WALKERS'    : 10,
         'MCMC_STEPS'      : 200,
         'PARALLELIZED'    : True,
         'N_CORES'         : 4,

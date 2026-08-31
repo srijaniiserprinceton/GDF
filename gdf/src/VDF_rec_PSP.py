@@ -232,10 +232,11 @@ class gyrovdf:
             self.l3_time = data.Epoch.data
             # getting the QTN densities if available
             try:
-                self.qtn_data = fn.init_qtn_data(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
+                qtn_data = fn.init_qtn_data(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
+                self.qtn_electron = qtn_data['electron_density'].values
             except:
                 print("Failed to load in qtn data!")
-                self.qtn_data = None
+                self.qtn_electron = None
 
             if self.spc_fit:        # Note: In progress!
                 l3_data = spc.get_spc_l3(trange, CREDENTIALS=CREDENTIALS, CLIP=CLIP)
@@ -282,7 +283,7 @@ class gyrovdf:
             data['VEL_INST'] = self.v_span
             data['MAGF_INST'] = self.b_span
 
-            self.qtn_data = None
+            self.qtn_electron = None
             self.l3_time = time
 
         # Get the b-unit vector
@@ -1035,6 +1036,7 @@ def main(START_INDEX = 0, NSTEPS = None, INDICES = None, NPTS_SUPER=49,
         # populating the dictionary containing the super-resolved grid (for plasma solvers, etc.)
         if(SAVE_SUPRES):
             supres_bundle = {}
+            supres_bundle['time'] = gvdf_tstamp.l2_time[tidx]
             # the super-resololved data and grid
             supres_bundle['vdf_supres'] = vdf_super
             supres_bundle['vperp_supres'] = gvdf_tstamp.grid_points[:,0]

@@ -282,9 +282,14 @@ def super_resolution(gvdf_tstamp, tidx, NPTS):
     hybrid_dict['Af_full'] = hybrid_dict['Af'] * 1.0
     hybrid_dict['Bf_full'] = hybrid_dict['Bf'] * 1.0
 
-    vparas = np.abs(gvdf_tstamp.grid_points[:,1])
-    mask = (vparas <  np.min(vparas)+ 50)
-    # mask = np.ones_like(vparas, dtype=bool)
+    raw_vparas = np.abs(gvdf_tstamp.grid_points[:,1])
+    
+    grid_dim = int(np.sqrt(hybrid_dict['nf']))
+    vparas_2d = np.reshape(raw_vparas, (grid_dim, grid_dim))
+    vparas_transposed = np.transpose(vparas_2d).flatten()
+
+    # Create the mask using the properly aligned array
+    mask = (vparas_transposed > np.min(vparas_transposed) + 100)
 
     hybrid_dict['mask'] = mask
     hybrid_dict['Af'] = hybrid_dict['Af'][mask,:]

@@ -410,9 +410,8 @@ import astropy.units as u
 def hybrid_plotter(gvdf_tstamp, vdf_inv, vdf_super, tidx,
                    model_misfit=None, data_misfit=None, GRID=True, SAVE_FIGS=False, ext='png'):
     vdf_super_polcap, vdf_super_cartesian = vdf_super
-    print(gvdf_tstamp.qtn_data)
-    if gvdf_tstamp.qtn_data is not None:
-        VA = ((np.linalg.norm(gvdf_tstamp.b_span[tidx]) * u.nT)/np.sqrt(c.mu0 * c.m_p * np.nanmean(gvdf_tstamp.qtn_data.electron_density) * u.cm**(-3))).to(u.km/u.s).value
+    if gvdf_tstamp.qtn_electron is not None:
+        VA = ((np.linalg.norm(gvdf_tstamp.b_span[tidx]) * u.nT)/np.sqrt(c.mu0 * c.m_p * np.nanmean(gvdf_tstamp.qtn_electron) * u.cm**(-3))).to(u.km/u.s).value
     else:
         VA = ((np.linalg.norm(gvdf_tstamp.b_span[tidx]) * u.nT)/np.sqrt(c.mu0 * c.m_p * np.nanmean(gvdf_tstamp.rec_quants['dens'][tidx,0]) * u.cm**(-3))).to(u.km/u.s).value
 
@@ -530,7 +529,7 @@ def context_axis_plot(ax3, gvdf_tstamp, tidx):
     colors = ['black', 'red', 'green']
 
     # plotting the QTN densities if available
-    if(gvdf_tstamp.qtn_data is not None):
+    if(gvdf_tstamp.qtn_electron is not None):
         inset_axes_list[0].plot(gvdf_tstamp.qtn_electron,
                                 gvdf_tstamp.qtn_electron, 'xb', alpha=0.5)
 
